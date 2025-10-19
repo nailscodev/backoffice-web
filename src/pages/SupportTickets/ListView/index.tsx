@@ -6,7 +6,7 @@ import TicketsData from './TicketsData';
 
 
 const ListView = () => {
-    document.title="Tickets List | Velzon - React Admin & Dashboard Template";
+    document.title="Tickets List | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <div className="page-content">

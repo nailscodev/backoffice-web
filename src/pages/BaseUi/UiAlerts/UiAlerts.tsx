@@ -14,7 +14,7 @@ import { DefaultAlertsExample, BorderlessExample, DismissingExample, LinkColorEx
 
 
 const UiAlerts = () => {
-    document.title="Alerts | Velzon - React Admin & Dashboard Template";
+    document.title="Alerts | Nails & Co Midtown - Admin Panel";
     const [show, setShow] = useState<boolean>(false);
 
     return (

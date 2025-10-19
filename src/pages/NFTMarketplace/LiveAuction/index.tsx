@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { aution, topCreator, topDrop } from "../../../common/data";
 
 const LiveAuction = () => {
-    document.title = "Live Auction | Velzon - React Admin & Dashboard Template";
+    document.title = "Live Auction | Nails & Co Midtown - Admin Panel";
     const [displayCategory, setCategory] = useState<string>("All");
 
     const renderer = ({ days, hours, minutes, seconds, completed }:any) => {

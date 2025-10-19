@@ -11,7 +11,7 @@ import { DefaultProgressExample, BackgroundColorExample, LabelExample, MultipleB
 
 
 const UiProgress = () => {
-    document.title="Progress | Velzon - React Admin & Dashboard Template";
+    document.title="Progress | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <UiContent />

@@ -33,7 +33,7 @@ const UiSwiperSlider = () => {
 
    
 
-    document.title="Swiper Slider | Velzon - React Admin & Dashboard Template";
+    document.title="Swiper Slider | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

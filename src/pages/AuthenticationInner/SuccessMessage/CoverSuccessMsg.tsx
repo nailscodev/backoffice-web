@@ -5,7 +5,7 @@ import { Card, Col, Container, Row } from 'reactstrap';
 import AuthSlider from '../authCarousel';
 
 const CoverSuccessMsg = () => {
-document.title ="Success Message | Velzon - React Admin & Dashboard Template";
+document.title ="Success Message | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             

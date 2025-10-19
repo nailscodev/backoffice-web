@@ -190,7 +190,7 @@ const UiTabs = () => {
         }
     };
 
-    document.title = "Tabs | Velzon - React Admin & Dashboard Template";
+    document.title = "Tabs | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

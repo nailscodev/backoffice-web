@@ -50,7 +50,7 @@ const FormValidations = () => {
     },
   });
 
-  document.title = "Validation | Velzon - React Admin & Dashboard Template";
+  document.title = "Validation | Nails & Co Midtown - Admin Panel";
 
   return (
     <React.Fragment>

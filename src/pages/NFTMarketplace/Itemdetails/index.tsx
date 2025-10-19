@@ -26,7 +26,7 @@ import SimpleBar from "simplebar-react";
 
 
 const ItemDetails = () => {
-    document.title = "Item Details | Velzon - React Admin & Dashboard Template";
+    document.title = "Item Details | Nails & Co Midtown - Admin Panel";
 
     const [customActiveTab, setcustomActiveTab] = useState<any>("1");
     const toggleCustom = (tab:any) => {

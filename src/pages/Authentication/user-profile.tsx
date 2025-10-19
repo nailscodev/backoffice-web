@@ -103,7 +103,7 @@ const UserProfile = () => {
     }
   });
 
-  document.title = "Profile | Velzon - React Admin & Dashboard Template";
+  document.title = "Profile | Nails & Co Midtown - Admin Panel";
   return (
     <React.Fragment>
       <div className="page-content mt-lg-5">

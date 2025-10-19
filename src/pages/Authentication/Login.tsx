@@ -15,6 +15,7 @@ import { useFormik } from "formik";
 import { loginUser, socialLogin, resetLoginFlag } from "../../slices/thunks";
 
 import logoLight from "../../assets/images/logo-light.png";
+import { APIClient, setAuthorization, saveAuthTokens } from '../../helpers/api_helper';
 import { createSelector } from 'reselect';
 //import images
 
@@ -39,6 +40,7 @@ const Login = (props: any) => {
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
 
     const [loader, setLoader] = useState<boolean>(false);
+    const [loginError, setLoginError] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -64,14 +66,84 @@ const Login = (props: any) => {
             email: Yup.string().required("Please Enter Your Email"),
             password: Yup.string().required("Please Enter Your Password"),
         }),
-        onSubmit: (values) => {
-            dispatch(loginUser(values, props.router.navigate));
-            setLoader(true)
+        onSubmit: async (values) => {
+            setLoginError(null);
+            setLoader(true);
+            const api = new APIClient();
+            try {
+                // helper to read cookie
+                const getCookie = (name: string) => {
+                    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+                    return match ? decodeURIComponent(match[2]) : null;
+                };
+
+                let xsrfToken: string | null = null;
+
+                // Try the explicit CSRF token endpoint (matches Postman collection)
+                try {
+                    const pre: any = await api.get('/api/v1/csrf/token');
+                    if (pre && pre.data && pre.data.token) xsrfToken = pre.data.token;
+                } catch (e) {
+                    // Ignore error and try a generic GET that may set a cookie
+                    try { await api.get('/api/v1'); } catch { /* ignore */ }
+                }
+
+                // If we still don't have token, try reading cookie
+                xsrfToken = xsrfToken || getCookie('XSRF-TOKEN');
+
+                const headers: any = {};
+                if (xsrfToken) headers['X-CSRF-Token'] = xsrfToken;
+
+                const data: any = await api.create('/api/v1/users/login', { usernameOrEmail: values.email, password: values.password }, Object.keys(headers).length ? { headers } : undefined);
+
+                // api_helper returns response.data (see interceptor). Expecting LoginResponseDto
+                if (!data) {
+                    setLoginError('Respuesta vacía del servidor.');
+                    setLoader(false);
+                    return;
+                }
+
+                // If backend returns token in body, set it for subsequent requests
+                if (data.token) {
+                    // set axios default for future calls
+                    setAuthorization(data.token);
+                    // store fallback token (replace with secure storage as needed)
+                    sessionStorage.setItem('authUser', JSON.stringify({ token: data.token, ...data }));
+                }
+
+                setLoader(false);
+                // dispatch optional redux login success if desired
+                // navigate to root or dashboard
+                props.router.navigate('/');
+            } catch (err: any) {
+                setLoader(false);
+                // api_helper rejects with a string message (see interceptor), or an Error
+                const message = typeof err === 'string' ? err : (err && err.message) ? err.message : 'Error de conexión con el servidor.';
+                setLoginError(message);
+            }
         }
     });
 
     const signIn = (type: any) => {
         dispatch(socialLogin(type, props.router.navigate));
+    };
+
+    const simulateLogin = () => {
+        // fake tokens for development/testing
+        const fakeJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.FAKE_PAYLOAD.FAKE_SIG';
+        const fakeCsrf = 'fake-csrf-token-1234567890';
+        // minimal user data expected by UI components
+        const fakeUserData = {
+            id: '00000000-0000-0000-0000-000000000000',
+            first_name: 'Dev',
+            last_name: 'User',
+            email: 'dev@local',
+        };
+
+        // save tokens and optional extra data (include data.* to match backend shape)
+        saveAuthTokens(fakeJwt, fakeCsrf, { demo: true, data: fakeUserData });
+        // navigate to home/dashboard
+        props.router.navigate('/');
     };
 
 
@@ -90,7 +162,7 @@ const Login = (props: any) => {
         }
     }, [dispatch, errorMsg]);
 
-    document.title = "Basic SignIn | Velzon - React Admin & Dashboard Template";
+    document.title = "Basic SignIn | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <ParticlesAuth>
@@ -115,7 +187,7 @@ const Login = (props: any) => {
                                     <CardBody className="p-4">
                                         <div className="text-center mt-2">
                                             <h5 className="text-primary">Welcome Back !</h5>
-                                            <p className="text-muted">Sign in to continue to Velzon.</p>
+                                            <p className="text-muted">Sign in to continue.</p>
                                         </div>
                                         {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
                                         <div className="p-2 mt-4">
@@ -183,6 +255,9 @@ const Login = (props: any) => {
                                                         {loader && <Spinner size="sm" className='me-2'> Loading... </Spinner>}
                                                         Sign In
                                                     </Button>
+                                                </div>
+                                                <div className="mt-2 text-center">
+                                                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={simulateLogin}>Simulate Login (dev)</button>
                                                 </div>
 
                                                 <div className="mt-4 text-center">

@@ -12,7 +12,7 @@ import ParticlesAuth from "../ParticlesAuth";
 import logoLight from "../../../assets/images/logo-light.png";
 
 const BasicSignUp = () => {
-    document.title = "Basic SignUp | Velzon - React Admin & Dashboard Template";
+    document.title = "Basic SignUp | Nails & Co Midtown - Admin Panel";
 
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
 

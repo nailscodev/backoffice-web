@@ -124,7 +124,7 @@ function EcommerceProductDetail(props:any) {
     }
   };
 
-document.title ="Product Details | Velzon - React Admin & Dashboard Template";
+document.title ="Product Details | Nails & Co Midtown - Admin Panel";
   return (
     <div className="page-content">
       <Container fluid>        

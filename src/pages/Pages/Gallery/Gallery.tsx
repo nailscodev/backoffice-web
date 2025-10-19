@@ -10,7 +10,7 @@ import "yet-another-react-lightbox/styles.css";
 
 const Gallery = () => {
 
-  document.title = "Gallery | Velzon - React Admin & Dashboard Template";
+  document.title = "Gallery | Nails & Co Midtown - Admin Panel";
 
   const [displayCategory, setCategory] = useState<string>("All");
   const [index, setIndex] = useState<any>(-1);

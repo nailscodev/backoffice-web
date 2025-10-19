@@ -7,7 +7,7 @@ import ParticlesAuth from "../ParticlesAuth";
 import logoLight from "../../../assets/images/logo-light.png";
 
 const BasicLogout = () => {
-    document.title = "Log Out | Velzon - React Admin & Dashboard Template";
+    document.title = "Log Out | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <ParticlesAuth>
@@ -34,7 +34,7 @@ const BasicLogout = () => {
 
                                         <div className="mt-4 pt-2">
                                             <h5>You are Logged Out</h5>
-                                            <p className="text-muted">Thank you for using <span className="fw-semibold">velzon</span> admin template</p>
+                                            <p className="text-muted">Thank you.</p>
                                             <div className="mt-4">
                                                 <Link to="/auth-signin-basic" className="btn btn-success w-100">Sign In</Link>
                                             </div>

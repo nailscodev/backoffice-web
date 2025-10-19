@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { NFTRanking } from "../../../common/data";
 
 const Ranking = () => {
-    document.title = "Ranking | Velzon - React Admin & Dashboard Template";
+    document.title = "Ranking | Nails & Co Midtown - Admin Panel";
 
     // Ranking Column
     const columns = useMemo(

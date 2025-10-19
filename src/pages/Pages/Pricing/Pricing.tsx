@@ -16,7 +16,7 @@ const Pricing = () => {
         }
     };
 
-    document.title = "Pricing | Velzon - React Admin & Dashboard Template";
+    document.title = "Pricing | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

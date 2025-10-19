@@ -62,7 +62,7 @@ const FormPickers = () => {
   maxDate.setDate(today.getDate() + 365);
 
 
-  document.title = "Pickers | Velzon - React Admin & Dashboard Template";
+  document.title = "Pickers | Nails & Co Midtown - Admin Panel";
 
   return (
     <React.Fragment>

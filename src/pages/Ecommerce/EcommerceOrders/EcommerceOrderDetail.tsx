@@ -34,7 +34,7 @@ const EcommerceOrderDetail = (props:any) => {
     setcol3(!col3);
   }
 
-document.title ="Order Details | Velzon - React Admin & Dashboard Template";
+document.title ="Order Details | Nails & Co Midtown - Admin Panel";
   return (
     <div className="page-content">
       <Container fluid>        

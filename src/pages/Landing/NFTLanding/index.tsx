@@ -11,7 +11,7 @@ import CTA from './CTA';
 import Footer from "./footer";
 
 const index = () => {
-    document.title = " Landing | Velzon - React Admin & Dashboard Template";
+    document.title = " Landing | Nails & Co Midtown - Admin Panel";
 
     window.onscroll = function () {
         scrollFunction();

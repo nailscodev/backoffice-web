@@ -60,7 +60,7 @@ const Masks = () => {
     setNumber(e.target.rawValue);
   }
 
-document.title ="Input Masks | Velzon - React Admin & Dashboard Template";
+document.title ="Input Masks | Nails & Co Midtown - Admin Panel";
 
   return (
     <React.Fragment>

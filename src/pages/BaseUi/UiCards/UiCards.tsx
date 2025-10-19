@@ -59,7 +59,7 @@ const UiCards = () => {
         }, 3000);
     };
 
-    document.title = "Cards | Velzon - React Admin & Dashboard Template";
+    document.title = "Cards | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

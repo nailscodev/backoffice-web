@@ -10,7 +10,7 @@ import AuthSlider from '../authCarousel';
 
 
 const CoverSignUp = () => {
-    document.title = "Cover SignUp | Velzon - React Admin & Dashboard Template";
+    document.title = "Cover SignUp | Nails & Co Midtown - Admin Panel";
 
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
 

@@ -5,7 +5,7 @@ import { SimplePie, SimpleDonut, UpdateDonut, MonochromePie, GradientDonut, Patt
 
 
 const PieCharts = () => {
-    document.title = "Pie Charts | Velzon - React Admin & Dashboard Template";
+    document.title = "Pie Charts | Nails & Co Midtown - Admin Panel";
     return (
         <div className="page-content">
             <Container fluid>

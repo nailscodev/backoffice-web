@@ -6,7 +6,7 @@ import List from './List';
 
 const ProjectList = () => {
 
-    document.title = "Project List | Velzon - React Admin & Dashboard Template";
+    document.title = "Project List | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

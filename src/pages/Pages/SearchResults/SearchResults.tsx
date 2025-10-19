@@ -40,7 +40,7 @@ const SearchResults = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-document.title="Search Results | Velzon - React Admin & Dashboard Template";
+document.title="Search Results | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

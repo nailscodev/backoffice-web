@@ -18,7 +18,7 @@ import { DefultExample, NestingExample, MediaExample } from './UiMediaobjectCode
 
 
 const UiMediaobject = () => {
-    document.title="Media object | Velzon - React Admin & Dashboard Template";
+    document.title="Media object | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <UiContent />

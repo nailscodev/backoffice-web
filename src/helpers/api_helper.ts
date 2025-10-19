@@ -5,6 +5,12 @@ const { api } = config;
 
 // default
 axios.defaults.baseURL = api.API_URL;
+// send cookies (httpOnly) when backend uses them
+axios.defaults.withCredentials = true;
+// Ensure axios will read the CSRF cookie and send it in the header automatically
+// Server should set a cookie named 'XSRF-TOKEN' (or change these names to match server)
+axios.defaults.xsrfCookieName = 'XSRF-TOKEN';
+axios.defaults.xsrfHeaderName = 'X-CSRF-Token';
 // content type
 axios.defaults.headers.post["Content-Type"] = "application/json";
 
@@ -46,6 +52,48 @@ const setAuthorization = (token : string) => {
   axios.defaults.headers.common["Authorization"] = "Bearer " + token;
 };
 
+/**
+ * Persist JWT and optional csrfToken in sessionStorage and set axios defaults
+ */
+const saveAuthTokens = (token: string | null, csrfToken?: string | null, extra?: any) => {
+  if (token) {
+    setAuthorization(token);
+  }
+
+  if (csrfToken) {
+    // also set default header for CSRF
+    axios.defaults.headers.common['X-CSRF-Token'] = csrfToken;
+  }
+
+  // persist minimal authUser object for page reloads
+  const authUserObj: any = {};
+  if (token) authUserObj.token = token;
+  if (csrfToken) authUserObj.csrfToken = csrfToken;
+  if (extra && typeof extra === 'object') {
+    Object.assign(authUserObj, extra);
+  }
+
+  try {
+    sessionStorage.setItem('authUser', JSON.stringify(authUserObj));
+  } catch (e) {
+    // ignore storage errors
+  }
+};
+
+const clearAuthTokens = () => {
+  try {
+    sessionStorage.removeItem('authUser');
+  } catch (e) {
+    // ignore
+  }
+  delete axios.defaults.headers.common['Authorization'];
+  delete axios.defaults.headers.common['X-CSRF-Token'];
+};
+
+const setCsrfToken = (csrfToken: string) => {
+  axios.defaults.headers.common['X-CSRF-Token'] = csrfToken;
+};
+
 class APIClient {
   /**
    * Fetches data from the given URL
@@ -73,8 +121,8 @@ class APIClient {
   /**
    * Posts the given data to the URL
    */
-  create = (url: string, data: any): Promise<AxiosResponse> => {
-    return axios.post(url, data);
+  create = (url: string, data: any, config?: AxiosRequestConfig): Promise<AxiosResponse> => {
+    return axios.post(url, data, config);
   };
 
   /**
@@ -105,4 +153,4 @@ const getLoggedinUser = () => {
   }
 };
 
-export { APIClient, setAuthorization, getLoggedinUser };
+export { APIClient, setAuthorization, getLoggedinUser, saveAuthTokens, clearAuthTokens, setCsrfToken };

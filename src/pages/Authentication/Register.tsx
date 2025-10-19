@@ -74,7 +74,7 @@ const Register = () => {
 
     }, [dispatch, success, error, history]);
 
-    document.title = "Basic SignUp | Velzon - React Admin & Dashboard Template";
+    document.title = "Basic SignUp | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

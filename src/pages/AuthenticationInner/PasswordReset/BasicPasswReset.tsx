@@ -9,7 +9,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
 const BasicPasswReset = () => {
-    document.title = "Reset Password | Velzon - React Admin & Dashboard Template";
+    document.title = "Reset Password | Nails & Co Midtown - Admin Panel";
 
     const validation: any = useFormik({
         enableReinitialize: true,
@@ -50,7 +50,7 @@ const BasicPasswReset = () => {
                                     <CardBody className="p-4">
                                         <div className="text-center mt-2">
                                             <h5 className="text-primary">Forgot Password?</h5>
-                                            <p className="text-muted">Reset password with velzon</p>
+                                            <p className="text-muted">Reset password</p>
                                             <i className="ri-mail-send-line display-5 text-success"></i>
                                         </div>
 

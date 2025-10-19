@@ -28,7 +28,7 @@ const CompaniesList = () => {
   useEffect(() => {
     setCompaniesList(currentdata)
   }, [currentdata]);
-  document.title = "Companies | Velzon - React Admin & Dashboard Template";
+  document.title = "Companies | Nails & Co Midtown - Admin Panel";
 
   return (
     <React.Fragment>

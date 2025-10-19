@@ -35,7 +35,7 @@ import avtarImage6 from '../../../assets/images/users/avatar-6.jpg';
 
 
 const BasicTables = () => {
-    document.title = "Basic Tables | Velzon - React Admin & Dashboard Template";
+    document.title = "Basic Tables | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <UiContent />

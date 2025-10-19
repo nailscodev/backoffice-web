@@ -7,7 +7,7 @@ import ParticlesAuth from "../ParticlesAuth";
 import logoLight from "../../../assets/images/logo-light.png";
 
 const BasicSuccessMsg = () => {
-    document.title = "Success Message | Velzon - React Admin & Dashboard Template";
+    document.title = "Success Message | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <ParticlesAuth>

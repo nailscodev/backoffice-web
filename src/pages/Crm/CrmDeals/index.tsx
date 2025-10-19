@@ -110,7 +110,7 @@ const CrmDeals = () => {
   });
 
 
-  document.title = "Deals | Velzon - React Admin & Dashboard Template";
+  document.title = "Deals | Nails & Co Midtown - Admin Panel";
 
   return (
     <React.Fragment>

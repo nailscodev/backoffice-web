@@ -26,7 +26,7 @@ import {
 
 
 const UiBadges = () => {
-    document.title = "Badges | Velzon - React Admin & Dashboard Template";
+    document.title = "Badges | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <UiContent />

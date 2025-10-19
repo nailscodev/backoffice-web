@@ -75,7 +75,7 @@ interface ImgData {
 }
 
 const ToDoList = () => {
-    document.title = "To Do Lists | Velzon - React Admin & Dashboard Template";
+    document.title = "To Do Lists | Nails & Co Midtown - Admin Panel";
 
     const dispatch: any = useDispatch();
 
@@ -431,7 +431,7 @@ const ToDoList = () => {
                                     </button>
                                 </div>
                                 <div className="col-sm order-3 order-sm-2 mt-3 mt-sm-0">
-                                    <h5 className="fw-semibold mb-0">Velzon Admin & Dashboard <span className="badge bg-primary align-bottom ms-2">v1.0.0</span></h5>
+                                    <h5 className="fw-semibold mb-0">Nails & Co. Midtown - Admin Panel <span className="badge bg-primary align-bottom ms-2">v1.0.0</span></h5>
                                 </div>
 
                                 <div className="col-auto order-2 order-sm-3 ms-auto">

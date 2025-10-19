@@ -33,7 +33,7 @@ const ExportCSVModal = ({ show, onCloseClick, data } : ExportCSVModalProps) => {
               >
                   Close
               </button>
-              <CSVLink
+              {/* <CSVLink
                   data={data}
                   type="button"
                   onClick={onCloseClick}
@@ -41,7 +41,7 @@ const ExportCSVModal = ({ show, onCloseClick, data } : ExportCSVModalProps) => {
                   id="delete-record"
               >
               Download
-              </CSVLink>
+              </CSVLink> */}
               </div>
       </ModalBody>
     </Modal>

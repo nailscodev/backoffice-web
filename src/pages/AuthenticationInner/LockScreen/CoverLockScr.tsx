@@ -12,7 +12,7 @@ import avatar1 from "../../../assets/images/users/avatar-1.jpg";
 import AuthSlider from '../authCarousel';
 
 const CoverLockScreen = () => {
-    document.title = "Lock Screen | Velzon - React Admin & Dashboard Template";
+    document.title = "Lock Screen | Nails & Co Midtown - Admin Panel";
 
     const validation: any = useFormik({
         enableReinitialize: true,

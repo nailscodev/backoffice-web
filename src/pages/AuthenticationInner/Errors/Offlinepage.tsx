@@ -3,7 +3,7 @@ import { Button, Card, CardBody, Col, Container, Row } from 'reactstrap';
 
 
 const Offlinepage = () => {
-    document.title = "Offline Page | Velzon - React Admin & Dashboard Template";
+    document.title = "Offline Page | Nails & Co Midtown - Admin Panel";
 
     const refresh = () => {
         window.location.reload();

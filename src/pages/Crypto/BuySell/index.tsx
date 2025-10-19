@@ -8,7 +8,7 @@ import Market from './Market';
 
 
 const BuySell = () => {
-    document.title="Buy & Sell | Velzon - React Admin & Dashboard Template";
+    document.title="Buy & Sell | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <div className="page-content">

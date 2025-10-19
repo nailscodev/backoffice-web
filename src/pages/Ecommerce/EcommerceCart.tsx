@@ -66,7 +66,7 @@ const EcommerceCart = () => {
     );
   }
 
-document.title ="Shopping Cart | Velzon - React Admin & Dashboard Template";
+document.title ="Shopping Cart | Nails & Co Midtown - Admin Panel";
   return (
     <React.Fragment>
       <div className="page-content">

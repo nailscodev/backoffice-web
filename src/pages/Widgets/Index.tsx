@@ -12,12 +12,12 @@ import EcommerceWidgets from './EcommerceWidgets';
 import CreditCard from './CreditCard';
 
 const Widgets = () => {
-    document.title = "Widgets | Velzon - React Admin & Dashboard Template";
+    document.title = "Widgets | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title="Widgets" pageTitle="Velzon" />
+                    <BreadCrumb title="Widgets" pageTitle="Nails & Co." />
                     {/* Tile Boxs Widgets */}
                     <TileBoxs />
 

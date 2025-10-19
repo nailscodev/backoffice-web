@@ -20,7 +20,7 @@ import "quill/dist/quill.snow.css";
 const FormEditor = () => {
   const { quillRef } = useQuill();
 
-  document.title = "Editors | Velzon - React Admin & Dashboard Template";
+  document.title = "Editors | Nails & Co Midtown - Admin Panel";
   return (
     <React.Fragment>
       <UiContent />

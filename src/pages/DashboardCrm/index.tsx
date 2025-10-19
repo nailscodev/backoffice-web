@@ -12,7 +12,7 @@ import Widgets from './Widgets';
 
 
 const DashboardCrm = () => {
-    document.title="CRM | Velzon - React Admin & Dashboard Template";
+    document.title="CRM | Nails & Co Midtown - Admin Panel";
     return (
         <React.Fragment>
             <div className="page-content">

@@ -9,7 +9,7 @@ import { useFormik } from "formik";
 import AuthSlider from '../authCarousel';
 
 const CoverSignIn = () => {
-    document.title = "Cover SignIn | Velzon - React Admin & Dashboard Template";
+    document.title = "Cover SignIn | Nails & Co Midtown - Admin Panel";
 
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
 

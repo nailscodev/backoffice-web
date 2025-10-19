@@ -46,7 +46,7 @@ const UiNotifications = () => {
     const closeiconnotify = () => toast("Welcome Back ! This is a Toast Notification", { position: "top-right", hideProgressBar: true, className: 'bg-success text-white' });
     const durationnotify = () => toast("Toast Duration 5s", { position: "top-right", hideProgressBar: false, className: 'bg-success text-white' });
 
-    document.title = "Notifications | Velzon - React Admin & Dashboard Template";
+    document.title = "Notifications | Nails & Co Midtown - Admin Panel";
 
     return (
         <React.Fragment>

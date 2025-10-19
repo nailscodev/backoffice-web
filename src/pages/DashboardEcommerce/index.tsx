@@ -11,7 +11,7 @@ import StoreVisits from "./StoreVisits";
 import TopSellers from "./TopSellers";
 
 const DashboardEcommerce = () => {
-  document.title = "Dashboard | Velzon - React Admin & Dashboard Template";
+  document.title = "Nails & Co Midtown - Admin Panel";
 
   const [rightColumn, setRightColumn] = useState<boolean>(true);
   const toggleRightColumn = () => {
