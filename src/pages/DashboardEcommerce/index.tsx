@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { Col, Container, Row } from "reactstrap";
 import Widget from "./Widgets";
-import BestSellingProducts from "./BestSellingProducts";
+import BestSellingServices from "./BestSellingServices";
 import RecentActivity from "./RecentActivity";
-import RecentOrders from "./RecentOrders";
-import Revenue from "./Revenue";
-import SalesByLocations from "./SalesByLocations";
+import UpcomingServices from "./UpcomingServices";
 import Section from "./Section";
 import StoreVisits from "./StoreVisits";
 import TopSellers from "./TopSellers";
@@ -30,18 +28,12 @@ const DashboardEcommerce = () => {
                   <Widget />
                 </Row>
                 <Row>
-                  <Col xl={8}>
-                    <Revenue />
-                  </Col>
-                  <SalesByLocations />
-                </Row>
-                <Row>
-                  <BestSellingProducts />
+                  <BestSellingServices />
                   <TopSellers />
                 </Row>
                 <Row>
                   <StoreVisits />
-                  <RecentOrders />
+                  <UpcomingServices />
                 </Row>
               </div>
             </Col>

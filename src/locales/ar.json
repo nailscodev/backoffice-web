@@ -209,4 +209,84 @@
     "Terms Condition": "شروط الشرط",
     "pages": "الصفحات",
     "React Datatables": "تفاعل جداول البيانات"
+,
+    "menu.admin.header": "لوحة الإدارة",
+    "menu.admin.dashboard": "لوحة التحكم",
+    "menu.admin.dashboard.daily_summary": "ملخص النوبات اليومية",
+    "menu.admin.dashboard.total_revenue": "إجمالي الإيرادات (نقدًا / بطاقة)",
+    "menu.admin.dashboard.alerts": "تنبيهات: الإلغاءات والطلبات المعلقة",
+
+    "menu.admin.revenue.title": "إدارة الإيرادات",
+    "menu.admin.revenue.daily_revenue": "الإيرادات اليومية",
+    "menu.admin.revenue.completed_shifts_list": "قائمة النوبات المكتملة",
+    "menu.admin.revenue.manual_adjustments": "تعديلات يدوية",
+    "menu.admin.revenue.external_transactions": "المعاملات الخارجية (خارج النظام)",
+
+    "menu.admin.reservations.title": "إدارة الحجوزات",
+    "menu.admin.reservations.list": "قائمة النوبات (CRUD)",
+    "menu.admin.reservations.calendar_view": "عرض التقويم",
+
+    "menu.admin.customers.title": "العملاء",
+    "menu.admin.customers.register": "تسجيل",
+    "menu.admin.customers.filters": "مرشحات",
+    "menu.admin.customers.history": "سجل النوبات",
+
+    "menu.admin.services.title": "الخدمات",
+    "menu.admin.services.list": "الخدمات",
+    "menu.admin.services.addons": "الإضافات",
+    "menu.admin.services.actions": "الإجراءات",
+
+    "menu.admin.staff.title": "المحترفون / الموظفين",
+    "menu.admin.staff.basic_register": "تسجيل أساسي",
+    "menu.admin.staff.availability": "التوفر والجداول",
+    "menu.admin.staff.shift_assignment": "تعيين النوبات",
+
+    "menu.admin.reports.title": "التقارير",
+    "menu.admin.reports.by_date": "مرشحات حسب التاريخ",
+    "menu.admin.reports.metrics": "المقاييس",
+
+    "menu.admin.settings.title": "الإعدادات",
+    "menu.admin.settings.users_roles": "المستخدمون والأدوار",
+    "menu.admin.settings.authentication": "المصادقة",
+    "menu.admin.settings.language": "اللغة",
+
+    "dashboard.kpis.daily_shifts": "ملخص النوبات اليومية",
+    "dashboard.kpis.daily_shifts_sub": "النوبات المجدولة والمكتملة اليوم",
+    "dashboard.kpis.total_revenue": "إجمالي الإيرادات (نقدًا / بطاقة)",
+    "dashboard.kpis.revenue.cash": "نقدًا",
+    "dashboard.kpis.revenue.card": "بطاقة",
+    "dashboard.kpis.alerts": "تنبيهات: الإلغاءات والطلبات المعلقة",
+    "dashboard.kpis.alerts_sub": "تحقق من النوبات التي تتطلب إجراء.",
+    "dashboard.kpis.cancellations": "الإلغاءات: {{count}}",
+    "dashboard.kpis.pending": "قيد الانتظار: {{count}}",
+
+    "dashboard.best_selling.title": "الأكثر مبيعًا من الخدمات",
+    "dashboard.best_selling.sort_by": "الفرز حسب",
+    "dashboard.best_selling.today": "اليوم",
+    "dashboard.best_selling.price": "السعر",
+    "dashboard.best_selling.orders": "الطلبات",
+    "dashboard.best_selling.availability": "التوافر",
+    "dashboard.best_selling.na": "غير متوفر",
+    "dashboard.best_selling.amount": "المبلغ",
+
+    "dashboard.revenue.title": "الإيرادات",
+    "dashboard.revenue.orders": "الطلبات",
+    "dashboard.revenue.earnings": "الأرباح",
+    "dashboard.revenue.refunds": "المبالغ المستردة",
+    "dashboard.revenue.conversion_ratio": "معدل التحويل"
+
+    ,"dashboard.top_sellers.title": "Top Sellers",
+    "dashboard.top_sellers.name": "Name",
+    "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.reserved_today": "Reserved Today",
+
+    "dashboard.store_visits.title": "Reservations by Source",
+
+    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.upcoming_services.service_id": "Service ID",
+    "dashboard.upcoming_services.customer": "Customer",
+    "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.technician": "Technician",
+    "dashboard.upcoming_services.status": "Status"
 }

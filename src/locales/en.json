@@ -209,4 +209,84 @@
     "Terms Condition": "Terms Condition",
     "pages": "pages",
     "React Datatables": "React Datatables"
+,
+    "menu.admin.header": "Administrative Panel",
+    "menu.admin.dashboard": "Dashboard",
+    "menu.admin.dashboard.daily_summary": "Daily shifts summary",
+    "menu.admin.dashboard.total_revenue": "Total revenue (cash / card)",
+    "menu.admin.dashboard.alerts": "Alerts: cancellations and pending",
+
+    "menu.admin.revenue.title": "Revenue Management",
+    "menu.admin.revenue.daily_revenue": "Daily revenue",
+    "menu.admin.revenue.completed_shifts_list": "Completed shifts list",
+    "menu.admin.revenue.manual_adjustments": "Manual adjustments",
+    "menu.admin.revenue.external_transactions": "External transactions (out-of-system)",
+
+    "menu.admin.reservations.title": "Reservations Management",
+    "menu.admin.reservations.list": "Shifts list (CRUD)",
+    "menu.admin.reservations.calendar_view": "Calendar view",
+
+    "menu.admin.customers.title": "Customers",
+    "menu.admin.customers.register": "Register",
+    "menu.admin.customers.filters": "Filters",
+    "menu.admin.customers.history": "Shifts history",
+
+    "menu.admin.services.title": "Services",
+    "menu.admin.services.list": "Services",
+    "menu.admin.services.addons": "Add-ons",
+    "menu.admin.services.actions": "Actions",
+
+    "menu.admin.staff.title": "Professionals / Staff",
+    "menu.admin.staff.basic_register": "Basic register",
+    "menu.admin.staff.availability": "Availability & schedules",
+    "menu.admin.staff.shift_assignment": "Shift assignment",
+
+    "menu.admin.reports.title": "Reports",
+    "menu.admin.reports.by_date": "Date filters",
+    "menu.admin.reports.metrics": "Metrics",
+
+    "menu.admin.settings.title": "Settings",
+    "menu.admin.settings.users_roles": "Users & Roles",
+    "menu.admin.settings.authentication": "Authentication",
+    "menu.admin.settings.language": "Language"
+    ,
+    "dashboard.kpis.daily_shifts": "Daily shifts summary",
+    "dashboard.kpis.daily_shifts_sub": "Shifts scheduled and completed today",
+    "dashboard.kpis.total_revenue": "Total revenue (cash / card)",
+    "dashboard.kpis.revenue.cash": "Cash",
+    "dashboard.kpis.revenue.card": "Card",
+    "dashboard.kpis.alerts": "Alerts: cancellations and pending",
+    "dashboard.kpis.alerts_sub": "Check shifts that require action.",
+    "dashboard.kpis.cancellations": "Cancellations: {{count}}",
+    "dashboard.kpis.pending": "Pending: {{count}}",
+
+    "dashboard.best_selling.title": "Best Selling Services",
+    "dashboard.best_selling.sort_by": "Sort by",
+    "dashboard.best_selling.today": "Today",
+    "dashboard.best_selling.price": "Price",
+    "dashboard.best_selling.orders": "Orders",
+    "dashboard.best_selling.availability": "Availability",
+    "dashboard.best_selling.na": "N/A",
+    "dashboard.best_selling.amount": "Amount",
+
+    "dashboard.revenue.title": "Revenue",
+    "dashboard.revenue.orders": "Orders",
+    "dashboard.revenue.earnings": "Earnings",
+    "dashboard.revenue.refunds": "Refunds",
+    "dashboard.revenue.conversion_ratio": "Conversion Ratio"
+
+    ,"dashboard.top_sellers.title": "Top Sellers",
+    "dashboard.top_sellers.name": "Name",
+    "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.reserved_today": "Reserved Today",
+
+    "dashboard.store_visits.title": "Reservations by Source",
+
+    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.upcoming_services.service_id": "Service ID",
+    "dashboard.upcoming_services.customer": "Customer",
+    "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.technician": "Technician",
+    "dashboard.upcoming_services.status": "Status"
 }

@@ -134,11 +134,12 @@ const RevenueCharts = ({ dataColors, series } : any) => {
   );
 };
 
-const StoreVisitsCharts = ({ dataColors } : any) => {
+const StoreVisitsCharts = ({ dataColors, series, labels } : any) => {
   var chartDonutBasicColors = getChartColorsArray(dataColors);
-  const series = [44, 55, 41, 17, 15];
+  const defaultSeries = [44, 55, 41, 17, 15];
+  const s = series || defaultSeries;
   var options : any = {
-    labels: ["Direct", "Social", "Email", "Other", "Referrals"],
+    labels: labels || ["Direct", "Social", "Email", "Other", "Referrals"],
     chart: {
       height: 333,
       type: "donut",

@@ -1,40 +1,56 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { Card, CardBody, CardHeader, Col, Row } from "reactstrap";
 import { RevenueCharts } from "./DashboardEcommerceCharts";
 import CountUp from "react-countup";
-import { useSelector, useDispatch } from "react-redux";
-import { getRevenueChartsData } from "../../slices/thunks";
-import { createSelector } from "reselect";
 
 const Revenue = () => {
-  const dispatch:any = useDispatch();
-
   const [chartData, setchartData] = useState<any>([]);
- 
-  const selectDashboardData = createSelector(
-    (state:any) => state.DashboardEcommerce,
-    (revenueData:any) => revenueData.revenueData
-  );
-  // Inside your component
-  const revenueData = useSelector(selectDashboardData);
 
+  // Local mock series data for the chart
+  const mockSeriesAll = [
+    {
+      name: 'Revenue',
+      data: [1200, 1500, 1400, 1700, 1600, 1800, 2000, 1900, 2100, 2300, 2200, 2500]
+    }
+  ];
+  const mockSeriesMonth = [
+    { name: 'Revenue', data: [1800, 1900, 2000, 2100] }
+  ];
+  const mockSeriesHalfYear = [
+    { name: 'Revenue', data: [1200, 1400, 1500, 1700, 2000, 2200] }
+  ];
+  const mockSeriesYear = [
+    { name: 'Revenue', data: [800, 900, 1000, 1200, 1500, 1700, 2000, 2300, 2600, 2800, 3000, 3200] }
+  ];
 
   useEffect(() => {
-    setchartData(revenueData);
-  }, [revenueData]);
+    // default to 'all'
+    setchartData(mockSeriesAll);
+  }, []);
 
   const onChangeChartPeriod = (pType:any) => {
-    dispatch(getRevenueChartsData(pType));
+    switch (pType) {
+      case 'month':
+        setchartData(mockSeriesMonth);
+        break;
+      case 'halfyear':
+        setchartData(mockSeriesHalfYear);
+        break;
+      case 'year':
+        setchartData(mockSeriesYear);
+        break;
+      default:
+        setchartData(mockSeriesAll);
+    }
   };
+  const { t } = useTranslation();
 
-  useEffect(() => {
-    dispatch(getRevenueChartsData("all"));
-  }, [dispatch]);
   return (
     <React.Fragment>
       <Card>
         <CardHeader className="border-0 align-items-center d-flex">
-          <h4 className="card-title mb-0 flex-grow-1">Revenue</h4>
+          <h4 className="card-title mb-0 flex-grow-1">{t('dashboard.revenue.title')}</h4>
           <div className="d-flex gap-1">
             <button type="button" className="btn btn-soft-secondary btn-sm" onClick={() => { onChangeChartPeriod("all"); }}>
               ALL
@@ -58,7 +74,7 @@ const Revenue = () => {
                 <h5 className="mb-1">
                   <CountUp start={0} end={7585} duration={3} separator="," />
                 </h5>
-                <p className="text-muted mb-0">Orders</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.orders')}</p>
               </div>
             </Col>
             <Col xs={6} sm={3}>
@@ -73,7 +89,7 @@ const Revenue = () => {
                     duration={3}
                   />
                 </h5>
-                <p className="text-muted mb-0">Earnings</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.earnings')}</p>
               </div>
             </Col>
             <Col xs={6} sm={3}>
@@ -81,7 +97,7 @@ const Revenue = () => {
                 <h5 className="mb-1">
                   <CountUp start={0} end={367} duration={3} />
                 </h5>
-                <p className="text-muted mb-0">Refunds</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.refunds')}</p>
               </div>
             </Col>
             <Col xs={6} sm={3}>
@@ -95,7 +111,7 @@ const Revenue = () => {
                     suffix="%"
                   />
                 </h5>
-                <p className="text-muted mb-0">Conversation Ratio</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.conversion_ratio')}</p>
               </div>
             </Col>
           </Row>

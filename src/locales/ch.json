@@ -209,4 +209,83 @@
     "Terms Condition": "条款与协议",
     "pages": "页数",
     "React Datatables": "反应数据表"
+,
+    "menu.admin.header": "管理面板",
+    "menu.admin.dashboard": "仪表板",
+    "menu.admin.dashboard.daily_summary": "每日班次摘要",
+    "menu.admin.dashboard.total_revenue": "总收入（现金 / 卡）",
+    "menu.admin.dashboard.alerts": "警报：取消和待处理",
+
+    "menu.admin.revenue.title": "收入管理",
+    "menu.admin.revenue.daily_revenue": "每日收入",
+    "menu.admin.revenue.completed_shifts_list": "已完成班次列表",
+    "menu.admin.revenue.manual_adjustments": "手动调整",
+    "menu.admin.revenue.external_transactions": "系统外的收支",
+
+    "menu.admin.reservations.title": "预订管理",
+    "menu.admin.reservations.list": "班次列表 (CRUD)",
+    "menu.admin.reservations.calendar_view": "日历视图",
+
+    "menu.admin.customers.title": "客户",
+    "menu.admin.customers.register": "注册",
+    "menu.admin.customers.filters": "筛选",
+    "menu.admin.customers.history": "班次历史",
+
+    "menu.admin.services.title": "服务",
+    "menu.admin.services.list": "服务",
+    "menu.admin.services.addons": "附加组件",
+    "menu.admin.services.actions": "操作",
+
+    "menu.admin.staff.title": "专业人员 / 员工",
+    "menu.admin.staff.basic_register": "基本注册",
+    "menu.admin.staff.availability": "可用性与时间表",
+    "menu.admin.staff.shift_assignment": "班次分配",
+
+    "menu.admin.reports.title": "报表",
+    "menu.admin.reports.by_date": "按日期筛选",
+    "menu.admin.reports.metrics": "指标",
+
+    "menu.admin.settings.title": "设置",
+    "menu.admin.settings.users_roles": "用户与角色",
+    "menu.admin.settings.authentication": "身份验证",
+    "menu.admin.settings.language": "语言",
+    "dashboard.kpis.daily_shifts": "每日班次摘要",
+    "dashboard.kpis.daily_shifts_sub": "当天计划和完成的班次",
+    "dashboard.kpis.total_revenue": "总收入（现金/卡）",
+    "dashboard.kpis.revenue.cash": "现金",
+    "dashboard.kpis.revenue.card": "卡",
+    "dashboard.kpis.alerts": "警报：取消和待处理",
+    "dashboard.kpis.alerts_sub": "检查需要操作的班次。",
+    "dashboard.kpis.cancellations": "取消：{{count}}",
+    "dashboard.kpis.pending": "待处理：{{count}}",
+
+    "dashboard.best_selling.title": "最畅销的服务",
+    "dashboard.best_selling.sort_by": "排序方式",
+    "dashboard.best_selling.today": "今天",
+    "dashboard.best_selling.price": "价格",
+    "dashboard.best_selling.orders": "订单",
+    "dashboard.best_selling.availability": "可用性",
+    "dashboard.best_selling.na": "无",
+    "dashboard.best_selling.amount": "金额",
+
+    "dashboard.revenue.title": "收入",
+    "dashboard.revenue.orders": "订单",
+    "dashboard.revenue.earnings": "收入",
+    "dashboard.revenue.refunds": "退款",
+    "dashboard.revenue.conversion_ratio": "转化率"
+
+    ,"dashboard.top_sellers.title": "Top Sellers",
+    "dashboard.top_sellers.name": "Name",
+    "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.reserved_today": "Reserved Today",
+
+    "dashboard.store_visits.title": "Reservations by Source",
+
+    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.upcoming_services.service_id": "Service ID",
+    "dashboard.upcoming_services.customer": "Customer",
+    "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.technician": "Technician",
+    "dashboard.upcoming_services.status": "Status"
 }

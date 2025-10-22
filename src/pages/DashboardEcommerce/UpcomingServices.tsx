@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { Card, CardBody, CardHeader, Col } from 'reactstrap';
 import { recentOrders } from '../../common/data';
 
-const RecentOrders = () => {
+const UpcomingServices = () => {
     return (
         <React.Fragment>
             <Col xl={8}>
-                <Card>
+                <Card className="card-height-100">
                     <CardHeader className="align-items-center d-flex">
                         <h4 className="card-title mb-0 flex-grow-1">Upcoming Services</h4>
                         <div className="flex-shrink-0">
@@ -32,13 +32,12 @@ const RecentOrders = () => {
                                 </thead>
                                 <tbody>
                                     {(
-                                        // Map recentOrders sample data into upcoming services view
                                         (recentOrders || []).map((item, key) => ({
                                             serviceId: item.orderId,
                                             img: item.img,
                                             customer: item.name,
                                             service: item.product,
-                                            time: '10:00 AM', // mock time
+                                            time: '10:00 AM',
                                             technician: item.vendor,
                                             status: item.status,
                                             statusClass: item.statusClass,
@@ -76,4 +75,4 @@ const RecentOrders = () => {
     );
 };
 
-export default RecentOrders;
+export default UpcomingServices;

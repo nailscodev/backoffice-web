@@ -209,4 +209,84 @@
     "Terms Condition": "Termes et conditions",
     "pages": "pages",
     "React Datatables": "Tableaux de données de réaction"
+,
+    "menu.admin.header": "Panneau administratif",
+    "menu.admin.dashboard": "Tableau de bord",
+    "menu.admin.dashboard.daily_summary": "Résumé quotidien des créneaux",
+    "menu.admin.dashboard.total_revenue": "Revenu total (espèces / carte)",
+    "menu.admin.dashboard.alerts": "Alertes : annulations et en attente",
+
+    "menu.admin.revenue.title": "Gestion des revenus",
+    "menu.admin.revenue.daily_revenue": "Revenus quotidiens",
+    "menu.admin.revenue.completed_shifts_list": "Liste des créneaux terminés",
+    "menu.admin.revenue.manual_adjustments": "Ajustements manuels",
+    "menu.admin.revenue.external_transactions": "Transactions externes (hors système)",
+
+    "menu.admin.reservations.title": "Gestion des réservations",
+    "menu.admin.reservations.list": "Liste des créneaux (CRUD)",
+    "menu.admin.reservations.calendar_view": "Vue calendrier",
+
+    "menu.admin.customers.title": "Clients",
+    "menu.admin.customers.register": "Enregistrer",
+    "menu.admin.customers.filters": "Filtres",
+    "menu.admin.customers.history": "Historique des créneaux",
+
+    "menu.admin.services.title": "Services",
+    "menu.admin.services.list": "Services",
+    "menu.admin.services.addons": "Add-ons",
+    "menu.admin.services.actions": "Actions",
+
+    "menu.admin.staff.title": "Professionnels / Personnel",
+    "menu.admin.staff.basic_register": "Enregistrement de base",
+    "menu.admin.staff.availability": "Disponibilité et horaires",
+    "menu.admin.staff.shift_assignment": "Attribution des créneaux",
+
+    "menu.admin.reports.title": "Rapports",
+    "menu.admin.reports.by_date": "Filtres par date",
+    "menu.admin.reports.metrics": "Métriques",
+
+    "menu.admin.settings.title": "Paramètres",
+    "menu.admin.settings.users_roles": "Utilisateurs et rôles",
+    "menu.admin.settings.authentication": "Authentification",
+    "menu.admin.settings.language": "Langue",
+
+    "dashboard.kpis.daily_shifts": "Résumé quotidien des créneaux",
+    "dashboard.kpis.daily_shifts_sub": "Créneaux planifiés et complétés aujourd'hui",
+    "dashboard.kpis.total_revenue": "Revenu total (espèces / carte)",
+    "dashboard.kpis.revenue.cash": "Espèces",
+    "dashboard.kpis.revenue.card": "Carte",
+    "dashboard.kpis.alerts": "Alertes : annulations et en attente",
+    "dashboard.kpis.alerts_sub": "Vérifiez les créneaux qui nécessitent une action.",
+    "dashboard.kpis.cancellations": "Annulations : {{count}}",
+    "dashboard.kpis.pending": "En attente : {{count}}",
+
+    "dashboard.best_selling.title": "Meilleurs services",
+    "dashboard.best_selling.sort_by": "Trier par",
+    "dashboard.best_selling.today": "Aujourd'hui",
+    "dashboard.best_selling.price": "Prix",
+    "dashboard.best_selling.orders": "Commandes",
+    "dashboard.best_selling.availability": "Disponibilité",
+    "dashboard.best_selling.na": "N/D",
+    "dashboard.best_selling.amount": "Montant",
+
+    "dashboard.revenue.title": "Revenu",
+    "dashboard.revenue.orders": "Commandes",
+    "dashboard.revenue.earnings": "Gains",
+    "dashboard.revenue.refunds": "Remboursements",
+    "dashboard.revenue.conversion_ratio": "Taux de conversion"
+
+    ,"dashboard.top_sellers.title": "Top Sellers",
+    "dashboard.top_sellers.name": "Name",
+    "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.reserved_today": "Reserved Today",
+
+    "dashboard.store_visits.title": "Reservations by Source",
+
+    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.upcoming_services.service_id": "Service ID",
+    "dashboard.upcoming_services.customer": "Customer",
+    "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.technician": "Technician",
+    "dashboard.upcoming_services.status": "Status"
 }

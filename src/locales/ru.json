@@ -209,4 +209,84 @@
     "Terms Condition": "Условия Условия",
     "pages": "страницы",
     "React Datatables": "Реагировать на таблицы данных"
+,
+    "menu.admin.header": "Панель администратора",
+    "menu.admin.dashboard": "Панель",
+    "menu.admin.dashboard.daily_summary": "Ежедневное резюме смен",
+    "menu.admin.dashboard.total_revenue": "Общий доход (наличные / карта)",
+    "menu.admin.dashboard.alerts": "Оповещения: отмены и ожидающие",
+
+    "menu.admin.revenue.title": "Управление доходами",
+    "menu.admin.revenue.daily_revenue": "Ежедневный доход",
+    "menu.admin.revenue.completed_shifts_list": "Список завершенных смен",
+    "menu.admin.revenue.manual_adjustments": "Ручные корректировки",
+    "menu.admin.revenue.external_transactions": "Внешние транзакции (вне системы)",
+
+    "menu.admin.reservations.title": "Управление бронированиями",
+    "menu.admin.reservations.list": "Список смен (CRUD)",
+    "menu.admin.reservations.calendar_view": "Просмотр календаря",
+
+    "menu.admin.customers.title": "Клиенты",
+    "menu.admin.customers.register": "Регистрация",
+    "menu.admin.customers.filters": "Фильтры",
+    "menu.admin.customers.history": "История смен",
+
+    "menu.admin.services.title": "Услуги",
+    "menu.admin.services.list": "Услуги",
+    "menu.admin.services.addons": "Дополнения",
+    "menu.admin.services.actions": "Действия",
+
+    "menu.admin.staff.title": "Профессионалы / Персонал",
+    "menu.admin.staff.basic_register": "Базовая регистрация",
+    "menu.admin.staff.availability": "Доступность и расписание",
+    "menu.admin.staff.shift_assignment": "Назначение смен",
+
+    "menu.admin.reports.title": "Отчеты",
+    "menu.admin.reports.by_date": "Фильтры по дате",
+    "menu.admin.reports.metrics": "Метрики",
+
+    "menu.admin.settings.title": "Настройки",
+    "menu.admin.settings.users_roles": "Пользователи и роли",
+    "menu.admin.settings.authentication": "Аутентификация",
+    "menu.admin.settings.language": "Язык"
+    ,
+    "dashboard.kpis.daily_shifts": "Ежедневное резюме смен",
+    "dashboard.kpis.daily_shifts_sub": "Смены, запланированные и завершенные сегодня",
+    "dashboard.kpis.total_revenue": "Общий доход (наличные / карта)",
+    "dashboard.kpis.revenue.cash": "Наличные",
+    "dashboard.kpis.revenue.card": "Карта",
+    "dashboard.kpis.alerts": "Оповещения: отмены и ожидающие",
+    "dashboard.kpis.alerts_sub": "Проверьте смены, требующие действий.",
+    "dashboard.kpis.cancellations": "Отмены: {{count}}",
+    "dashboard.kpis.pending": "Ожидающие: {{count}}",
+
+    "dashboard.best_selling.title": "Лучшие услуги",
+    "dashboard.best_selling.sort_by": "Сортировать по",
+    "dashboard.best_selling.today": "Сегодня",
+    "dashboard.best_selling.price": "Цена",
+    "dashboard.best_selling.orders": "Заказы",
+    "dashboard.best_selling.availability": "Доступность",
+    "dashboard.best_selling.na": "Н/Д",
+    "dashboard.best_selling.amount": "Сумма",
+
+    "dashboard.revenue.title": "Доход",
+    "dashboard.revenue.orders": "Заказы",
+    "dashboard.revenue.earnings": "Доходы",
+    "dashboard.revenue.refunds": "Возвраты",
+    "dashboard.revenue.conversion_ratio": "Коэффициент конверсии"
+
+    ,"dashboard.top_sellers.title": "Top Sellers",
+    "dashboard.top_sellers.name": "Name",
+    "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.reserved_today": "Reserved Today",
+
+    "dashboard.store_visits.title": "Reservations by Source",
+
+    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.upcoming_services.service_id": "Service ID",
+    "dashboard.upcoming_services.customer": "Customer",
+    "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.technician": "Technician",
+    "dashboard.upcoming_services.status": "Status"
 }

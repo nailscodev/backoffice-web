@@ -209,4 +209,84 @@
     "Terms Condition": "Termini e condizioni",
     "pages": "pagine",
     "React Datatables": "Reagire Datatables"
+,
+    "menu.admin.header": "Pannello amministrativo",
+    "menu.admin.dashboard": "Cruscotto",
+    "menu.admin.dashboard.daily_summary": "Riepilogo giornaliero dei turni",
+    "menu.admin.dashboard.total_revenue": "Entrate totali (contanti / carta)",
+    "menu.admin.dashboard.alerts": "Avvisi: cancellazioni e in sospeso",
+
+    "menu.admin.revenue.title": "Gestione delle entrate",
+    "menu.admin.revenue.daily_revenue": "Entrate giornaliere",
+    "menu.admin.revenue.completed_shifts_list": "Elenco turni completati",
+    "menu.admin.revenue.manual_adjustments": "Regolazioni manuali",
+    "menu.admin.revenue.external_transactions": "Transazioni esterne (fuori sistema)",
+
+    "menu.admin.reservations.title": "Gestione prenotazioni",
+    "menu.admin.reservations.list": "Elenco turni (CRUD)",
+    "menu.admin.reservations.calendar_view": "Vista calendario",
+
+    "menu.admin.customers.title": "Clienti",
+    "menu.admin.customers.register": "Registrare",
+    "menu.admin.customers.filters": "Filtri",
+    "menu.admin.customers.history": "Storico turni",
+
+    "menu.admin.services.title": "Servizi",
+    "menu.admin.services.list": "Servizi",
+    "menu.admin.services.addons": "Add-on",
+    "menu.admin.services.actions": "Azioni",
+
+    "menu.admin.staff.title": "Professionisti / Staff",
+    "menu.admin.staff.basic_register": "Registrazione di base",
+    "menu.admin.staff.availability": "Disponibilità e orari",
+    "menu.admin.staff.shift_assignment": "Assegnazione dei turni",
+
+    "menu.admin.reports.title": "Rapporti",
+    "menu.admin.reports.by_date": "Filtri per data",
+    "menu.admin.reports.metrics": "Metriche",
+
+    "menu.admin.settings.title": "Impostazioni",
+    "menu.admin.settings.users_roles": "Utenti e ruoli",
+    "menu.admin.settings.authentication": "Autenticazione",
+    "menu.admin.settings.language": "Lingua"
+    ,
+    "dashboard.kpis.daily_shifts": "Riepilogo giornaliero dei turni",
+    "dashboard.kpis.daily_shifts_sub": "Turni programmati e completati oggi",
+    "dashboard.kpis.total_revenue": "Entrate totali (contanti / carta)",
+    "dashboard.kpis.revenue.cash": "Contanti",
+    "dashboard.kpis.revenue.card": "Carta",
+    "dashboard.kpis.alerts": "Avvisi: cancellazioni e in sospeso",
+    "dashboard.kpis.alerts_sub": "Controlla i turni che richiedono azione.",
+    "dashboard.kpis.cancellations": "Cancellazioni: {{count}}",
+    "dashboard.kpis.pending": "In sospeso: {{count}}",
+
+    "dashboard.best_selling.title": "Best Selling Services",
+    "dashboard.best_selling.sort_by": "Ordina per",
+    "dashboard.best_selling.today": "Oggi",
+    "dashboard.best_selling.price": "Prezzo",
+    "dashboard.best_selling.orders": "Ordini",
+    "dashboard.best_selling.availability": "Disponibilità",
+    "dashboard.best_selling.na": "N/D",
+    "dashboard.best_selling.amount": "Importo",
+
+    "dashboard.revenue.title": "Entrate",
+    "dashboard.revenue.orders": "Ordini",
+    "dashboard.revenue.earnings": "Guadagni",
+    "dashboard.revenue.refunds": "Rimborsi",
+    "dashboard.revenue.conversion_ratio": "Tasso di conversione"
+
+    ,"dashboard.top_sellers.title": "Top Sellers",
+    "dashboard.top_sellers.name": "Name",
+    "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.reserved_today": "Reserved Today",
+
+    "dashboard.store_visits.title": "Reservations by Source",
+
+    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.upcoming_services.service_id": "Service ID",
+    "dashboard.upcoming_services.customer": "Customer",
+    "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.technician": "Technician",
+    "dashboard.upcoming_services.status": "Status"
 }

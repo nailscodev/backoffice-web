@@ -761,12 +761,14 @@
 
         .logo-light {
             display: inline-block;
+            width: 100%;
         }
     }
 
     &[data-sidebar="light"] {
         .logo-dark {
             display: inline-block;
+            width: 100%;
         }
 
         .logo-light {

@@ -1,93 +1,53 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardBody, CardHeader, Col, DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown } from 'reactstrap';
-import { topSellers } from "../../common/data";
+import { Card, CardBody, CardHeader, Col } from 'reactstrap';
+import { useTranslation } from 'react-i18next';
+
+const staffToday = [
+    { id: 1, name: 'Ana Gomez', role: 'Technician', reservedToday: 8 },
+    { id: 2, name: 'Lucia Fernandez', role: 'Technician', reservedToday: 6 },
+    { id: 3, name: 'Martina Ruiz', role: 'Technician', reservedToday: 5 },
+    { id: 4, name: 'Sofia Alvarez', role: 'Technician', reservedToday: 4 },
+    { id: 5, name: 'Camila Ortega', role: 'Technician', reservedToday: 3 },
+    { id: 6, name: 'Lupe Gomez', role: 'Technician', reservedToday: 3 },
+    { id: 7, name: 'Agustina Ruiz', role: 'Technician', reservedToday: 3 },
+    { id: 8, name: 'Andrea Sol', role: 'Technician', reservedToday: 3 },
+];
 
 const TopSellers = () => {
+    const { t } = useTranslation();
     return (
         <React.Fragment>
             <Col xl={6}>
                 <Card className="card-height-100">
                     <CardHeader className="align-items-center d-flex">
-                        <h4 className="card-title mb-0 flex-grow-1">Top Sellers</h4>
-                        <div className="flex-shrink-0">
-                            <UncontrolledDropdown className="card-header-dropdown" >
-                                <DropdownToggle tag="a" className="text-reset dropdown-btn" role="button">
-                                    <span className="text-muted">Report<i className="mdi mdi-chevron-down ms-1"></i></span>
-                                </DropdownToggle>
-                                <DropdownMenu className="dropdown-menu dropdown-menu-end">
-                                    <DropdownItem>Download Report</DropdownItem>
-                                    <DropdownItem>Export</DropdownItem>
-                                    <DropdownItem>Import</DropdownItem>
-                                </DropdownMenu>
-                            </UncontrolledDropdown>
-                        </div>
+                        <h4 className="card-title mb-0 flex-grow-1">{t('dashboard.top_sellers.title', 'Top Sellers')}</h4>
                     </CardHeader>
-
                     <CardBody>
                         <div className="table-responsive table-card">
                             <table className="table table-centered table-hover align-middle table-nowrap mb-0">
+                                <thead className="table-light text-muted">
+                                    <tr>
+                                        <th>{t('dashboard.top_sellers.name', 'Name')}</th>
+                                        <th>{t('dashboard.top_sellers.role', 'Role')}</th>
+                                        <th>{t('dashboard.top_sellers.reserved_today', 'Reserved Today')}</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
-                                    {topSellers.map((item, key) => (
-                                        <tr key={key}>
+                                    {staffToday.map((s) => (
+                                        <tr key={s.id}>
+                                            <td>{s.name}</td>
+                                            <td>{s.role}</td>
                                             <td>
-                                                <div className="d-flex align-items-center">
-                                                    <div className="flex-shrink-0 me-2">
-                                                        <img src={item.img} alt="" className="avatar-sm p-2" />
-                                                    </div>
-                                                    <div>
-                                                        <h5 className="fs-14 my-1 fw-medium"><Link to="/apps-ecommerce-seller-details" className="text-reset">{item.label}</Link></h5>
-                                                        <span className="text-muted">{item.name}</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span className="text-muted">{item.product}</span>
-                                            </td>
-                                            <td>
-                                                <p className="mb-0">{item.stock}</p>
-                                                <span className="text-muted">Stock</span>
-                                            </td>
-                                            <td>
-                                                <span className="text-muted">${item.amount}</span>
-                                            </td>
-                                            <td>
-                                                <h5 className="fs-14 mb-0">{item.percentage}%<i className="ri-bar-chart-fill text-success fs-16 align-middle ms-2"></i></h5>
+                                                <h5 className="fs-14 mb-0">{s.reservedToday}</h5>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                        <div className="align-items-center mt-4 pt-2 justify-content-between row text-center text-sm-start">
-                            <div className="col-sm">
-                                <div className="text-muted">Showing <span className="fw-semibold">5</span> of <span className="fw-semibold">25</span> Results
-                                </div>
-                            </div>
-                            <div className="col-sm-auto mt-3 mt-sm-0">
-                                <ul className="pagination pagination-separated pagination-sm mb-0 justify-content-center">
-                                    <li className="page-item disabled">
-                                        <Link to="#" className="page-link">←</Link>
-                                    </li>
-                                    <li className="page-item">
-                                        <Link to="#" className="page-link">1</Link>
-                                    </li>
-                                    <li className="page-item active">
-                                        <Link to="#" className="page-link">2</Link>
-                                    </li>
-                                    <li className="page-item">
-                                        <Link to="#" className="page-link">3</Link>
-                                    </li>
-                                    <li className="page-item">
-                                        <Link to="#" className="page-link">→</Link>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
                     </CardBody>
                 </Card>
             </Col>
-
         </React.Fragment>
     );
 };
