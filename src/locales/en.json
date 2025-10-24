@@ -289,4 +289,6 @@
     "dashboard.upcoming_services.time": "Time",
     "dashboard.upcoming_services.technician": "Technician",
     "dashboard.upcoming_services.status": "Status"
+
+    ,"dashboard.section.range_text": "Here's what's happening between {{start}} and {{end}}."
 }

@@ -20,7 +20,9 @@ import DeleteModal from "../../Components/Common/DeleteModal";
 
 //Import Icons
 import FeatherIcon from "feather-icons-react";
-import { invoiceWidgets } from "../../common/data/invoiceList";
+import ReactApexChart from "react-apexcharts";
+import Flatpickr from "react-flatpickr";
+import { useTranslation } from 'react-i18next';
 
 //Import actions
 import {
@@ -54,6 +56,30 @@ const InvoiceList = () => {
     invoices, isInvoiceSuccess, error
   } = useSelector(selectinvoiceProperties);
 
+  // Date range selector hooks (moved to top-level so React Hooks rules are respected)
+  const getWeekRange = (d: Date) => {
+    const date = new Date(d);
+    const day = date.getDay(); // 0 (Sun) .. 6 (Sat)
+    const diffToMonday = (day + 6) % 7; // days since Monday
+    const start = new Date(date);
+    start.setDate(date.getDate() - diffToMonday);
+    start.setHours(0,0,0,0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23,59,59,999);
+    return { start, end };
+  };
+
+  const today = new Date();
+  const { start: weekStart, end: weekEnd } = getWeekRange(today);
+  const [dateRange, setDateRange] = useState<Date[]>([weekStart, weekEnd]);
+  const { t } = useTranslation();
+  // derived labels for the currently selected date range
+  const startDate = dateRange && dateRange.length > 0 ? dateRange[0] : weekStart;
+  const endDate = dateRange && dateRange.length > 1 ? dateRange[1] : (dateRange && dateRange.length === 1 ? dateRange[0] : weekEnd);
+  const startLabel = startDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const endLabel = endDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+
 
   //delete invoice
   const [deleteModal, setDeleteModal] = useState<boolean>(false);
@@ -61,10 +87,29 @@ const InvoiceList = () => {
 
   const [invoice, setInvoice] = useState<any>(null);
 
+  // If backend fetching is unstable/failing, enable mock data here.
+  // To use real backend fetching again, set useMockInvoices = false and
+  // uncomment the useEffect that dispatches onGetInvoices() below.
+  const useMockInvoices = true;
+  const mockInvoices = [
+    { _id: 'm1', invoiceId: '#INV00001', name: 'Diana Kohler', email: 'diana@example.com', country: 'Brazil', start: new Date().toISOString(), end: new Date(Date.now() + 30*60*1000).toISOString(), amount: '$875', status: 'Paid', img: null, services: ['Manicure'], paymentMethod: 'cash' },
+    { _id: 'm2', invoiceId: '#INV00002', name: 'James Morris', email: 'james@example.com', country: 'Germany', start: new Date().toISOString(), end: new Date(Date.now() + 45*60*1000).toISOString(), amount: '$451.00', status: 'Unpaid', img: null, services: ['Pedicure'], paymentMethod: 'bank' },
+    { _id: 'm3', invoiceId: '#INV00003', name: 'Dawn Koh', email: 'dawn@example.com', country: 'United Kingdom', start: new Date().toISOString(), end: new Date(Date.now() + 60*60*1000).toISOString(), amount: '$984.98', status: 'Paid', img: null, services: ['Manicure','Gel Polish'], paymentMethod: 'cash' },
+    { _id: 'm4', invoiceId: '#INV00004', name: 'Tonya Noble', email: 'tonya@example.com', country: 'Spain', start: new Date().toISOString(), end: new Date(Date.now() + 50*60*1000).toISOString(), amount: '$742.12', status: 'Cancel', img: null, services: ['Pedicure','Mascara'], paymentMethod: 'bank' },
+    { _id: 'm5', invoiceId: '#INV00005', name: 'David Nichols', email: 'david@example.com', country: 'United States', start: new Date().toISOString(), end: new Date(Date.now() + 40*60*1000).toISOString(), amount: '$2415.00', status: 'Unpaid', img: null, services: ['Full Set Acrylic'], paymentMethod: 'cash' },
+  ];
+
   useEffect(() => {
-    if (invoices && !invoices.length) {
-      dispatch(onGetInvoices());
-    }
+    /*
+    The app previously fetched invoices from the backend here. That
+    remote fetch has been failing in the current environment, so this
+    call is commented out temporarily while we use mock data below.
+
+    To re-enable remote loading, uncomment the lines below.
+    */
+    // if (invoices && !invoices.length) {
+    //   dispatch(onGetInvoices());
+    // }
   }, [dispatch, invoices]);
 
   useEffect(() => {
@@ -142,136 +187,89 @@ const InvoiceList = () => {
     setSelectedCheckBoxDelete(ele);
   };
 
-  //Column
+  // Column definition: reduced to only the requested fields
   const columns = useMemo(
     () => [
-      {
-        header: <input type="checkbox" id="checkBoxAll" className="form-check-input" onClick={() => checkedAll()} />,
-        cell: (cell: any) => {
-          return <input type="checkbox" className="invoiceCheckBox form-check-input" value={cell.getValue()} onChange={() => deleteCheckbox()} />;
-        },
-        id: '#',
-        accessorKey: "_id",
-        enableColumnFilter: false,
-        enableSorting: false,
-      },
-      {
-        header: "ID",
-        accessorKey: "invoiceId",
-        enableColumnFilter: false,
-        cell: (cell: any) => {
-          return <Link to="/apps-invoices-details" className="fw-medium link-primary">{cell.getValue()}</Link>;
-        },
-      },
       {
         header: "Customer",
         accessorKey: "name",
         enableColumnFilter: false,
         cell: (cell: any) => (
-          <>
-            <div className="d-flex align-items-center">
-              {cell.row.original.img ? <img
+          <div className="d-flex align-items-center">
+            {cell.row.original.img ? (
+              <img
                 src={process.env.REACT_APP_API_URL + "/images/users/" + cell.row.original.img}
                 alt=""
                 className="avatar-xs rounded-circle me-2"
-              /> :
-                <div className="flex-shrink-0 avatar-xs me-2">
-                  <div className="avatar-title bg-success-subtle text-success rounded-circle fs-13">
-                    {cell.row.original.name.charAt(0) + cell.row.original.name.split(" ").slice(-1).toString().charAt(0)}
-                  </div>
-                </div>}
-              {cell.getValue()}
-            </div>
-          </>
+              />
+            ) : (
+              <div className="flex-shrink-0 avatar-xs me-2">
+                <div className="avatar-title bg-success-subtle text-success rounded-circle fs-13">
+                  {cell.row.original.name ? cell.row.original.name.charAt(0) : "-"}
+                </div>
+              </div>
+            )}
+            <span>{cell.getValue()}</span>
+          </div>
         ),
       },
       {
-        header: "EMAIL",
+        header: "Email",
         accessorKey: "email",
         enableColumnFilter: false,
       },
       {
-        header: "COUNTRY",
-        accessorKey: "country",
+        header: "Fecha",
+        accessorKey: "start",
         enableColumnFilter: false,
+        cell: (cell: any) => <>{handleValidDate(cell.getValue())}</>,
       },
       {
-        header: "DATE",
-        accessorKey: "date",
+        header: "Hora (inicio - fin)",
+        accessorKey: "start",
+        enableColumnFilter: false,
+        cell: (cell: any) => {
+          const start = cell.getValue();
+          const end = cell.row.original.end;
+          // Render plain text so it matches the default size of name/email/date
+          return <>{handleValidTime(start)} - {handleValidTime(end)}</>;
+        },
+      },
+      {
+        header: "Pago",
+        accessorKey: "paymentMethod",
         enableColumnFilter: false,
         cell: (cell: any) => (
-          <>
-            {handleValidDate(cell.getValue())},{" "}
-            <small className="text-muted">{handleValidTime(cell.getValue())}</small>
-          </>
+          <span className={cell.getValue() === 'cash' ? 'badge bg-success' : 'badge bg-primary'}>
+            {cell.getValue() === 'cash' ? 'Cash' : 'Bank'}
+          </span>
         ),
       },
       {
-        header: "AMOUNT",
+        header: "Cantidad",
         accessorKey: "amount",
         enableColumnFilter: false,
       },
       {
-        header: "PAYMENT STATUS",
-        accessorKey: "status",
+        header: "Servicio(s)",
+        accessorKey: "services",
         enableColumnFilter: false,
-        cell: (cell: any) => {
-          switch (cell.getValue()) {
-            case "Paid":
-              return <span className="badge text-uppercase bg-success-subtle text-success"> {cell.getValue()} </span>;
-            case "Unpaid":
-              return <span className="badge text-uppercase bg-warning-subtle text-warning"> {cell.getValue()} </span>;
-            case "Cancel":
-              return <span className="badge text-uppercase bg-danger-subtle text-danger"> {cell.getValue()} </span>;
-            default:
-              return <span className="badge text-uppercase bg-primary-subtle text-primary"> {cell.getValue()} </span>;
-          }
-        }
-      },
-      {
-        header: "Action",
-        cell: (cellProps: any) => {
-          return (
-            <UncontrolledDropdown >
-              <DropdownToggle
-                href="#"
-                className="btn btn-soft-secondary btn-sm dropdown"
-                tag="button"
+        cell: (cell: any) => (
+          <>
+            {(cell.getValue() || []).map((s: string, i: number) => (
+              <span
+                key={i}
+                className="badge bg-light text-dark me-1"
+                style={{ fontSize: '0.95rem', padding: '0.35rem 0.6rem' }}
               >
-                <i className="ri-more-fill align-middle"></i>
-              </DropdownToggle>
-              <DropdownMenu className="dropdown-menu-end">
-                <DropdownItem href="/apps-invoices-details">
-                  <i className="ri-eye-fill align-bottom me-2 text-muted"></i>{" "}
-                  View
-                </DropdownItem>
-
-                <DropdownItem href="/apps-invoices-create">
-                  <i className="ri-pencil-fill align-bottom me-2 text-muted"></i>{" "}
-                  Edit
-                </DropdownItem>
-
-                <DropdownItem href="/#">
-                  <i className="ri-download-2-line align-bottom me-2 text-muted"></i>{" "}
-                  Download
-                </DropdownItem>
-
-                <DropdownItem divider />
-
-                <DropdownItem
-                  href="#"
-                  onClick={() => { const invoiceData = cellProps.row.original; onClickDelete(invoiceData); }}
-                >
-                  <i className="ri-delete-bin-fill align-bottom me-2 text-muted"></i>{" "}
-                  Delete
-                </DropdownItem>
-              </DropdownMenu>
-            </UncontrolledDropdown>
-          );
-        },
+                {s}
+              </span>
+            ))}
+          </>
+        ),
       },
     ],
-    [checkedAll]
+    []
   );
 
   document.title = "Invoice List | Nails & Co Midtown - Admin Panel";
@@ -294,65 +292,131 @@ const InvoiceList = () => {
         />
         <Container fluid>
           <BreadCrumb title="Invoice List" pageTitle="Invoices" />
-          <Row>
-            {invoiceWidgets.map((invoicewidget, key) => (
-              <React.Fragment key={key}>
-                <Col xl={3} md={6}>
-                  <Card className="card-animate">
-                    <CardBody>
-                      <div className="d-flex align-items-center">
-                        <div className="flex-grow-1">
-                          <p className="text-uppercase fw-medium text-muted mb-0">
-                            {invoicewidget.label}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <h5
-                            className={
-                              "fs-14 mb-0 text-" + invoicewidget.percentageClass
-                            }
-                          >
-                            <i className="ri-arrow-right-up-line fs-13 align-middle"></i>{" "}
-                            {invoicewidget.percentage}
-                          </h5>
-                        </div>
-                      </div>
-                      <div className="d-flex align-items-end justify-content-between mt-4">
-                        <div>
-                          <h4 className="fs-22 fw-semibold ff-secondary mb-4">
-                            <CountUp
-                              start={0}
-                              prefix={invoicewidget.prefix}
-                              suffix={invoicewidget.suffix}
+          {/* Date selector (like dashboard section) */}
+          <Row className="mb-3 pb-1">
+            <Col xs={12}>
+              <div className="d-flex align-items-lg-center flex-lg-row flex-column">
+                <div className="flex-grow-1">
+                  <h4 className="fs-16 mb-1">Invoices</h4>
+                  <p className="text-muted mb-0">{t('dashboard.section.range_text', "Here's what's happening between {{start}} and {{end}}.", { start: startLabel, end: endLabel })}</p>
+                </div>
+                <div className="mt-3 mt-lg-0">
+                  <form action="#">
+                    <div className="input-group">
+                      <Flatpickr
+                        className="form-control border-0 dash-filter-picker shadow"
+                        value={dateRange}
+                        options={{ mode: "range", dateFormat: "d M, Y", defaultDate: [weekStart, weekEnd] }}
+                        onChange={(selected: any) => setDateRange(selected)}
+                      />
+                      <div className="input-group-text bg-primary border-primary text-white"><i className="ri-calendar-2-line"></i></div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </Col>
+          </Row>
 
-                              end={invoicewidget.counter}
-                              duration={4}
-                              className="counter-value"
-                            />
-                          </h4>
-                          <span className="badge bg-warning me-1">
-                            {invoicewidget.badge}
-                          </span>{" "}
-                          <span className="text-muted">
-                            {" "}
-                            {invoicewidget.caption}
-                          </span>
-                        </div>
-                        <div className="avatar-sm flex-shrink-0">
-                          <span className="avatar-title bg-light rounded fs-3">
-                            <FeatherIcon
-                              icon={invoicewidget.feaIcon}
-                              className="text-success icon-dual-success"
-                            />
-                          </span>
-                        </div>
-                      </div>
+          {/* Top area: left — two cards (cash, bank); right — horizontal chart */}
+          {(() => {
+            const cashTotal = 120000;
+            const bankTotal = 300000;
+
+            return (
+              <Row>
+                <Col lg={4}>
+                  <Row>
+                    <Col md={12} className="mb-3">
+                      <Card className="card-animate">
+                        <CardBody>
+                          <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                              <p className="text-uppercase fw-medium text-muted mb-0">Cash</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                              <h5 className={"fs-14 mb-0 text-success"}>
+                                <i className="ri-arrow-right-up-line fs-13 align-middle"></i>{" "}
+                                +3.2 %
+                              </h5>
+                            </div>
+                          </div>
+                          <div className="d-flex align-items-end justify-content-between mt-4">
+                            <div>
+                              <h4 className="fs-22 fw-semibold ff-secondary mb-4">
+                                <CountUp start={0} end={cashTotal} prefix="$" duration={2} className="counter-value" />
+                              </h4>
+                              <span className="text-muted">In cash</span>
+                            </div>
+                            <div className="avatar-sm flex-shrink-0">
+                              <span className="avatar-title bg-light rounded fs-3">
+                                <FeatherIcon icon="dollar-sign" className="text-success icon-dual-success" />
+                              </span>
+                            </div>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </Col>
+
+                    <Col md={12}>
+                      <Card className="card-animate">
+                        <CardBody>
+                          <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                              <p className="text-uppercase fw-medium text-muted mb-0">Bank</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                              <h5 className={"fs-14 mb-0 text-success"}>
+                                <i className="ri-arrow-right-up-line fs-13 align-middle"></i>{" "}
+                                +2.5 %
+                              </h5>
+                            </div>
+                          </div>
+                          <div className="d-flex align-items-end justify-content-between mt-4">
+                            <div>
+                              <h4 className="fs-22 fw-semibold ff-secondary mb-4">
+                                <CountUp start={0} end={bankTotal} prefix="$" duration={2} className="counter-value" />
+                              </h4>
+                              <span className="text-muted">In bank</span>
+                            </div>
+                            <div className="avatar-sm flex-shrink-0">
+                              <span className="avatar-title bg-light rounded fs-3">
+                                <FeatherIcon icon="bank" className="text-success icon-dual-success" />
+                              </span>
+                            </div>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </Col>
+                  </Row>
+                </Col>
+
+                <Col lg={8}>
+                  <Card>
+                    <CardHeader className="border-0">
+                      <h5 className="card-title mb-0">Cash vs Bank</h5>
+                    </CardHeader>
+                    <CardBody>
+                      <ReactApexChart
+                        dir="ltr"
+                        className="apex-charts"
+                        options={{
+                          chart: { toolbar: { show: false } },
+                          plotOptions: { bar: { horizontal: true } },
+                          dataLabels: { enabled: true, formatter: function (val: any) { return '$' + val.toLocaleString(); } },
+                          xaxis: { categories: ["Cash", "Bank"] },
+                          colors: ["#0acf97", "#556ee6"],
+                          grid: { borderColor: "#f1f1f1" },
+                        }}
+                        series={[{ data: [cashTotal, bankTotal] }]}
+                        type="bar"
+                        height={220}
+                      />
                     </CardBody>
                   </Card>
                 </Col>
-              </React.Fragment>
-            ))}
-          </Row>
+              </Row>
+            );
+          })()}
 
           <Row>
             <Col lg={12}>
@@ -378,7 +442,17 @@ const InvoiceList = () => {
                 </CardHeader>
                 <CardBody className="pt-0">
                   <div>
-                    {isInvoiceSuccess && invoices.length ? (
+                    {useMockInvoices ? (
+                      <TableContainer
+                        columns={columns}
+                        data={mockInvoices}
+                        isGlobalFilter={true}
+                        customPageSize={10}
+                        isInvoiceListFilter={true}
+                        theadClass="text-muted text-uppercase"
+                        SearchPlaceholder='Search for customer, email, country, status or something...'
+                      />
+                    ) : (isInvoiceSuccess && invoices.length ? (
                       <TableContainer
                         columns={columns}
                         data={(invoices || [])}
@@ -388,7 +462,7 @@ const InvoiceList = () => {
                         theadClass="text-muted text-uppercase"
                         SearchPlaceholder='Search for customer, email, country, status or something...'
                       />
-                    ) : (<Loader error={error} />)
+                    ) : (<Loader error={error} />))
                     }
                     <ToastContainer closeButton={false} limit={1} />
                   </div>

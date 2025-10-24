@@ -57,12 +57,7 @@ const Navdata = () => {
                 setIsDashboard(!isDashboard);
                 setIscurrentState('Dashboard');
                 updateIconSidebar(e);
-            },
-            subItems: [
-                { id: "daily-summary", label: t('menu.admin.dashboard.daily_summary'), link: "/dashboard/resumen-diario", parentId: "admin-dashboard" },
-                { id: "ingresos-totales", label: t('menu.admin.dashboard.total_revenue'), link: "/dashboard/ingresos-totales", parentId: "admin-dashboard" },
-                { id: "alertas", label: t('menu.admin.dashboard.alerts'), link: "/dashboard/alertas", parentId: "admin-dashboard" },
-            ],
+            }
         },
 
         // 2) Administración de Ingresos y Egresos
@@ -82,21 +77,45 @@ const Navdata = () => {
                 {
                     id: "ingresos-diarios",
                     label: t('menu.admin.revenue.daily_revenue'),
-                    link: "/ingresos/diarios",
+                    // Navigate to Invoice List
+                    link: "/apps-invoices-list",
                     parentId: "admin-ingresos",
                     isChildItem: true,
                     childItems: [
-                        { id: 1, label: t('menu.admin.revenue.completed_shifts_list'), link: "/ingresos/diarios/turnos-completados", parentId: "ingresos-diarios" },
+                        {
+                            id: 1,
+                            label: t('menu.admin.revenue.completed_shifts_list'),
+                            link: "/apps-invoices-list",
+                            parentId: "ingresos-diarios",
+                            click: function (e: any) {
+                                e.preventDefault();
+                                setIscurrentState('Ingresos');
+                                updateIconSidebar(e);
+                                history('/apps-invoices-list');
+                            }
+                        },
                     ]
                 },
                 {
                     id: "ajustes-manuales",
                     label: t('menu.admin.revenue.manual_adjustments'),
-                    link: "/ingresos/ajustes-manuales",
+                    // Navigate to Invoice Create
+                    link: "/apps-invoices-create",
                     parentId: "admin-ingresos",
                     isChildItem: true,
                     childItems: [
-                        { id: 1, label: t('menu.admin.revenue.external_transactions'), link: "/ingresos/ajustes/externos", parentId: "ajustes-manuales" },
+                        {
+                            id: 1,
+                            label: t('menu.admin.revenue.external_transactions'),
+                            link: "/apps-invoices-create",
+                            parentId: "ajustes-manuales",
+                            click: function (e: any) {
+                                e.preventDefault();
+                                setIscurrentState('Ingresos');
+                                updateIconSidebar(e);
+                                history('/apps-invoices-create');
+                            }
+                        },
                     ]
                 },
             ],
