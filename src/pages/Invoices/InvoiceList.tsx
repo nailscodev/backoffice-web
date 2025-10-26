@@ -56,6 +56,13 @@ const InvoiceList = () => {
     invoices, isInvoiceSuccess, error
   } = useSelector(selectinvoiceProperties);
 
+  // layout mode (light/dark) so UI elements can adapt (badges/chips visibility)
+  const selectLayoutMode = createSelector(
+    (state: any) => state.Layout,
+    (layout) => layout.layoutModeType
+  );
+  const layoutMode = useSelector(selectLayoutMode);
+
   // Date range selector hooks (moved to top-level so React Hooks rules are respected)
   const getWeekRange = (d: Date) => {
     const date = new Date(d);
@@ -191,7 +198,7 @@ const InvoiceList = () => {
   const columns = useMemo(
     () => [
       {
-        header: "Customer",
+        header: t('invoices.col.customer', 'Customer'),
         accessorKey: "name",
         enableColumnFilter: false,
         cell: (cell: any) => (
@@ -214,18 +221,18 @@ const InvoiceList = () => {
         ),
       },
       {
-        header: "Email",
+        header: t('invoices.col.email', 'Email'),
         accessorKey: "email",
         enableColumnFilter: false,
       },
       {
-        header: "Fecha",
+        header: t('invoices.col.date', 'Date'),
         accessorKey: "start",
         enableColumnFilter: false,
         cell: (cell: any) => <>{handleValidDate(cell.getValue())}</>,
       },
       {
-        header: "Hora (inicio - fin)",
+        header: t('invoices.col.time_range', 'Time (start - end)'),
         accessorKey: "start",
         enableColumnFilter: false,
         cell: (cell: any) => {
@@ -236,40 +243,45 @@ const InvoiceList = () => {
         },
       },
       {
-        header: "Pago",
+        header: t('invoices.col.payment', 'Payment'),
         accessorKey: "paymentMethod",
         enableColumnFilter: false,
         cell: (cell: any) => (
           <span className={cell.getValue() === 'cash' ? 'badge bg-success' : 'badge bg-primary'}>
-            {cell.getValue() === 'cash' ? 'Cash' : 'Bank'}
+            {cell.getValue() === 'cash' ? t('invoices.cash', 'Cash') : t('invoices.bank', 'Bank')}
           </span>
         ),
       },
       {
-        header: "Cantidad",
+        header: t('invoices.col.amount', 'Amount'),
         accessorKey: "amount",
         enableColumnFilter: false,
       },
       {
-        header: "Servicio(s)",
+        header: t('invoices.col.services', 'Service(s)'),
         accessorKey: "services",
         enableColumnFilter: false,
         cell: (cell: any) => (
           <>
-            {(cell.getValue() || []).map((s: string, i: number) => (
-              <span
-                key={i}
-                className="badge bg-light text-dark me-1"
-                style={{ fontSize: '0.95rem', padding: '0.35rem 0.6rem' }}
-              >
-                {s}
-              </span>
-            ))}
+            {(cell.getValue() || []).map((s: string, i: number) => {
+              const badgeClass = layoutMode === 'dark'
+                ? 'badge bg-transparent text-white border border-secondary me-1'
+                : 'badge bg-light text-dark me-1';
+              return (
+                <span
+                  key={i}
+                  className={badgeClass}
+                  style={{ fontSize: '0.95rem', padding: '0.35rem 0.6rem' }}
+                >
+                  {s}
+                </span>
+              );
+            })}
           </>
         ),
       },
     ],
-    []
+    [t, layoutMode]
   );
 
   document.title = "Invoice List | Nails & Co Midtown - Admin Panel";
@@ -291,13 +303,13 @@ const InvoiceList = () => {
           onCloseClick={() => setDeleteModalMulti(false)}
         />
         <Container fluid>
-          <BreadCrumb title="Invoice List" pageTitle="Invoices" />
+          <BreadCrumb title={t('invoices.list_title', 'Invoice List')} pageTitle={t('invoices.page_title', 'Invoices')} />
           {/* Date selector (like dashboard section) */}
           <Row className="mb-3 pb-1">
             <Col xs={12}>
               <div className="d-flex align-items-lg-center flex-lg-row flex-column">
                 <div className="flex-grow-1">
-                  <h4 className="fs-16 mb-1">Invoices</h4>
+                  <h4 className="fs-16 mb-1">{t('invoices.heading', 'Invoices')}</h4>
                   <p className="text-muted mb-0">{t('dashboard.section.range_text', "Here's what's happening between {{start}} and {{end}}.", { start: startLabel, end: endLabel })}</p>
                 </div>
                 <div className="mt-3 mt-lg-0">
@@ -317,10 +329,47 @@ const InvoiceList = () => {
             </Col>
           </Row>
 
-          {/* Top area: left — two cards (cash, bank); right — horizontal chart */}
+          {/* Top area: left — two cards (cash, bank); right — two pie/donut charts (cash vs bank, revenue by service) */}
           {(() => {
-            const cashTotal = 120000;
-            const bankTotal = 300000;
+            // Helper to parse amounts like "$1,234.56"
+            const parseAmount = (amt: any) => {
+              if (!amt && amt !== 0) return 0;
+              try {
+                const s = String(amt).replace(/[^0-9.-]+/g, "");
+                const n = parseFloat(s);
+                return isNaN(n) ? 0 : n;
+              } catch (e) {
+                return 0;
+              }
+            };
+
+            // Compute totals from mockInvoices (raw), then round to 2 decimals for display
+            const cashTotalRaw = (mockInvoices || []).reduce((acc, inv) => {
+              return acc + (inv.paymentMethod === 'cash' ? parseAmount(inv.amount) : 0);
+            }, 0);
+
+            const bankTotalRaw = (mockInvoices || []).reduce((acc, inv) => {
+              return acc + (inv.paymentMethod === 'bank' ? parseAmount(inv.amount) : 0);
+            }, 0);
+
+            const cashTotal = Math.round((cashTotalRaw + Number.EPSILON) * 100) / 100;
+            const bankTotal = Math.round((bankTotalRaw + Number.EPSILON) * 100) / 100;
+
+            // Revenue by service: split invoice amount evenly across services when multiple
+            const serviceMap: { [k: string]: number } = {};
+            (mockInvoices || []).forEach(inv => {
+              const value = parseAmount(inv.amount);
+              const services = Array.isArray(inv.services) && inv.services.length ? inv.services : ['Other'];
+              const share = services.length ? value / services.length : value;
+              services.forEach((s: string) => {
+                serviceMap[s] = (serviceMap[s] || 0) + share;
+              });
+            });
+
+            const serviceLabels = Object.keys(serviceMap);
+            const serviceSeries = serviceLabels.map(l => Math.round((serviceMap[l] + Number.EPSILON) * 100) / 100);
+
+            const palette = ["#556ee6", "#34c38f", "#50a5f1", "#f46a6a", "#f7b84b", "#0acf97", "#248af0", "#6c757d"];
 
             return (
               <Row>
@@ -331,21 +380,15 @@ const InvoiceList = () => {
                         <CardBody>
                           <div className="d-flex align-items-center">
                             <div className="flex-grow-1">
-                              <p className="text-uppercase fw-medium text-muted mb-0">Cash</p>
-                            </div>
-                            <div className="flex-shrink-0">
-                              <h5 className={"fs-14 mb-0 text-success"}>
-                                <i className="ri-arrow-right-up-line fs-13 align-middle"></i>{" "}
-                                +3.2 %
-                              </h5>
+                              <p className="text-uppercase fw-medium text-muted mb-0">{t('invoices.cash', 'Cash')}</p>
                             </div>
                           </div>
                           <div className="d-flex align-items-end justify-content-between mt-4">
                             <div>
                               <h4 className="fs-22 fw-semibold ff-secondary mb-4">
-                                <CountUp start={0} end={cashTotal} prefix="$" duration={2} className="counter-value" />
+                                <CountUp start={0} end={cashTotal} prefix="$" duration={2} decimals={2} separator="," className="counter-value" />
                               </h4>
-                              <span className="text-muted">In cash</span>
+                              <span className="text-muted">{t('invoices.in_cash', 'In cash')}</span>
                             </div>
                             <div className="avatar-sm flex-shrink-0">
                               <span className="avatar-title bg-light rounded fs-3">
@@ -362,25 +405,19 @@ const InvoiceList = () => {
                         <CardBody>
                           <div className="d-flex align-items-center">
                             <div className="flex-grow-1">
-                              <p className="text-uppercase fw-medium text-muted mb-0">Bank</p>
-                            </div>
-                            <div className="flex-shrink-0">
-                              <h5 className={"fs-14 mb-0 text-success"}>
-                                <i className="ri-arrow-right-up-line fs-13 align-middle"></i>{" "}
-                                +2.5 %
-                              </h5>
+                              <p className="text-uppercase fw-medium text-muted mb-0">{t('invoices.bank', 'Bank')}</p>
                             </div>
                           </div>
                           <div className="d-flex align-items-end justify-content-between mt-4">
                             <div>
                               <h4 className="fs-22 fw-semibold ff-secondary mb-4">
-                                <CountUp start={0} end={bankTotal} prefix="$" duration={2} className="counter-value" />
+                                <CountUp start={0} end={bankTotal} prefix="$" duration={2} decimals={2} separator="," className="counter-value" />
                               </h4>
-                              <span className="text-muted">In bank</span>
+                              <span className="text-muted">{t('invoices.in_bank', 'In bank')}</span>
                             </div>
                             <div className="avatar-sm flex-shrink-0">
                               <span className="avatar-title bg-light rounded fs-3">
-                                <FeatherIcon icon="bank" className="text-success icon-dual-success" />
+                                <FeatherIcon icon="briefcase" className="text-success icon-dual-success" />
                               </span>
                             </div>
                           </div>
@@ -391,28 +428,55 @@ const InvoiceList = () => {
                 </Col>
 
                 <Col lg={8}>
-                  <Card>
-                    <CardHeader className="border-0">
-                      <h5 className="card-title mb-0">Cash vs Bank</h5>
-                    </CardHeader>
-                    <CardBody>
-                      <ReactApexChart
-                        dir="ltr"
-                        className="apex-charts"
-                        options={{
-                          chart: { toolbar: { show: false } },
-                          plotOptions: { bar: { horizontal: true } },
-                          dataLabels: { enabled: true, formatter: function (val: any) { return '$' + val.toLocaleString(); } },
-                          xaxis: { categories: ["Cash", "Bank"] },
-                          colors: ["#0acf97", "#556ee6"],
-                          grid: { borderColor: "#f1f1f1" },
-                        }}
-                        series={[{ data: [cashTotal, bankTotal] }]}
-                        type="bar"
-                        height={220}
-                      />
-                    </CardBody>
-                  </Card>
+                  <Row>
+                    <Col md={6} className="mb-3">
+                      <Card className="card-animate">
+                        <CardHeader className="border-0">
+                          <h5 className="card-title mb-0">{t('invoices.cash_vs_bank', 'Cash vs Bank')}</h5>
+                        </CardHeader>
+                        <CardBody>
+                          <ReactApexChart
+                            dir="ltr"
+                            className="apex-charts"
+                            options={{
+                              chart: { toolbar: { show: false } },
+                              labels: ["Cash", "Bank"],
+                              dataLabels: { enabled: true, formatter: function (val: any) { return '%' + Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } },
+                              colors: ["#0acf97", "#556ee6"],
+                              legend: { position: 'bottom' },
+                            }}
+                            series={[cashTotal, bankTotal]}
+                            type="donut"
+                            height={247}
+                          />
+                        </CardBody>
+                      </Card>
+                    </Col>
+
+                    <Col md={6} className="mb-3">
+                      <Card className="card-animate">
+                        <CardHeader className="border-0">
+                          <h5 className="card-title mb-0">{t('invoices.revenue_by_service', 'Revenue by Service')}</h5>
+                        </CardHeader>
+                        <CardBody>
+                          <ReactApexChart
+                            dir="ltr"
+                            className="apex-charts"
+                            options={{
+                              chart: { toolbar: { show: false } },
+                              labels: serviceLabels,
+                              dataLabels: { enabled: true, formatter: function (val: any) { return '%' + Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } },
+                              colors: palette.slice(0, Math.max(2, serviceLabels.length)),
+                              legend: { position: 'bottom' },
+                            }}
+                            series={serviceSeries}
+                            type="donut"
+                            height={247}
+                          />
+                        </CardBody>
+                      </Card>
+                    </Col>
+                  </Row>
                 </Col>
               </Row>
             );
@@ -423,7 +487,7 @@ const InvoiceList = () => {
               <Card id="invoiceList">
                 <CardHeader className="border-0">
                   <div className="d-flex align-items-center">
-                    <h5 className="card-title mb-0 flex-grow-1">Invoices</h5>
+                    <h5 className="card-title mb-0 flex-grow-1">{t('invoices.table_title', 'Invoices')}</h5>
                     <div className="flex-shrink-0">
                       <div className="d-flex gap-2 flex-wrap">
                         {isMultiDeleteButton && <button className="btn btn-primary me-1"
@@ -433,8 +497,7 @@ const InvoiceList = () => {
                           to="/apps-invoices-create"
                           className="btn btn-danger"
                         >
-                          <i className="ri-add-line align-bottom me-1"></i> Create
-                          Invoice
+                          <i className="ri-add-line align-bottom me-1"></i> {t('invoices.manual_adjustment', 'Manual Adjustment')}
                         </Link>
                       </div>
                     </div>
@@ -450,7 +513,9 @@ const InvoiceList = () => {
                         customPageSize={10}
                         isInvoiceListFilter={true}
                         theadClass="text-muted text-uppercase"
-                        SearchPlaceholder='Search for customer, email, country, status or something...'
+                            SearchPlaceholder={t('invoices.search_placeholder', 'Search for customer or email')}
+                        invoiceDateRange={dateRange}
+                        setInvoiceDateRange={setDateRange}
                       />
                     ) : (isInvoiceSuccess && invoices.length ? (
                       <TableContainer
@@ -460,7 +525,9 @@ const InvoiceList = () => {
                         customPageSize={10}
                         isInvoiceListFilter={true}
                         theadClass="text-muted text-uppercase"
-                        SearchPlaceholder='Search for customer, email, country, status or something...'
+                        SearchPlaceholder={t('invoices.search_placeholder', 'Search for customer or email')}
+                        invoiceDateRange={dateRange}
+                        setInvoiceDateRange={setDateRange}
                       />
                     ) : (<Loader error={error} />))
                     }

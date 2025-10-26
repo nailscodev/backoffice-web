@@ -1,10 +1,13 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import CountUp from "react-countup";
 import { Link } from 'react-router-dom';
 import { Card, CardBody, Col } from 'reactstrap';
 import { ecomWidgets } from "../../common/data";
 
 const Widgets = () => {
+    const { t } = useTranslation();
+
     return (
         <React.Fragment>
             {ecomWidgets.map((item, key) => (
@@ -13,7 +16,7 @@ const Widgets = () => {
                         <CardBody>
                             <div className="d-flex align-items-center">
                                 <div className="flex-grow-1 overflow-hidden">
-                                    <p className="text-uppercase fw-medium text-muted text-truncate mb-0">{item.label}</p>
+                                    <p className="text-uppercase fw-medium text-muted text-truncate mb-0">{t(item.label)}</p>
                                 </div>
                                 <div className="flex-shrink-0">
                                     <h5 className={"fs-14 mb-0 text-" + item.badgeClass}>
@@ -34,7 +37,7 @@ const Widgets = () => {
                                             duration={4}
                                         />
                                     </span></h4>
-                                    <Link to="#" className="text-decoration-underline">{item.link}</Link>
+                                    <Link to="#" className="text-decoration-underline">{t(item.link)}</Link>
                                 </div>
                                 <div className="avatar-sm flex-shrink-0">
                                     <span className={"avatar-title rounded fs-3 bg-" + item.bgcolor+"-subtle"}>

@@ -112,6 +112,11 @@ interface TableContainerProps {
   handleCompanyClick?: any;
   handleContactClick?: any;
   handleTicketClick?: any;
+  // Invoice-specific external controls (optional)
+  invoiceDateRange?: any;
+  setInvoiceDateRange?: any;
+  invoiceService?: any;
+  setInvoiceService?: any;
 }
 
 const TableContainer = ({
@@ -136,10 +141,15 @@ const TableContainer = ({
   thClass,
   divClass,
   SearchPlaceholder,
+  invoiceDateRange,
+  setInvoiceDateRange,
+  invoiceService,
+  setInvoiceService,
 
 }: TableContainerProps) => {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [localInvoiceService, setLocalInvoiceService] = useState<any>(undefined);
 
   const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
     const itemRank = rankItem(row.getValue(columnId), value);
@@ -180,6 +190,21 @@ const TableContainer = ({
     setPageSize,
     getState
   } = table;
+
+  // Keep a local invoiceService state and sync from parent prop when provided.
+  React.useEffect(() => {
+    setLocalInvoiceService(typeof invoiceService !== 'undefined' ? invoiceService : undefined);
+  }, [invoiceService]);
+
+  // When the local invoice service selection changes, apply it to the table filters
+  React.useEffect(() => {
+    const serviceVal = localInvoiceService && localInvoiceService.value ? localInvoiceService.value : localInvoiceService;
+    const col = table.getColumn ? table.getColumn('services') : null;
+    if (col) {
+      if (!serviceVal || serviceVal === 'All') col.setFilterValue(undefined);
+      else col.setFilterValue(serviceVal);
+    }
+  }, [localInvoiceService, table]);
 
   useEffect(() => {
     Number(customPageSize) && setPageSize(Number(customPageSize));
@@ -223,7 +248,12 @@ const TableContainer = ({
                 <CryptoOrdersGlobalFilter />
               )}
               {isInvoiceListFilter && (
-                <InvoiceListGlobalSearch />
+                <InvoiceListGlobalSearch
+                  dateRange={invoiceDateRange}
+                  setDateRange={setInvoiceDateRange}
+                  service={localInvoiceService}
+                  setService={setLocalInvoiceService}
+                />
               )}
               {isTicketsListFilter && (
                 <TicketsListGlobalFilter />

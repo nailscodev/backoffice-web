@@ -301,26 +301,51 @@ const CryptoOrdersGlobalFilter = () => {
     );
 };
 
-const InvoiceListGlobalSearch = () => {
-    const [isStatus, setisStatus] = useState(null);
+const InvoiceListGlobalSearch = ({ dateRange, setDateRange, service, setService }: any) => {
+    // If parent passes handlers, use them; otherwise keep local state
+    const [localDateRange, setLocalDateRange] = useState<any>(dateRange || []);
+    const [localService, setLocalService] = useState<any>(service || null);
 
+    // Sync from parent when props change
+    React.useEffect(() => {
+        if (dateRange !== undefined) setLocalDateRange(dateRange);
+    }, [dateRange]);
 
-    function handleisStatus(isStatus: any) {
-        setisStatus(isStatus);
+    React.useEffect(() => {
+        if (service !== undefined) setLocalService(service);
+    }, [service]);
+
+    function handleServiceChange(selected: any) {
+        setLocalService(selected);
+        if (setService) setService(selected);
     }
 
-    const allstatus = [
+    function handleDateChange(selected: any) {
+        setLocalDateRange(selected);
+        if (setDateRange) setDateRange(selected);
+    }
+
+    function clearFilters() {
+        setLocalDateRange([]);
+        setLocalService(null);
+        if (setDateRange) setDateRange([]);
+        if (setService) setService(null);
+    }
+
+    // Services options (kept small — update as needed)
+    const serviceOptions = [
         {
             options: [
-                { label: "Status", value: "Status" },
-                { label: "All", value: "All" },
-                { label: "Unpaid", value: "Unpaid" },
-                { label: "Paid", value: "Paid" },
-                { label: "Cancel", value: "Cancel" },
-                { label: "Refund", value: "Refund" },
+                { label: "All Services", value: "All" },
+                { label: "Manicure", value: "Manicure" },
+                { label: "Pedicure", value: "Pedicure" },
+                { label: "Gel Polish", value: "Gel Polish" },
+                { label: "Mascara", value: "Mascara" },
+                { label: "Full Set Acrylic", value: "Full Set Acrylic" },
             ],
         },
     ];
+
     return (
         <React.Fragment>
             <Col sm={4} xxl={3}>
@@ -328,31 +353,32 @@ const InvoiceListGlobalSearch = () => {
                     className="form-control bg-light border-light"
                     id="datepicker-publish-input"
                     placeholder="Select a date"
+                    value={localDateRange}
                     options={{
                         altInput: true,
                         altFormat: "F j, Y",
-                        mode: "multiple",
-                        dateFormat: "d.m.y",
+                        mode: "range",
+                        dateFormat: "d M, Y",
                     }}
+                    onChange={(selected: any) => handleDateChange(selected)}
                 />
             </Col>
 
             <Col sm={4} xxl={3}>
                 <div className="input-light">
                     <Select
-                        value={isStatus}
-                        onChange={handleisStatus}
-                        options={allstatus}
+                        value={localService}
+                        onChange={handleServiceChange}
+                        options={serviceOptions}
                         name="choices-single-default"
-                        id="idStatus"
+                        id="idService"
                     ></Select>
                 </div>
             </Col>
 
             <Col sm={4} xxl={1}>
-                <Button color="primary" className="w-100">
-                    <i className="ri-equalizer-fill me-1 align-bottom"></i>{" "}
-                    Filters
+                <Button color="secondary" className="btn-icon" onClick={clearFilters} aria-label="Clear filters" title="Clear filters">
+                    <i className="ri-refresh-line"></i>
                 </Button>
             </Col>
 
