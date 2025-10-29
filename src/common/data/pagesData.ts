@@ -934,9 +934,10 @@ const team = [
         backgroundImg: smallImage9,
         userImage: avatar2,
         name: "Nancy Martino",
-        designation: "Team Leader & HR",
+        designation: "Manager",
+        specialties: ["Manicure", "Nail Art", "Gel Nails"],
         projectCount: 225,
-        taskCount: 197
+        taskCount: 5
     },
     {
         id: 2,
@@ -944,9 +945,10 @@ const team = [
         userImage: null,
         userShortName: "HB",
         name: "Henry Baird",
-        designation: "Full Stack Developer",
+        designation: "Senior Technician",
+        specialties: ["Pedicure", "Foot Care"],
         projectCount: 352,
-        taskCount: 376,
+        taskCount: 9,
         bgColor: "light",
         textColor: "primary",
     },
@@ -955,18 +957,20 @@ const team = [
         backgroundImg: smallImage11,
         userImage: avatar3,
         name: "Frank Hook",
-        designation: "Project Manager",
+        designation: "Technician",
+        specialties: ["Acrylics", "Manicure"],
         projectCount: 162,
-        taskCount: 192
+        taskCount: 12
     },
     {
         id: 4,
         backgroundImg: smallImage1,
         userImage: avatar8,
         name: "Jennifer Carter",
-        designation: "UI/UX Designer",
+        designation: "Technician",
+        specialties: ["Gel Nails", "Nail Extensions"],
         projectCount: 241,
-        taskCount: 205
+        taskCount: 1
 
     },
     {
@@ -975,9 +979,10 @@ const team = [
         userImage: null,
         userShortName: "ME",
         name: "Megan Elmore",
-        designation: "Team Leader & Web Developer",
+        designation: "Senior Technician",
+        specialties: ["Manicure", "Decorative Art"],
         projectCount: 201,
-        taskCount: 263,
+        taskCount: 0,
         bgColor: "light",
         textColor: "primary",
 
@@ -987,9 +992,10 @@ const team = [
         backgroundImg: smallImage2,
         userImage: avatar4,
         name: "Alexis Clarke",
-        designation: "Backend Developer",
+        designation: "Technician",
+        specialties: ["Pedicure", "Shellac"],
         projectCount: 132,
-        taskCount: 147
+        taskCount: 7
 
     },
     {
@@ -998,9 +1004,10 @@ const team = [
         userImage: null,
         userShortName: "NC",
         name: "Nathan Cole",
-        designation: "Front-End Developer",
+        designation: "Technician",
+        specialties: ["Manicure", "Polish Change"],
         projectCount: 352,
-        taskCount: 376,
+        taskCount: 2,
         bgColor: "light",
         textColor: "primary",
     },
@@ -1009,18 +1016,20 @@ const team = [
         backgroundImg: smallImage7,
         userImage: avatar6,
         name: "Joseph Parker",
-        designation: "Full Stack Developer",
+        designation: "Technician",
+        specialties: ["Gel Nails", "Nail Art"],
         projectCount: 64,
-        taskCount: 93
+        taskCount: 5
     },
     {
         id: 9,
         backgroundImg: smallImage3,
         userImage: avatar5,
         name: "Erica Kernan",
-        designation: "Web Designer",
+        designation: "Technician",
+        specialties: ["Manicure", "Acrylics"],
         projectCount: 345,
-        taskCount: 298
+        taskCount: 1
     },
     {
         id: 10,
@@ -1028,9 +1037,10 @@ const team = [
         userImage: null,
         userShortName: "DP",
         name: "Donald Palmer",
-        designation: "Wed Developer",
+        designation: "Technician",
+        specialties: ["Pedicure", "Foot Care"],
         projectCount: 95,
-        taskCount: 135,
+        taskCount: 9,
         bgColor: "light",
         textColor: "primary",
 
@@ -1040,9 +1050,10 @@ const team = [
         backgroundImg: smallImage8,
         userImage: avatar7,
         name: "Jack Gough",
-        designation: "React Js Developer",
+        designation: "Technician",
+        specialties: ["Gel Nails", "Polish Change"],
         projectCount: 87,
-        taskCount: 121
+        taskCount: 12
 
     },
     {
@@ -1051,9 +1062,10 @@ const team = [
         userImage: null,
         userShortName: "MW",
         name: "Marie Ward",
-        designation: "Backend Developer",
+        designation: "Technician",
+        specialties: ["Manicure", "Nail Art"],
         projectCount: 145,
-        taskCount: 210,
+        taskCount: 3,
         bgColor: "light",
         textColor: "primary",
 

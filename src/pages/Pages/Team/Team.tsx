@@ -1,5 +1,7 @@
+import Select from 'react-select';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button, Card, CardBody, Col, Container, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, Form, Input, Label, Modal, ModalBody, Offcanvas, OffcanvasBody, Row, UncontrolledDropdown, FormFeedback } from 'reactstrap';
 import BreadCrumb from '../../../Components/Common/BreadCrumb';
 import DeleteModal from "../../../Components/Common/DeleteModal";
@@ -28,7 +30,8 @@ import { useFormik } from "formik";
 import { createSelector } from 'reselect';
 
 const Team = () => {
-    document.title = "Team | Nails & Co Midtown - Admin Panel";
+    const { t } = useTranslation();
+    document.title = `${t('team.page.title')} | Nails & Co Midtown - Admin Panel`;
 
     const dispatch: any = useDispatch();
 
@@ -199,15 +202,15 @@ const Team = () => {
         initialValues: {
             name: (teamMem && teamMem.name) || '',
             userImage: (teamMem && teamMem.userImage) || '',
-            designation: (teamMem && teamMem.designation) || '',
+            specialties: (teamMem && teamMem.specialties) || [],
             projectCount: (teamMem && teamMem.projectCount) || '',
             taskCount: (teamMem && teamMem.taskCount) || '',
         },
         validationSchema: Yup.object({
-            name: Yup.string().required("Please Enter team Name"),
-            designation: Yup.string().required("Please Enter Your designation"),
-            projectCount: Yup.number().required("Please Enter Projects"),
-            taskCount: Yup.number().required("Please Enter Tasks"),
+            name: Yup.string().required(t('team.validation.name_required')),
+            specialties: Yup.array().min(1, t('team.validation.specialties_required')),
+            projectCount: Yup.number().required(t('team.validation.projects_required')),
+            taskCount: Yup.number().required(t('team.validation.tasks_required')),
         }),
         onSubmit: (values: any) => {
             if (isEdit) {
@@ -275,13 +278,13 @@ const Team = () => {
             />
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title="Team" pageTitle="Pages" />
+                    <BreadCrumb title={t('team.page.title')} pageTitle={t('pages')} />
                     <Card>
                         <CardBody>
                             <Row className="g-2">
                                 <Col sm={4}>
                                     <div className="search-box">
-                                        <Input type="text" className="form-control" placeholder="Search for name or designation..." onChange={(e) => searchList(e.target.value)} />
+                                        <Input type="text" className="form-control" placeholder={t('team.search_placeholder')} onChange={(e) => searchList(e)} />
                                         <i className="ri-search-line search-icon"></i>
                                     </div>
                                 </Col>
@@ -297,14 +300,14 @@ const Team = () => {
                                                 <i className="ri-more-2-fill"></i>
                                             </DropdownToggle>
                                             <DropdownMenu>
-                                                <li><Link className="dropdown-item" to="#">All</Link></li>
-                                                <li><Link className="dropdown-item" to="#">Last Week</Link></li>
-                                                <li><Link className="dropdown-item" to="#">Last Month</Link></li>
-                                                <li><Link className="dropdown-item" to="#">Last Year</Link></li>
+                                                <li><Link className="dropdown-item" to="#">{t('team.filter.all')}</Link></li>
+                                                <li><Link className="dropdown-item" to="#">{t('team.filter.last_week')}</Link></li>
+                                                <li><Link className="dropdown-item" to="#">{t('team.filter.last_month')}</Link></li>
+                                                <li><Link className="dropdown-item" to="#">{t('team.filter.last_year')}</Link></li>
                                             </DropdownMenu>
                                         </Dropdown>
                                         <Button color="success" onClick={() => handleTeamClicks()}>
-                                            <i className="ri-add-fill me-1 align-bottom"></i> Add Members</Button>
+                                            <i className="ri-add-fill me-1 align-bottom"></i> {t('team.add_staff')}</Button>
                                     </div>
                                 </Col>
                             </Row>
@@ -323,29 +326,20 @@ const Team = () => {
                                                 </div>
                                                 <CardBody className="p-4">
                                                     <Row className="align-items-center team-row">
-                                                        <Col className="team-settings">
-                                                            <Row>
-                                                                <Col>
-                                                                    <div className="flex-shrink-0 me-2">
-                                                                        <button type="button" className="btn btn-light btn-icon rounded-circle btn-sm favourite-btn" onClick={(e) => favouriteBtn(e.target)}>
-                                                                            <i className="ri-star-fill fs-14"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </Col>
-                                                                <UncontrolledDropdown direction='start' className="col text-end">
-                                                                    <DropdownToggle tag="a" id="dropdownMenuLink2" role="button">
-                                                                        <i className="ri-more-fill fs-17"></i>
-                                                                    </DropdownToggle>
-                                                                    <DropdownMenu>
-                                                                        <DropdownItem className="dropdown-item edit-list" href="#addmemberModal" onClick={() => handleTeamClick(item)}>
-                                                                            <i className="ri-pencil-line me-2 align-bottom text-muted"></i>Edit
-                                                                        </DropdownItem>
-                                                                        <DropdownItem className="dropdown-item remove-list" href="#removeMemberModal" onClick={() => onClickData(item)}>
-                                                                            <i className="ri-delete-bin-5-line me-2 align-bottom text-muted"></i>Remove
-                                                                        </DropdownItem>
-                                                                    </DropdownMenu>
-                                                                </UncontrolledDropdown>
-                                                            </Row>
+                                                        <Col className="team-settings text-end">
+                                                            <UncontrolledDropdown direction='start'>
+                                                                <DropdownToggle tag="a" id="dropdownMenuLink2" role="button">
+                                                                    <i className="ri-more-fill fs-17"></i>
+                                                                </DropdownToggle>
+                                                                <DropdownMenu>
+                                                                    <DropdownItem className="dropdown-item edit-list" href="#addmemberModal" onClick={() => handleTeamClick(item)}>
+                                                                        <i className="ri-pencil-line me-2 align-bottom text-muted"></i>{t('team.dropdown.edit')}
+                                                                    </DropdownItem>
+                                                                    <DropdownItem className="dropdown-item remove-list" href="#removeMemberModal" onClick={() => onClickData(item)}>
+                                                                        <i className="ri-delete-bin-5-line me-2 align-bottom text-muted"></i>{t('team.dropdown.remove')}
+                                                                    </DropdownItem>
+                                                                </DropdownMenu>
+                                                            </UncontrolledDropdown>
                                                         </Col>
                                                         <Col lg={4} className="col">
                                                             <div className="team-profile-img">
@@ -361,7 +355,16 @@ const Team = () => {
                                                                 </div>
                                                                 <div className="team-content">
                                                                     <Link to="#" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}><h5 className="fs-16 mb-1">{item.name}</h5></Link>
-                                                                    <p className="text-muted mb-0">{item.designation}</p>
+                                                                    {/* Render specialties as chips; fall back to designation if specialties missing */}
+                                                                    <div className="mt-1">
+                                                                        {Array.isArray(item.specialties) && item.specialties.length ? (
+                                                                            (item.specialties || []).map((spec: string, i: number) => (
+                                                                                <span key={i} className="badge bg-secondary-subtle text-secondary me-1">{spec}</span>
+                                                                            ))
+                                                                        ) : (
+                                                                            <span className="badge bg-light text-muted">{item.designation}</span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </Col>
@@ -369,17 +372,17 @@ const Team = () => {
                                                             <Row className="text-muted text-center">
                                                                 <Col xs={6} className="border-end border-end-dashed">
                                                                     <h5 className="mb-1">{item.projectCount}</h5>
-                                                                    <p className="text-muted mb-0">Projects</p>
+                                                                    <p className="text-muted mb-0">{t('team.form.projects_label')}</p>
                                                                 </Col>
                                                                 <Col xs={6}>
                                                                     <h5 className="mb-1">{item.taskCount}</h5>
-                                                                    <p className="text-muted mb-0">Tasks</p>
+                                                                    <p className="text-muted mb-0">{t('team.form.tasks_label')}</p>
                                                                 </Col>
                                                             </Row>
                                                         </Col>
                                                         <Col lg={2} className="col">
                                                             <div className="text-end">
-                                                                <Link to="/pages-profile" className="btn btn-light view-btn">View Profile</Link>
+                                                                <Link to="/pages-profile" className="btn btn-light view-btn">{t('team.card.view_profile')}</Link>
                                                             </div>
                                                         </Col>
                                                     </Row>
@@ -389,8 +392,8 @@ const Team = () => {
                                     ))}
 
                                     <Col lg={12}>
-                                        <div className="text-center mb-3">
-                                            <Link to="#" className="text-success"><i className="mdi mdi-loading mdi-spin fs-20 align-middle me-2"></i> Load More </Link>
+                                            <div className="text-center mb-3">
+                                            <Link to="#" className="text-success"><i className="mdi mdi-loading mdi-spin fs-20 align-middle me-2"></i> {t('team.load_more')} </Link>
                                         </div>
                                     </Col>
                                 </Row>
@@ -414,12 +417,12 @@ const Team = () => {
 
                                                                     <div className="d-flex position-absolute start-0 end-0 top-0 p-3">
                                                                         <div className="flex-grow-1">
-                                                                            <h5 className="modal-title text-white" id="createMemberLabel">{!isEdit ? "Add New Members" : "Edit Member"}</h5>
+                                                                            <h5 className="modal-title text-white" id="createMemberLabel">{!isEdit ? t('team.modal.add_title') : t('team.modal.edit_title')}</h5>
                                                                         </div>
                                                                         <div className="flex-shrink-0">
                                                                             <div className="d-flex gap-3 align-items-center">
                                                                                 <div>
-                                                                                    <label htmlFor="cover-image-input" className="mb-0" data-bs-toggle="tooltip" data-bs-placement="top" title="Select Cover Image">
+                                                                                    <label htmlFor="cover-image-input" className="mb-0" data-bs-toggle="tooltip" data-bs-placement="top" title={t('team.modal.select_cover_image')}>
                                                                                         <div className="avatar-xs">
                                                                                             <div className="avatar-title bg-light border rounded-circle text-muted cursor-pointer">
                                                                                                 <i className="ri-image-fill"></i>
@@ -437,7 +440,7 @@ const Team = () => {
                                                             <div className="text-center mb-4 mt-n5 pt-2">
                                                                 <div className="position-relative d-inline-block">
                                                                     <div className="position-absolute bottom-0 end-0">
-                                                                        <label htmlFor="member-image-input" className="mb-0" data-bs-toggle="tooltip" data-bs-placement="right" title="Select Member Image">
+                                                                        <label htmlFor="member-image-input" className="mb-0" data-bs-toggle="tooltip" data-bs-placement="right" title={t('team.modal.select_member_image')}>
                                                                             <div className="avatar-xs">
                                                                                 <div className="avatar-title bg-light border rounded-circle text-muted cursor-pointer">
                                                                                     <i className="ri-image-fill"></i>
@@ -460,8 +463,8 @@ const Team = () => {
                                                             </div>
 
                                                             <div className="mb-3">
-                                                                <Label htmlFor="teammembersName" className="form-label">Name</Label>
-                                                                <Input type="text" className="form-control" id="teammembersName" placeholder="Enter name"
+                                                                <Label htmlFor="teammembersName" className="form-label">{t('team.form.name')}</Label>
+                                                                <Input type="text" className="form-control" id="teammembersName" placeholder={t('team.form.name_placeholder')}
                                                                     name='name'
                                                                     validate={{
                                                                         required: { value: true },
@@ -480,27 +483,44 @@ const Team = () => {
                                                         </Col>
                                                         <Col lg={12}>
                                                             <div className="mb-3">
-                                                                <Label htmlFor="designation" className="form-label">Designation</Label>
-                                                                <Input type="text" className="form-control" id="designation" placeholder="Enter designation" name='designation'
-                                                                    validate={{
-                                                                        required: { value: true },
-                                                                    }}
-                                                                    onChange={validation.handleChange}
-                                                                    onBlur={validation.handleBlur}
-                                                                    value={validation.values.designation || ""}
-                                                                    invalid={
-                                                                        validation.touched.designation && validation.errors.designation ? true : false
+                                                                <Label htmlFor="specialties" className="form-label">{t('team.form.specialties')}</Label>
+                                                                <Select
+                                                                    id="specialties"
+                                                                    name="specialties"
+                                                                    isMulti
+                                                                    classNamePrefix="react-select"
+                                                                    options={[
+                                                                        { value: 'Manicure', label: 'Manicure' },
+                                                                        { value: 'Pedicure', label: 'Pedicure' },
+                                                                        { value: 'Nail Art', label: 'Nail Art' },
+                                                                        { value: 'Gel Nails', label: 'Gel Nails' },
+                                                                        { value: 'Acrylics', label: 'Acrylics' },
+                                                                        { value: 'Nail Extensions', label: 'Nail Extensions' },
+                                                                        { value: 'Decorative Art', label: 'Decorative Art' },
+                                                                        { value: 'Shellac', label: 'Shellac' },
+                                                                        { value: 'Polish Change', label: 'Polish Change' },
+                                                                        { value: 'Foot Care', label: 'Foot Care' },
+                                                                    ]}
+                                                                    value={
+                                                                        (validation.values.specialties || []).map((v: string) => ({ value: v, label: v }))
                                                                     }
+                                                                    onChange={(selected: { value: string; label: string; }[] | null) => {
+                                                                        const values = selected ? selected.map(opt => opt.value) : [];
+                                                                        validation.setFieldValue('specialties', values);
+                                                                    }}
+                                                                    onBlur={validation.handleBlur}
+                                                                    isClearable
+                                                                    placeholder={t('team.form.specialties_placeholder') || 'Selecciona especialidades'}
                                                                 />
-                                                                {validation.touched.designation && validation.errors.designation ? (
-                                                                    <FormFeedback type="invalid">{validation.errors.designation}</FormFeedback>
+                                                                {validation.touched.specialties && validation.errors.specialties ? (
+                                                                    <div className="invalid-feedback d-block">{validation.errors.specialties}</div>
                                                                 ) : null}
                                                             </div>
                                                         </Col>
-                                                        <Col lg={6}>
+                                                        {/* <Col lg={6}>
                                                             <div className="mb-3">
-                                                                <Label htmlFor="projects" className="form-label">Projects</Label>
-                                                                <Input type="text" className="form-control" id="projects" placeholder="Enter projects" name='projectCount'
+                                                                <Label htmlFor="projects" className="form-label">{t('team.form.projects_label')}</Label>
+                                                                <Input type="text" className="form-control" id="projects" placeholder={t('team.form.projects_placeholder')} name='projectCount'
                                                                     validate={{
                                                                         required: { value: true },
                                                                     }}
@@ -518,8 +538,8 @@ const Team = () => {
                                                         </Col>
                                                         <Col lg={6}>
                                                             <div className="mb-3">
-                                                                <Label htmlFor="tasks" className="form-label">Tasks</Label>
-                                                                <Input type="text" className="form-control" id="tasks" placeholder="Enter tasks" name='taskCount'
+                                                                <Label htmlFor="tasks" className="form-label">{t('team.form.tasks_label')}</Label>
+                                                                <Input type="text" className="form-control" id="tasks" placeholder={t('team.form.tasks_placeholder')} name='taskCount'
                                                                     validate={{
                                                                         required: { value: true },
                                                                     }}
@@ -534,11 +554,11 @@ const Team = () => {
                                                                     <FormFeedback type="invalid">{validation.errors.taskCount}</FormFeedback>
                                                                 ) : null}
                                                             </div>
-                                                        </Col>
+                                                        </Col> */}
                                                         <Col lg={12}>
                                                             <div className="hstack gap-2 justify-content-end">
-                                                                <button type="button" className="btn btn-light" onClick={() => setModal(false)}>Close</button>
-                                                                <button type="submit" className="btn btn-success" id="addNewMember">{!isEdit ? "Add Member" : "Save"}</button>
+                                                                <button type="button" className="btn btn-light" onClick={() => setModal(false)}>{t('team.form.close')}</button>
+                                                                <button type="submit" className="btn btn-success" id="addNewMember">{!isEdit ? t('team.form.add_member') : t('team.form.save')}</button>
                                                             </div>
                                                         </Col>
                                                     </Row>
@@ -571,8 +591,8 @@ const Team = () => {
                                                             <i className="ri-more-fill fs-17"></i>
                                                         </DropdownToggle>
                                                         <DropdownMenu>
-                                                            <DropdownItem><i className="ri-star-line me-2 align-middle" />Favorites</DropdownItem>
-                                                            <DropdownItem><i className="ri-delete-bin-5-line me-2 align-middle" />Delete</DropdownItem>
+                                                            <DropdownItem><i className="ri-star-line me-2 align-middle" />{t('team.actions.favorites')}</DropdownItem>
+                                                            <DropdownItem><i className="ri-delete-bin-5-line me-2 align-middle" />{t('team.actions.delete')}</DropdownItem>
                                                         </DropdownMenu>
                                                     </UncontrolledDropdown>
                                                 </Row>
@@ -611,33 +631,33 @@ const Team = () => {
                                             <Col xs={6}>
                                                 <div className="p-3 border border-dashed border-start-0">
                                                     <h5 className="mb-1 profile-project">{sideBar.projectCount || "124"}</h5>
-                                                    <p className="text-muted mb-0">Projects</p>
+                                                    <p className="text-muted mb-0">{t('team.form.projects_label')}</p>
                                                 </div>
                                             </Col>
                                             <Col xs={6}>
                                                 <div className="p-3 border border-dashed border-start-0">
                                                     <h5 className="mb-1 profile-task">{sideBar.taskCount || "81"}</h5>
-                                                    <p className="text-muted mb-0">Tasks</p>
+                                                    <p className="text-muted mb-0">{t('team.form.tasks_label')}</p>
                                                 </div>
                                             </Col>
                                         </Row>
                                         <div className="p-3">
-                                            <h5 className="fs-15 mb-3">Personal Details</h5>
+                                            <h5 className="fs-15 mb-3">{t('team.profile.personal_details')}</h5>
                                             <div className="mb-3">
-                                                <p className="text-muted text-uppercase fw-semibold fs-12 mb-2">Number</p>
+                                                <p className="text-muted text-uppercase fw-semibold fs-12 mb-2">{t('team.profile.number')}</p>
                                                 <h6>+(256) 2451 8974</h6>
                                             </div>
                                             <div className="mb-3">
-                                                <p className="text-muted text-uppercase fw-semibold fs-12 mb-2">Email</p>
+                                                <p className="text-muted text-uppercase fw-semibold fs-12 mb-2">{t('team.profile.email')}</p>
                                                 <h6>nancymartino@email.com</h6>
                                             </div>
                                             <div>
-                                                <p className="text-muted text-uppercase fw-semibold fs-12 mb-2">Location</p>
+                                                <p className="text-muted text-uppercase fw-semibold fs-12 mb-2">{t('team.profile.location')}</p>
                                                 <h6 className="mb-0">Carson City - USA</h6>
                                             </div>
                                         </div>
                                         <div className="p-3 border-top">
-                                            <h5 className="fs-15 mb-4">File Manager</h5>
+                                            <h5 className="fs-15 mb-4">{t('team.file.title')}</h5>
                                             <div className="d-flex mb-3">
                                                 <div className="flex-shrink-0 avatar-xs">
                                                     <div className="avatar-title bg-danger-subtle text-danger rounded fs-16">
@@ -645,7 +665,7 @@ const Team = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex-grow-1 ms-3">
-                                                    <h6 className="mb-1"><Link to="#">Images</Link></h6>
+                                                    <h6 className="mb-1"><Link to="#">{t('team.file.images')}</Link></h6>
                                                     <p className="text-muted mb-0">4469 Files</p>
                                                 </div>
                                                 <div className="text-muted">
@@ -659,7 +679,7 @@ const Team = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex-grow-1 ms-3">
-                                                    <h6 className="mb-1"><Link to="#">Documents</Link></h6>
+                                                    <h6 className="mb-1"><Link to="#">{t('team.file.documents')}</Link></h6>
                                                     <p className="text-muted mb-0">46 Files</p>
                                                 </div>
                                                 <div className="text-muted">
@@ -673,7 +693,7 @@ const Team = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex-grow-1 ms-3">
-                                                    <h6 className="mb-1"><Link to="#">Media</Link></h6>
+                                                    <h6 className="mb-1"><Link to="#">{t('team.file.media')}</Link></h6>
                                                     <p className="text-muted mb-0">124 Files</p>
                                                 </div>
                                                 <div className="text-muted">
@@ -687,7 +707,7 @@ const Team = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex-grow-1 ms-3">
-                                                    <h6 className="mb-1"><Link to="#">Others</Link></h6>
+                                                    <h6 className="mb-1"><Link to="#">{t('team.file.others')}</Link></h6>
                                                     <p className="text-muted mb-0">18 Files</p>
                                                 </div>
                                                 <div className="text-muted">
@@ -697,14 +717,14 @@ const Team = () => {
                                         </div>
                                     </OffcanvasBody>
                                     <div className="offcanvas-foorter border p-3 hstack gap-3 text-center position-relative">
-                                        <button className="btn btn-light w-100"><i className="ri-question-answer-fill align-bottom ms-1"></i> Send Message</button>
-                                        <Link to="/pages-profile" className="btn btn-primary w-100"><i className="ri-user-3-fill align-bottom ms-1"></i> View Profile</Link>
+                                        <button className="btn btn-light w-100"><i className="ri-question-answer-fill align-bottom ms-1"></i> {t('team.offcanvas.send_message')}</button>
+                                        <Link to="/pages-profile" className="btn btn-primary w-100"><i className="ri-user-3-fill align-bottom ms-1"></i> {t('team.card.view_profile')}</Link>
                                     </div>
                                 </Offcanvas>
                             </div>
-                            <div className="py-4 mt-4 text-center" id="noresult" style={{ display: "none" }}>
+                                <div className="py-4 mt-4 text-center" id="noresult" style={{ display: "none" }}>
                                 <i className="ri-search-line display-5 text-success"></i>
-                                <h5 className="mt-4">Sorry! No Result Found</h5>
+                                <h5 className="mt-4">{t('team.no_results')}</h5>
                             </div>
                         </Col>
                     </Row>

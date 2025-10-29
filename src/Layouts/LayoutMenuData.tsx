@@ -146,27 +146,7 @@ const Navdata = () => {
             ],
         },
 
-        // 4) Clientes
-        {
-            id: "admin-clientes",
-            label: t('menu.admin.customers.title'),
-            icon: "ri-group-line",
-            link: "/clientes",
-            click: function (e: any) {
-                e.preventDefault();
-                setIsClientes(!isClientes);
-                setIscurrentState('Clientes');
-                updateIconSidebar(e);
-            },
-            stateVariables: isClientes,
-            subItems: [
-                { id: "registro-cliente", label: t('menu.admin.customers.register'), link: "/clientes/registro", parentId: "admin-clientes" },
-                { id: "filtros-clientes", label: t('menu.admin.customers.filters'), link: "/clientes/filtros", parentId: "admin-clientes" },
-                { id: "historial-cliente", label: t('menu.admin.customers.history'), link: "/clientes/historial", parentId: "admin-clientes" },
-            ],
-        },
-
-        // 5) Servicios
+        // 4) Servicios
         {
             id: "admin-servicios",
             label: t('menu.admin.services.title'),
@@ -186,23 +166,41 @@ const Navdata = () => {
             ],
         },
 
-        // 6) Profesionales / Staff
+        // 5) Profesionales / Staff (point to Team page)
         {
             id: "admin-staff",
             label: t('menu.admin.staff.title'),
             icon: "ri-user-3-line",
-            link: "/staff",
+            // Use the Team page route
+            link: "/pages-team",
             click: function (e: any) {
                 e.preventDefault();
                 setIsStaffSection(!isStaffSection);
                 setIscurrentState('Staff');
                 updateIconSidebar(e);
+                // navigate to the Team page (Pages -> Team)
+                history('/pages-team');
             },
             stateVariables: isStaffSection,
+        },
+
+        // 6) Clientes
+        {
+            id: "admin-clientes",
+            label: t('menu.admin.customers.title'),
+            icon: "ri-group-line",
+            link: "/clientes",
+            click: function (e: any) {
+                e.preventDefault();
+                setIsClientes(!isClientes);
+                setIscurrentState('Clientes');
+                updateIconSidebar(e);
+            },
+            stateVariables: isClientes,
             subItems: [
-                { id: "staff-registro", label: t('menu.admin.staff.basic_register'), link: "/staff/registro", parentId: "admin-staff" },
-                { id: "staff-disponibilidad", label: t('menu.admin.staff.availability'), link: "/staff/disponibilidad", parentId: "admin-staff" },
-                { id: "asignacion-turnos", label: t('menu.admin.staff.shift_assignment'), link: "/staff/asignacion", parentId: "admin-staff" },
+                { id: "registro-cliente", label: t('menu.admin.customers.register'), link: "/clientes/registro", parentId: "admin-clientes" },
+                { id: "filtros-clientes", label: t('menu.admin.customers.filters'), link: "/clientes/filtros", parentId: "admin-clientes" },
+                { id: "historial-cliente", label: t('menu.admin.customers.history'), link: "/clientes/historial", parentId: "admin-clientes" },
             ],
         },
 
