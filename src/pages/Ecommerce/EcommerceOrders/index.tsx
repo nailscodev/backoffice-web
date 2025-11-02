@@ -49,7 +49,11 @@ import 'react-toastify/dist/ReactToastify.css';
 import { createSelector } from "reselect";
 import moment from "moment";
 
+// i18n
+import { useTranslation } from 'react-i18next';
+
 const EcommerceOrders = () => {
+  const { t } = useTranslation();
 
   const [modal, setModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("1");
@@ -74,14 +78,9 @@ const EcommerceOrders = () => {
   const orderstatus = [
     {
       options: [
-        { label: "Status", value: "Status" },
-        { label: "All", value: "All" },
-        { label: "Pending", value: "Pending" },
-        { label: "Inprogress", value: "Inprogress" },
-        { label: "Cancelled", value: "Cancelled" },
-        { label: "Pickups", value: "Pickups" },
-        { label: "Returns", value: "Returns" },
-        { label: "Delivered", value: "Delivered" },
+        { label: t('reservations.status.completed'), value: "Completed" },
+        { label: t('reservations.status.pending'), value: "Pending" },
+        { label: t('reservations.status.cancelled'), value: "Cancelled" },
       ],
     },
   ];
@@ -89,12 +88,8 @@ const EcommerceOrders = () => {
   const orderpayement = [
     {
       options: [
-        { label: "Select Payment", value: "Select Payment" },
-        { label: "All", value: "All" },
-        { label: "Mastercard", value: "Mastercard" },
-        { label: "Paypal", value: "Paypal" },
-        { label: "Visa", value: "Visa" },
-        { label: "COD", value: "COD" },
+        { label: t('reservations.payment.cash'), value: "Cash" },
+        { label: t('reservations.payment.bank'), value: "Bank" },
       ],
     },
   ];
@@ -102,37 +97,21 @@ const EcommerceOrders = () => {
   const productname = [
     {
       options: [
-        { label: "Product", value: "Product" },
-        { label: "Puma Tshirt", value: "Puma Tshirt" },
-        { label: "Adidas Sneakers", value: "Adidas Sneakers" },
-        {
-          label: "350 ml Glass Grocery Container",
-          value: "350 ml Glass Grocery Container",
-        },
-        {
-          label: "American egale outfitters Shirt",
-          value: "American egale outfitters Shirt",
-        },
-        { label: "Galaxy Watch4", value: "Galaxy Watch4" },
-        { label: "Apple iPhone 12", value: "Apple iPhone 12" },
-        { label: "Funky Prints T-shirt", value: "Funky Prints T-shirt" },
-        {
-          label: "USB Flash Drive Personalized with 3D Print",
-          value: "USB Flash Drive Personalized with 3D Print",
-        },
-        {
-          label: "Oxford Button-Down Shirt",
-          value: "Oxford Button-Down Shirt",
-        },
-        {
-          label: "Classic Short Sleeve Shirt",
-          value: "Classic Short Sleeve Shirt",
-        },
-        {
-          label: "Half Sleeve T-Shirts (Blue)",
-          value: "Half Sleeve T-Shirts (Blue)",
-        },
-        { label: "Noise Evolve Smartwatch", value: "Noise Evolve Smartwatch" },
+        { label: "Servicios", value: "Servicios" },
+        { label: "Manicura Clásica", value: "Manicura Clásica" },
+        { label: "Manicura con Gel", value: "Manicura con Gel" },
+        { label: "Pedicura Spa", value: "Pedicura Spa" },
+        { label: "Uñas Acrílicas", value: "Uñas Acrílicas" },
+        { label: "Uñas de Gel", value: "Uñas de Gel" },
+        { label: "Diseño de Uñas", value: "Diseño de Uñas" },
+        { label: "Esmaltado Permanente", value: "Esmaltado Permanente" },
+        { label: "Retiro de Acrílico", value: "Retiro de Acrílico" },
+        { label: "Retiro de Gel", value: "Retiro de Gel" },
+        { label: "French Manicure", value: "French Manicure" },
+        { label: "Manicura Rusa", value: "Manicura Rusa" },
+        { label: "Pedicura Clásica", value: "Pedicura Clásica" },
+        { label: "Tratamiento de Cutículas", value: "Tratamiento de Cutículas" },
+        { label: "Masaje de Manos", value: "Masaje de Manos" },
       ],
     },
   ];
@@ -188,13 +167,13 @@ const EcommerceOrders = () => {
       status: (order && order.status) || '',
     },
     validationSchema: Yup.object({
-      orderId: Yup.string().required("Please Enter order Id"),
-      customer: Yup.string().required("Please Enter Customer Name"),
-      product: Yup.string().required("Please Enter Product Name"),
-      orderDate: Yup.string().required("Please Enter Order Date"),
-      amount: Yup.string().required("Please Enter Total Amount"),
-      payment: Yup.string().required("Please Enter Payment Method"),
-      status: Yup.string().required("Please Enter Delivery Status")
+      orderId: Yup.string().required(t("reservations.validation.id_required")),
+      customer: Yup.string().required(t("reservations.validation.customer_required")),
+      product: Yup.string().required(t("reservations.validation.services_required")),
+      orderDate: Yup.string().required(t("reservations.validation.date_required")),
+      amount: Yup.string().required(t("reservations.validation.amount_required")),
+      payment: Yup.string().required(t("reservations.validation.payment_required")),
+      status: Yup.string().required(t("reservations.validation.status_required"))
     }),
     onSubmit: (values) => {
       if (isEdit) {
@@ -327,7 +306,7 @@ const EcommerceOrders = () => {
         enableSorting: false,
       },
       {
-        header: "Order Id",
+        header: t("reservations.table.reservation_id"),
         accessorKey: "orderId",
         enableColumnFilter: false,
         cell: (cell: any) => {
@@ -335,17 +314,17 @@ const EcommerceOrders = () => {
         },
       },
       {
-        header: "Customer",
+        header: t("reservations.table.customer"),
         accessorKey: "customer",
         enableColumnFilter: false,
       },
       {
-        header: "Product",
+        header: t("reservations.table.services"),
         accessorKey: "product",
         enableColumnFilter: false,
       },
       {
-        header: "Order Date",
+        header: t("reservations.table.reservation_date"),
         accessorKey: "orderDate",
         enableColumnFilter: false,
         cell: (cell: any) => (
@@ -356,33 +335,40 @@ const EcommerceOrders = () => {
         ),
       },
       {
-        header: "Amount",
+        header: t("reservations.table.amount"),
         accessorKey: "amount",
         enableColumnFilter: false,
       },
       {
-        header: "Payment Method",
+        header: t("reservations.table.payment_method"),
         accessorKey: "payment",
         enableColumnFilter: false,
+        cell: (cell: any) => {
+          const paymentValue = cell.getValue();
+          if (paymentValue === "Bank" || paymentValue === "Banco") {
+            return t('reservations.payment.bank');
+          } else if (paymentValue === "Cash" || paymentValue === "Efectivo") {
+            return t('reservations.payment.cash');
+          }
+          return paymentValue;
+        },
       },
       {
-        header: 'Delivery Status',
+        header: t("reservations.table.status"),
         accessorKey: 'status',
         enableColumnFilter: false,
         cell: (cell: any) => {
           switch (cell.getValue()) {
+            case "Pendiente":
             case "Pending":
-              return <span className="badge text-uppercase bg-warning-subtle text-warning"> {cell.getValue()} </span>;
+              return <span className="badge text-uppercase bg-warning-subtle text-warning"> {t('reservations.status.pending')} </span>;
+            case "Cancelado":
             case "Cancelled":
-              return <span className="badge text-uppercase bg-danger-subtle text-danger"> {cell.getValue()} </span>;
-            case "Inprogress":
-              return <span className="badge text-uppercase bg-secondary-subtle text-secondary"> {cell.getValue()} </span>;
-            case "Pickups":
-              return <span className="badge text-uppercase bg-info-subtle text-info"> {cell.getValue()} </span>;
-            case "Returns":
-              return <span className="badge text-uppercase bg-primary-subtle text-primary"> {cell.getValue()} </span>;
+              return <span className="badge text-uppercase bg-danger-subtle text-danger"> {t('reservations.status.cancelled')} </span>;
+            case "Completado":
+            case "Completed":
             case "Delivered":
-              return <span className="badge text-uppercase bg-success-subtle text-success"> {cell.getValue()} </span>;
+              return <span className="badge text-uppercase bg-success-subtle text-success"> {t('reservations.status.completed')} </span>;
             default:
               return <span className="badge text-uppercase bg-warning-subtle text-warning"> {cell.getValue()} </span>;
           }
@@ -390,7 +376,7 @@ const EcommerceOrders = () => {
       },
 
       {
-        header: "Action",
+        header: t("reservations.table.action"),
         cell: (cellProps: any) => {
           return (
             <ul className="list-inline hstack gap-2 mb-0">
@@ -431,7 +417,7 @@ const EcommerceOrders = () => {
         },
       },
     ],
-    [handleOrderClick, checkedAll]
+    [handleOrderClick, checkedAll, t]
   );
 
   const handleValidDate = (date: any) => {
@@ -457,7 +443,7 @@ const EcommerceOrders = () => {
   // Export Modal
   const [isExportCSV, setIsExportCSV] = useState<boolean>(false);
 
-  document.title = "Orders | Nails & Co Midtown - Admin Panel";
+  document.title = "Reservas | Nails & Co Midtown - Admin Panel";
   return (
     <div className="page-content">
       <ExportCSVModal
@@ -479,14 +465,14 @@ const EcommerceOrders = () => {
         onCloseClick={() => setDeleteModalMulti(false)}
       />
       <Container fluid>
-        <BreadCrumb title="Orders" pageTitle="Ecommerce" />
+        <BreadCrumb title={t("reservations.title")} pageTitle={t("reservations.breadcrumb")} />
         <Row>
           <Col lg={12}>
             <Card id="orderList">
               <CardHeader className="card-header border-0">
                 <Row className="align-items-center gy-3">
                   <div className="col-sm">
-                    <h5 className="card-title mb-0">Order History</h5>
+                    <h5 className="card-title mb-0">{t("reservations.list_title")}</h5>
                   </div>
                   <div className="col-sm-auto">
                     <div className="d-flex gap-1 flex-wrap">
@@ -496,12 +482,11 @@ const EcommerceOrders = () => {
                         id="create-btn"
                         onClick={() => { setIsEdit(false); toggle(); }}
                       >
-                        <i className="ri-add-line align-bottom me-1"></i> Create
-                        Order
+                        <i className="ri-add-line align-bottom me-1"></i> {t("reservations.create_reservation")}
                       </button>{" "}
                       <button type="button" className="btn btn-info" onClick={() => setIsExportCSV(true)}>
                         <i className="ri-file-download-line align-bottom me-1"></i>{" "}
-                        Export
+                        {t("reservations.export")}
                       </button>
                       {" "}
                       {isMultiDeleteButton && <button className="btn btn-soft-danger"
@@ -529,7 +514,7 @@ const EcommerceOrders = () => {
                         href="#"
                       >
                         <i className="ri-store-2-fill me-1 align-bottom"></i>{" "}
-                        All Orders
+                        {t("reservations.tabs.all")}
                       </NavLink>
                     </NavItem>
                     <NavItem>
@@ -537,12 +522,12 @@ const EcommerceOrders = () => {
                         className={classnames(
                           { active: activeTab === "2" })}
                         onClick={() => {
-                          toggleTab("2", "Delivered");
+                          toggleTab("2", "Completed");
                         }}
                         href="#"
                       >
                         <i className="ri-checkbox-circle-line me-1 align-bottom"></i>{" "}
-                        Delivered
+                        {t("reservations.tabs.completed")}
                       </NavLink>
                     </NavItem>
                     <NavItem>
@@ -550,15 +535,12 @@ const EcommerceOrders = () => {
                         className={classnames(
                           { active: activeTab === "3" })}
                         onClick={() => {
-                          toggleTab("3", "Pickups");
+                          toggleTab("3", "Pending");
                         }}
                         href="#"
                       >
-                        <i className="ri-truck-line me-1 align-bottom"></i>{" "}
-                        Pickups{" "}
-                        <span className="badge bg-danger align-middle ms-1">
-                          2
-                        </span>
+                        <i className="ri-time-line me-1 align-bottom"></i>{" "}
+                        {t("reservations.tabs.pending")}
                       </NavLink>
                     </NavItem>
                     <NavItem>
@@ -566,25 +548,12 @@ const EcommerceOrders = () => {
                         className={classnames(
                           { active: activeTab === "4" })}
                         onClick={() => {
-                          toggleTab("4", "Returns");
-                        }}
-                        href="#"
-                      >
-                        <i className="ri-arrow-left-right-fill me-1 align-bottom"></i>{" "}
-                        Returns
-                      </NavLink>
-                    </NavItem>
-                    <NavItem>
-                      <NavLink
-                        className={classnames(
-                          { active: activeTab === "5" })}
-                        onClick={() => {
-                          toggleTab("5", "Cancelled");
+                          toggleTab("4", "Cancelled");
                         }}
                         href="#"
                       >
                         <i className="ri-close-circle-line me-1 align-bottom"></i>{" "}
-                        Cancelled
+                        {t("reservations.tabs.cancelled")}
                       </NavLink>
                     </NavItem>
                   </Nav>
@@ -599,14 +568,14 @@ const EcommerceOrders = () => {
                       tableClass="align-middle table-nowrap"
                       theadClass="table-light text-muted text-uppercase"
                       isOrderFilter={true}
-                      SearchPlaceholder='Search for order ID, customer, order status or something...'
+                      SearchPlaceholder={t('reservations.search_placeholder')}
                     />
                   ) : (<Loader error={error} />)
                   }
                 </div>
                 <Modal id="showModal" isOpen={modal} toggle={toggle} centered>
                   <ModalHeader className="bg-light p-3" toggle={toggle}>
-                    {!!isEdit ? "Edit Order" : "Add Order"}
+                    {!!isEdit ? t("reservations.edit_reservation") : t("reservations.create_reservation")}
                   </ModalHeader>
                   <Form className="tablelist-form" onSubmit={(e: any) => {
                     e.preventDefault();
@@ -621,13 +590,13 @@ const EcommerceOrders = () => {
                           htmlFor="id-field"
                           className="form-label"
                         >
-                          Order Id
+                          {t("reservations.form.reservation_id")}
                         </Label>
                         <Input
                           name="orderId"
                           id="id-field"
                           className="form-control"
-                          placeholder="Enter Order Id"
+                          placeholder={t("reservations.form.enter_id")}
                           type="text"
                           validate={{
                             required: { value: true },
@@ -650,13 +619,13 @@ const EcommerceOrders = () => {
                           htmlFor="customername-field"
                           className="form-label"
                         >
-                          Customer Name
+                          {t("reservations.form.customer_name")}
                         </Label>
                         <Input
                           name="customer"
                           id="customername-field"
                           className="form-control"
-                          placeholder="Enter Name"
+                          placeholder={t("reservations.form.enter_name")}
                           type="text"
                           validate={{
                             required: { value: true },
@@ -679,7 +648,7 @@ const EcommerceOrders = () => {
                           htmlFor="productname-field"
                           className="form-label"
                         >
-                          Product
+                          {t("reservations.form.services")}
                         </Label>
 
                         <Input
@@ -706,14 +675,14 @@ const EcommerceOrders = () => {
 
                       <div className="mb-3">
                         <Label htmlFor="date-field" className="form-label">
-                          Order Date
+                          {t("reservations.form.reservation_date")}
                         </Label>
 
                         <Flatpickr
                           name="orderDate"
                           className="form-control"
                           id="datepicker-publish-input"
-                          placeholder="Select a date"
+                          placeholder={t("reservations.form.select_date")}
                           options={{
                             enableTime: true,
                             altInput: true,
@@ -735,11 +704,12 @@ const EcommerceOrders = () => {
                               htmlFor="amount-field"
                               className="form-label"
                             >
-                              Amount
+                              {t("reservations.form.amount")}
                             </Label>
                             <Input
                               name="amount"
                               type="text"
+                              placeholder={t("reservations.form.enter_amount")}
                               onChange={validation.handleChange}
                               onBlur={validation.handleBlur}
                               value={validation.values.amount || ""}
@@ -759,7 +729,7 @@ const EcommerceOrders = () => {
                               htmlFor="payment-field"
                               className="form-label"
                             >
-                              Payment Method
+                              {t("reservations.form.payment_method")}
                             </Label>
 
                             <Input
@@ -793,7 +763,7 @@ const EcommerceOrders = () => {
                           htmlFor="delivered-status"
                           className="form-label"
                         >
-                          Delivery Status
+                          {t("reservations.form.status")}
                         </Label>
 
                         <Input
@@ -829,13 +799,13 @@ const EcommerceOrders = () => {
                             setModal(false);
                           }}
                         >
-                          Close
+                          {t("reservations.form.close")}
                         </button>
 
                         <button type="submit" className="btn btn-success">
                           {!!isEdit
-                            ? "Update"
-                            : "Add Customer"}
+                            ? t("reservations.form.update")
+                            : t("reservations.form.add_reservation")}
                         </button>
                       </div>
                     </div>

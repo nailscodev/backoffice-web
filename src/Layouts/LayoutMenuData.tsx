@@ -135,14 +135,18 @@ const Navdata = () => {
             },
             stateVariables: isReservas,
             subItems: [
-                {
-                    id: "listado-turnos",
-                    label: t('menu.admin.reservations.list'),
-                    link: "/reservas/listado",
-                    parentId: "admin-reservas",
-                    isChildItem: true,
+                { 
+                    id: "historial-reservas", 
+                    label: t('menu.admin.reservations.list'), 
+                    link: "/apps-ecommerce-orders", 
+                    parentId: "admin-reservas" 
                 },
-                { id: "vista-calendario", label: t('menu.admin.reservations.calendar_view'), link: "/reservas/calendario", parentId: "admin-reservas" },
+                { 
+                    id: "vista-calendario", 
+                    label: t('menu.admin.reservations.calendar_view'), 
+                    link: "/reservas/calendario", 
+                    parentId: "admin-reservas" 
+                },
             ],
         },
 
@@ -189,19 +193,13 @@ const Navdata = () => {
             id: "admin-clientes",
             label: t('menu.admin.customers.title'),
             icon: "ri-group-line",
-            link: "/clientes",
+            link: "/apps-ecommerce-customers",
             click: function (e: any) {
                 e.preventDefault();
-                setIsClientes(!isClientes);
                 setIscurrentState('Clientes');
                 updateIconSidebar(e);
+                history('/apps-ecommerce-customers');
             },
-            stateVariables: isClientes,
-            subItems: [
-                { id: "registro-cliente", label: t('menu.admin.customers.register'), link: "/clientes/registro", parentId: "admin-clientes" },
-                { id: "filtros-clientes", label: t('menu.admin.customers.filters'), link: "/clientes/filtros", parentId: "admin-clientes" },
-                { id: "historial-cliente", label: t('menu.admin.customers.history'), link: "/clientes/historial", parentId: "admin-clientes" },
-            ],
         },
 
         // 7) Reportes

@@ -14,6 +14,8 @@ import HorizontalLayout from "./HorizontalLayout";
 
 const Sidebar = ({ layoutType } : any) => {
 
+  const [isMinimized, setIsMinimized] = React.useState<boolean>(false);
+
   useEffect(() => {
     var verticalOverlay = document.getElementsByClassName("vertical-overlay");
     if (verticalOverlay) {
@@ -21,6 +23,23 @@ const Sidebar = ({ layoutType } : any) => {
         document.body.classList.remove("vertical-sidebar-enable");
       });
     }
+
+    // Check if sidebar is minimized
+    const checkSidebarSize = () => {
+      const sidebarSize = document.documentElement.getAttribute('data-sidebar-size');
+      setIsMinimized(sidebarSize === 'sm' || sidebarSize === 'sm-hover' || sidebarSize === 'sm-hover-active');
+    };
+
+    checkSidebarSize();
+    
+    // Observer to detect changes in sidebar size
+    const observer = new MutationObserver(checkSidebarSize);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-sidebar-size']
+    });
+
+    return () => observer.disconnect();
   });
 
   const addEventListenerOnSmHoverMenu = () => {
@@ -39,7 +58,7 @@ const Sidebar = ({ layoutType } : any) => {
       <div className="app-menu navbar-menu">
         <div className="navbar-brand-box">
           <Link to="/" className="logo logo-dark">
-            <span className="logo-sm">
+            <span className="logo-sm" style={{ padding: '10px' }}>
               <img src={logoSm} alt="" height="auto" width="100%" />
             </span>
             <span className="logo-lg">
@@ -48,7 +67,7 @@ const Sidebar = ({ layoutType } : any) => {
           </Link>
 
           <Link to="/" className="logo logo-light">
-            <span className="logo-sm">
+            <span className="logo-sm" style={{ padding: '10px' }}>
               <img src={logoSm} alt="" height="auto" width="100%" />
             </span>
             <span className="logo-lg">
@@ -83,7 +102,7 @@ const Sidebar = ({ layoutType } : any) => {
             <SimpleBar id="scrollbar" className="h-100">
               <Container fluid>
                 <div id="two-column-menu"></div>
-                <ul className="navbar-nav" id="navbar-nav">
+                <ul className="navbar-nav" id="navbar-nav" style={{ marginTop: isMinimized ? '15px' : '0' }}>
                   <VerticalLayout layoutType={layoutType} />
                 </ul>
               </Container>

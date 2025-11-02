@@ -30,27 +30,11 @@ const ProductsGlobalFilter = () => {
     );
 };
 const CustomersGlobalFilter = () => {
-    const [customerStatus, setcustomerStatus] = useState(null);
-
-    function handlecustomerStatus(customerStatus: any) {
-        setcustomerStatus(customerStatus);
-    }
-
-    const customerstatus = [
-        {
-            options: [
-                { label: "Status", value: "Status" },
-                { label: "All", value: "All" },
-                { label: "Active", value: "Active" },
-                { label: "Block", value: "Block" },
-            ],
-        },
-    ];
     return (
         <React.Fragment>
             <Col xl={7}>
                 <Row className="g-3">
-                    <Col sm={4}>
+                    <Col sm={5}>
                         <div className="">
                             <Flatpickr
                                 className="form-control"
@@ -66,29 +50,15 @@ const CustomersGlobalFilter = () => {
                         </div>
                     </Col>
 
-                    <Col sm={4}>
-                        <div>
-                            <Select
-                                value={customerStatus}
-                                onChange={(e: any) => {
-                                    handlecustomerStatus(e);
-                                }}
-                                options={customerstatus}
-                                name="choices-single-default"
-                                id="idStatus"
-                            ></Select>
-                        </div>
-                    </Col>
-
-                    <Col sm={4}>
+                    <Col sm={7}>
                         <div>
                             <button
                                 type="button"
                                 className="btn btn-primary w-100"
                             >
                                 {" "}
-                                <i className="ri-equalizer-fill me-2 align-bottom"></i>
-                                Filters
+                                <i className="ri-search-line me-2 align-bottom"></i>
+                                Search
                             </button>
                         </div>
                     </Col>
