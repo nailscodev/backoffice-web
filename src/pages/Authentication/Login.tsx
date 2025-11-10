@@ -173,10 +173,9 @@ const Login = (props: any) => {
                                 <div className="text-center mt-sm-5 mb-4 text-white-50">
                                     <div>
                                         <Link to="/" className="d-inline-block auth-logo">
-                                            <img src={logoLight} alt="" height="20" />
+                                            <img src={logoLight} alt="" height="60" />
                                         </Link>
                                     </div>
-                                    <p className="mt-3 fs-15 fw-medium">Premium Admin & Dashboard Template</p>
                                 </div>
                             </Col>
                         </Row>
@@ -186,7 +185,7 @@ const Login = (props: any) => {
                                 <Card className="mt-4">
                                     <CardBody className="p-4">
                                         <div className="text-center mt-2">
-                                            <h5 className="text-primary">Welcome Back !</h5>
+                                            <h5 className="text-dark fw-semibold">Welcome Back!</h5>
                                             <p className="text-muted">Sign in to continue.</p>
                                         </div>
                                         {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
@@ -249,9 +248,30 @@ const Login = (props: any) => {
                                                 </div>
 
                                                 <div className="mt-4">
-                                                    <Button color="success"
+                                                    <Button 
+                                                        color="dark"
                                                         disabled={loader && true}
-                                                        className="btn btn-success w-100" type="submit">
+                                                        className="btn btn-dark w-100" 
+                                                        type="submit"
+                                                        style={{ 
+                                                            backgroundColor: '#000000', 
+                                                            borderColor: '#000000',
+                                                            borderRadius: '6px',
+                                                            padding: '0.6rem 1rem',
+                                                            fontWeight: '500',
+                                                            transition: 'all 0.3s ease'
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            e.currentTarget.style.backgroundColor = '#ffffff';
+                                                            e.currentTarget.style.color = '#000000';
+                                                            e.currentTarget.style.borderColor = '#000000';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.backgroundColor = '#000000';
+                                                            e.currentTarget.style.color = '#ffffff';
+                                                            e.currentTarget.style.borderColor = '#000000';
+                                                        }}
+                                                    >
                                                         {loader && <Spinner size="sm" className='me-2'> Loading... </Spinner>}
                                                         Sign In
                                                     </Button>
@@ -259,45 +279,10 @@ const Login = (props: any) => {
                                                 <div className="mt-2 text-center">
                                                     <button type="button" className="btn btn-outline-primary btn-sm" onClick={simulateLogin}>Simulate Login (dev)</button>
                                                 </div>
-
-                                                <div className="mt-4 text-center">
-                                                    <div className="signin-other-title">
-                                                        <h5 className="fs-13 mb-4 title">Sign In with</h5>
-                                                    </div>
-                                                    <div>
-                                                        <Link
-                                                            to="#"
-                                                            className="btn btn-primary btn-icon me-1"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                socialResponse("facebook");
-                                                            }}
-                                                        >
-                                                            <i className="ri-facebook-fill fs-16" />
-                                                        </Link>
-                                                        <Link
-                                                            to="#"
-                                                            className="btn btn-danger btn-icon me-1"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                socialResponse("google");
-                                                            }}
-                                                        >
-                                                            <i className="ri-google-fill fs-16" />
-                                                        </Link>
-                                                        <Button color="dark" className="btn-icon"><i className="ri-github-fill fs-16"></i></Button>{" "}
-                                                        <Button color="info" className="btn-icon"><i className="ri-twitter-fill fs-16"></i></Button>
-                                                    </div>
-                                                </div>
                                             </Form>
                                         </div>
                                     </CardBody>
                                 </Card>
-
-                                <div className="mt-4 text-center">
-                                    <p className="mb-0">Don't have an account ? <Link to="/register" className="fw-semibold text-primary text-decoration-underline"> Signup </Link> </p>
-                                </div>
-
                             </Col>
                         </Row>
                     </Container>

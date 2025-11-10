@@ -31,13 +31,13 @@
 }
 
 .auth-one-bg{
-    background-image: url("../../images/auth-one-bg.jpg");
+    background-image: url("../../images/Hero.jpg");
     background-position: center;
     background-size: cover;
 
     .bg-overlay{
-        background: linear-gradient(to right, darken($primary, 6%), $primary);
-        opacity: 0.9;
+        background: linear-gradient(to right, rgb(47 47 47), #000000);
+        opacity: 0.8;
     }
 }
 
