@@ -65,7 +65,6 @@ const Calender = () => {
   const [deleteEvent, setDeleteEvent] = useState<string>('');
   const [eventName, setEventName] = useState<string>("");
   const [preselectedCategory, setPreselectedCategory] = useState<string>("");
-  const [isCategoriesCollapsed, setIsCategoriesCollapsed] = useState<boolean>(false);
 
   const selectLayoutState = (state: any) => state.Calendar;
   const calendarDataProperties = createSelector(
@@ -399,65 +398,75 @@ const Calender = () => {
       <div className="page-content">
         <Container fluid>
           <BreadCrumb title={t('calendar.title')} pageTitle={t('calendar.breadcrumb')} />
-          <Row>
-            <Col xs={12}>
-              {/* Card con categorías y botón */}
-              <Card className="mb-3">
-                <CardBody>
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <p className="text-muted mb-0">
-                      {t('calendar.drag_description')}
-                    </p>
-                    <button
-                      className="btn btn-sm btn-soft-primary"
-                      onClick={() => setIsCategoriesCollapsed(!isCategoriesCollapsed)}
-                    >
-                      <i className={`mdi mdi-chevron-${isCategoriesCollapsed ? 'down' : 'up'}`}></i>
-                    </button>
-                  </div>
+          <Row className="h-100">
+            {/* Card con categorías - Lado izquierdo */}
+            <Col xl={3} lg={4} className="d-flex">
+              <Card className="card-h-100 w-100">
+                <CardBody className="d-flex flex-column" style={{ height: '100%' }}>
+                  <h5 className="card-title mb-3">{t('calendar.drag_description')}</h5>
                   
-                  {!isCategoriesCollapsed && (
-                    <div className="d-flex flex-wrap gap-2" id="visible-categories">
+                  <div id="visible-categories" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                       <div
-                        className="bg-primary-subtle external-event fc-event text-primary px-3 py-2 rounded"
-                        style={{ cursor: 'pointer' }}
+                        className="external-event fc-event px-3 py-2 rounded mb-2 d-flex align-items-center"
+                        style={{ 
+                          cursor: 'pointer',
+                          backgroundColor: '#e9d5ff',
+                          color: '#6b21a8'
+                        }}
                         onClick={() => {
                           setPreselectedCategory("");
                           toggle();
                         }}
                       >
                         <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
-                        {t('calendar.create_reservation')}
+                        <span>Create</span>
                       </div>
                       {categories &&
-                        categories.map((category: any) => (
-                          <div
-                            className={`bg-${category.type}-subtle external-event fc-event text-${category.type} px-3 py-2 rounded`}
-                            key={"cat-" + category.id}
-                            draggable
-                            onDrag={(event: any) => {
-                              onDrag(event);
-                            }}
-                          >
-                            <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
-                            {category.title}
-                          </div>
-                        ))}
-                    </div>
-                  )}
+                        categories.map((category: any) => {
+                          // Colores pastel suaves para cada categoría
+                          const pastelColors: any = {
+                            'success': { bg: '#d1fae5', text: '#065f46' }, // Verde menta pastel
+                            'info': { bg: '#cffafe', text: '#155e75' },    // Cyan pastel
+                            'warning': { bg: '#fef3c7', text: '#92400e' }, // Amarillo pastel
+                            'danger': { bg: '#fee2e2', text: '#991b1b' },  // Rosa pastel
+                            'primary': { bg: '#e9d5ff', text: '#6b21a8' }, // Lavanda pastel
+                            'dark': { bg: '#fce7f3', text: '#9f1239' }      // Rosa claro pastel
+                          };
+                          const colors = pastelColors[category.type] || { bg: '#ddd6fe', text: '#5b21b6' };
+                          
+                          return (
+                            <div
+                              className="external-event fc-event px-3 py-2 rounded mb-2 d-flex align-items-center"
+                              key={"cat-" + category.id}
+                              draggable
+                              style={{
+                                backgroundColor: colors.bg,
+                                color: colors.text,
+                                border: `1px solid ${colors.text}20`
+                              }}
+                              onDrag={(event: any) => {
+                                onDrag(event);
+                              }}
+                            >
+                              <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
+                              <span>{category.title}</span>
+                            </div>
+                          );
+                        })}
+                  </div>
                 </CardBody>
               </Card>
+            </Col>
 
-              {/* Calendario */}
-              <Row>
-                <Col xs={12}>
-                  <Card className="card-h-100">
-                    <CardBody>
-                      <div id="external-events" style={{ display: 'none' }}>
-                        {categories &&
-                          categories.map((category: any) => (
-                            <div
-                              className={`bg-${category.type}-subtle external-event fc-event text-${category.type}`}
+            {/* Calendario - Lado derecho */}
+            <Col xl={9} lg={8} className="d-flex">
+              <Card className="card-h-100 w-100">
+                <CardBody>
+                  <div id="external-events" style={{ display: 'none' }}>
+                    {categories &&
+                      categories.map((category: any) => (
+                        <div
+                          className={`bg-${category.type}-subtle external-event fc-event text-${category.type}`}
                               key={"cat-" + category.id}
                               draggable
                             >
@@ -479,6 +488,8 @@ const Calender = () => {
                         slotMaxTime={"20:00:00"}
                         handleWindowResize={true}
                         themeSystem="bootstrap"
+                        height="auto"
+                        contentHeight="auto"
                         headerToolbar={{
                           left: "prev,next today",
                           center: "title",
@@ -498,38 +509,37 @@ const Calender = () => {
                         eventClick={handleEventClick}
                         drop={onDrop}
                         allDaySlot={false}
+                        expandRows={true}
                       />
                     </CardBody>
                   </Card>
                 </Col>
-              </Row>
+          </Row>
 
-              {/* Próximas reservas */}
-              <Row>
-                <Col xs={12}>
-                  <div>
-                    <h5 className="mb-1">{t('calendar.upcoming_reservations')}</h5>
-                    <p className="text-muted">{t('calendar.upcoming_description')}</p>
-                    <SimpleBar
-                      className="pe-2 me-n1 mb-3"
-                      style={{ height: "400px" }}
-                    >
-                      <div id="upcoming-event-list">
-                        {events &&
-                          (events || []).map((event: any, key: any) => (
-                            <React.Fragment key={key}>
-                              <UpcommingEvents event={event} />
-                            </React.Fragment>
-                          ))}
-                      </div>
-                    </SimpleBar>
+          {/* Próximas reservas */}
+          <Row>
+            <Col xs={12}>
+              <div>
+                <h5 className="mb-1">{t('calendar.upcoming_reservations')}</h5>
+                <p className="text-muted">{t('calendar.upcoming_description')}</p>
+                <SimpleBar
+                  className="pe-2 me-n1 mb-3"
+                  style={{ height: "400px" }}
+                >
+                  <div id="upcoming-event-list">
+                    {events &&
+                      (events || []).map((event: any, key: any) => (
+                        <React.Fragment key={key}>
+                          <UpcommingEvents event={event} />
+                        </React.Fragment>
+                      ))}
                   </div>
-                </Col>
-              </Row>
+                </SimpleBar>
+              </div>
+            </Col>
+          </Row>
 
-              <div style={{ clear: "both" }}></div>
-
-              <Modal 
+          <Modal 
                 isOpen={modal} 
                 id="event-modal" 
                 centered
@@ -825,8 +835,6 @@ const Calender = () => {
                   </Form>
                 </ModalBody>
               </Modal>
-            </Col>
-          </Row>
         </Container>
       </div>
     </React.Fragment>

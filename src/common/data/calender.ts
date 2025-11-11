@@ -113,6 +113,9 @@ const events = [
     className: "bg-success-subtle text-success",
     location: "+1 555-0101",
     allDay: false,
+    backgroundColor: '#d1fae5',
+    borderColor: '#065f46',
+    textColor: '#065f46',
     extendedProps: {
       department: "Manicura",
     },
@@ -126,6 +129,9 @@ const events = [
     allDay: false,
     className: "bg-info-subtle text-info",
     location: "+1 555-0202",
+    backgroundColor: '#cffafe',
+    borderColor: '#155e75',
+    textColor: '#155e75',
     extendedProps: {
       department: "Pedicura",
     },
@@ -139,6 +145,9 @@ const events = [
     allDay: false,
     className: "bg-warning-subtle text-warning",
     location: "+1 555-0303",
+    backgroundColor: '#fef3c7',
+    borderColor: '#92400e',
+    textColor: '#92400e',
     extendedProps: {
       department: "Uñas de Gel",
     },
@@ -152,6 +161,9 @@ const events = [
     allDay: false,
     className: "bg-danger-subtle text-danger",
     location: "+1 555-0404",
+    backgroundColor: '#fee2e2',
+    borderColor: '#991b1b',
+    textColor: '#991b1b',
     extendedProps: {
       department: "Uñas Acrílicas",
     },
@@ -165,6 +177,9 @@ const events = [
     allDay: false,
     className: "bg-primary-subtle text-primary",
     location: "+1 555-0505",
+    backgroundColor: '#e9d5ff',
+    borderColor: '#6b21a8',
+    textColor: '#6b21a8',
     extendedProps: {
       department: "Diseño de Uñas",
     },
@@ -178,6 +193,9 @@ const events = [
     allDay: false,
     className: "bg-success-subtle text-success",
     location: "+1 555-0606",
+    backgroundColor: '#d1fae5',
+    borderColor: '#065f46',
+    textColor: '#065f46',
     extendedProps: {
       department: "Manicura",
     },
@@ -191,6 +209,9 @@ const events = [
     allDay: false,
     className: "bg-dark-subtle text-body",
     location: "+1 555-0707",
+    backgroundColor: '#fce7f3',
+    borderColor: '#9f1239',
+    textColor: '#9f1239',
     extendedProps: {
       department: "Tratamiento Spa",
     },
@@ -203,6 +224,9 @@ const events = [
     end: new Date(y, m, 15, 14, 0),
     className: "bg-info-subtle text-info",
     location: "+1 555-0808",
+    backgroundColor: '#cffafe',
+    borderColor: '#155e75',
+    textColor: '#155e75',
     extendedProps: {
       department: "Pedicura",
     },
@@ -216,6 +240,9 @@ const events = [
     allDay: false,
     className: "bg-warning-subtle text-warning",
     location: "+1 555-0909",
+    backgroundColor: '#fef3c7',
+    borderColor: '#92400e',
+    textColor: '#92400e',
     extendedProps: {
       department: "Uñas de Gel",
     },
@@ -229,6 +256,9 @@ const events = [
     allDay: false,
     className: "bg-primary-subtle text-primary",
     location: "+1 555-1010",
+    backgroundColor: '#e9d5ff',
+    borderColor: '#6b21a8',
+    textColor: '#6b21a8',
     extendedProps: {
       department: "Diseño de Uñas",
     },
