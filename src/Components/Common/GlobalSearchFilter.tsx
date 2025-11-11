@@ -11,6 +11,7 @@ import {
 import { Link } from "react-router-dom";
 import Flatpickr from "react-flatpickr";
 import Select from "react-select";
+import { useTranslation } from 'react-i18next';
 
 const ProductsGlobalFilter = () => {
     return (
@@ -69,6 +70,7 @@ const CustomersGlobalFilter = () => {
 };
 
 const OrderGlobalFilter = () => {
+    const { t } = useTranslation();
     const [orderStatus, setorderStatus] = useState<any>([]);
     const [orderPayement, setorderPayement] = useState<any>(null);
 
@@ -83,14 +85,11 @@ const OrderGlobalFilter = () => {
     const orderstatus: any = [
         {
             options: [
-                { label: "Status", value: "Status" },
-                { label: "All", value: "All" },
-                { label: "Pending", value: "Pending" },
-                { label: "Inprogress", value: "Inprogress" },
-                { label: "Cancelled", value: "Cancelled" },
-                { label: "Pickups", value: "Pickups" },
-                { label: "Returns", value: "Returns" },
-                { label: "Delivered", value: "Delivered" },
+                { label: t('reservations.status.all'), value: "All" },
+                { label: t('reservations.status.pending'), value: "Pending" },
+                { label: t('reservations.status.in_progress'), value: "InProgress" },
+                { label: t('reservations.status.completed'), value: "Completed" },
+                { label: t('reservations.status.cancelled'), value: "Cancelled" },
             ],
         },
     ];
@@ -98,23 +97,20 @@ const OrderGlobalFilter = () => {
     const orderpayement = [
         {
             options: [
-                { label: "Select Payment", value: "Select Payment" },
-                { label: "All", value: "All" },
-                { label: "Mastercard", value: "Mastercard" },
-                { label: "Paypal", value: "Paypal" },
-                { label: "Visa", value: "Visa" },
-                { label: "COD", value: "COD" },
+                { label: t('reservations.payment.all'), value: "All" },
+                { label: t('reservations.payment.cash'), value: "Cash" },
+                { label: t('reservations.payment.bank'), value: "Bank" },
             ],
         },
     ];
     return (
         <React.Fragment>
-            <Col sm={6} className="col-xxl-2">
+            <Col lg={3} md={6} sm={6}>
                 <div>
                     <Flatpickr
                         className="form-control"
                         id="datepicker-publish-input"
-                        placeholder="Select a date"
+                        placeholder={t('reservations.filters.select_date')}
                         options={{
                             altInput: true,
                             altFormat: "F j, Y",
@@ -125,7 +121,7 @@ const OrderGlobalFilter = () => {
                 </div>
             </Col>
 
-            <Col sm={4} className="col-xxl-2">
+            <Col lg={3} md={6} sm={6}>
                 <div>
                     <Select
                         value={orderStatus}
@@ -133,11 +129,12 @@ const OrderGlobalFilter = () => {
                         options={orderstatus}
                         name="choices-single-default"
                         id="idStatus"
+                        placeholder={t('reservations.filters.status')}
                     ></Select>
                 </div>
             </Col>
 
-            <Col sm={4} className="col-xxl-2">
+            <Col lg={3} md={6} sm={6}>
                 <div>
                     <Select
                         value={orderPayement}
@@ -145,16 +142,15 @@ const OrderGlobalFilter = () => {
                         options={orderpayement}
                         name="choices-payment-default"
                         id="idPayment"
+                        placeholder={t('reservations.filters.payment_method')}
                     ></Select>
                 </div>
             </Col>
 
-            <Col sm={4} className="col-xxl-1">
+            <Col lg={3} md={6} sm={6}>
                 <div>
-                    <button type="button" className="btn btn-primary w-100">
-                        {" "}
-                        <i className="ri-equalizer-fill me-1 align-bottom"></i>
-                        Filters
+                    <button type="button" className="btn btn-primary w-100" title={t('reservations.filters.filters')}>
+                        <i className="ri-equalizer-fill align-bottom"></i>
                     </button>
                 </div>
             </Col>

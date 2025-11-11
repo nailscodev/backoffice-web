@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
+import { useTranslation } from "react-i18next";
 
 //Import Icons
 import FeatherIcon from "feather-icons-react";
@@ -25,6 +26,7 @@ import { useFormik } from "formik";
 
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin, { Draggable } from "@fullcalendar/interaction";
 import BootstrapTheme from "@fullcalendar/bootstrap";
 import Flatpickr from "react-flatpickr";
@@ -49,9 +51,11 @@ import {
   getUpCommingEvent as onGetUpCommingEvent,
 } from "../../slices/thunks";
 import { createSelector } from "reselect";
+import { servicesByCategory } from "../../common/data/calender";
 
 const Calender = () => {
   const dispatch: any = useDispatch();
+  const { t } = useTranslation();
   const [event, setEvent] = useState<any>({});
   const [modal, setModal] = useState<boolean>(false);
   const [selectedNewDay, setSelectedNewDay] = useState<any>();
@@ -59,7 +63,9 @@ const Calender = () => {
   const [isEditButton, setIsEditButton] = useState<boolean>(true);
   const [deleteModal, setDeleteModal] = useState<boolean>(false);
   const [deleteEvent, setDeleteEvent] = useState<string>('');
-  const [eventName, setEventName] = useState<string>("")
+  const [eventName, setEventName] = useState<string>("");
+  const [preselectedCategory, setPreselectedCategory] = useState<string>("");
+  const [isCategoriesCollapsed, setIsCategoriesCollapsed] = useState<boolean>(false);
 
   const selectLayoutState = (state: any) => state.Calendar;
   const calendarDataProperties = createSelector(
@@ -79,10 +85,23 @@ const Calender = () => {
     dispatch(onGetEvents());
     dispatch(onGetCategories());
     dispatch(onGetUpCommingEvent());
-    new Draggable(document.getElementById("external-events") as HTMLElement, {
-      itemSelector: ".external-event",
-    });
-  }, [dispatch]);
+    
+    // Inicializar Draggable para el contenedor oculto
+    const externalEvents = document.getElementById("external-events");
+    if (externalEvents) {
+      new Draggable(externalEvents, {
+        itemSelector: ".external-event",
+      });
+    }
+    
+    // Inicializar Draggable para las categorías visibles en la card
+    const visibleCategories = document.getElementById("visible-categories");
+    if (visibleCategories) {
+      new Draggable(visibleCategories, {
+        itemSelector: ".external-event",
+      });
+    }
+  }, [dispatch, categories]);
 
   useEffect(() => {
     if (isEventUpdated) {
@@ -110,7 +129,22 @@ const Calender = () => {
 
   const handleDateClick = (arg: any) => {
     const date = arg["date"];
-    setSelectedNewDay(date);
+    const now = new Date();
+    
+    // Verificar si la fecha/hora ya pasó
+    if (date < now) {
+      return; // No permitir crear reservas en el pasado
+    }
+    
+    const endDate = new Date(date.getTime() + 30 * 60000); // Añadir 30 minutos
+    setSelectedNewDay([date]);
+    setPreselectedCategory(""); // Sin categoría preseleccionada al hacer clic en el calendario
+    setEvent({
+      title: "",
+      start: date,
+      end: endDate,
+      defaultDate: [date],
+    });
     toggle();
   };
 
@@ -162,6 +196,7 @@ const Calender = () => {
       category: event.classNames[0],
       location: event._def.extendedProps.location ? event._def.extendedProps.location : "No Loaction",
       description: event._def.extendedProps.description,
+      email: event._def.extendedProps.email ? event._def.extendedProps.email : "",
       defaultDate: er_date,
       datetag: r_date,
     });
@@ -193,23 +228,41 @@ const Calender = () => {
       defaultDate: (event && event.defaultDate) || [],
       datetag: (event && event.datetag) || "",
       start: (event && event.start) || "",
-      end: (event && event.end) || '' 
+      end: (event && event.end) || '',
+      email: (event && event.email) || ""
     },
 
     validationSchema: Yup.object({
-      title: Yup.string().required("Please Enter Your Event Name"),
-      category: Yup.string().required("Please Select Your Category"),
-      location: Yup.string().required("Please Enter Your Location"),
-      description: Yup.string().required("Please Enter Your Description"),
-      start: Yup.date().required('Start Time is required'),
-      end: Yup.date().required('End Time is required'),
-      defaultDate: Yup.array().of(Yup.date()).required('Date range is required').min(2, 'Select at least two dates'),
+      title: Yup.string().required(t('calendar.validation.customer_required')),
+      category: Yup.string().required(t('calendar.validation.service_required')),
+      location: Yup.string().required(t('calendar.validation.phone_required')),
+      description: Yup.string().required(t('calendar.validation.notes_required')),
+      start: Yup.date().required(t('calendar.validation.start_required')),
+      end: Yup.date().required(t('calendar.validation.end_required')),
+      defaultDate: Yup.array().of(Yup.date()).required(t('calendar.validation.date_required')).min(1, 'Select a date'),
+      email: Yup.string().email(t('calendar.validation.email_invalid')).required(t('calendar.validation.email_required')),
     }),
     onSubmit: (values) => {
-      var updatedDay: any = "";
-      if (selectedNewDay) {
-        updatedDay = new Date(selectedNewDay[1]);
-        updatedDay.setDate(updatedDay.getDate() + 1);
+      // Combinar la fecha seleccionada con las horas de inicio y fin
+      const selectedDate = selectedNewDay && selectedNewDay[0] ? new Date(selectedNewDay[0]) : new Date();
+      
+      // Si hay hora de inicio, combinarla con la fecha
+      let startDateTime = values.start ? new Date(values.start) : new Date();
+      startDateTime.setFullYear(selectedDate.getFullYear());
+      startDateTime.setMonth(selectedDate.getMonth());
+      startDateTime.setDate(selectedDate.getDate());
+      
+      // Si hay hora de fin, combinarla con la fecha
+      let endDateTime = values.end ? new Date(values.end) : new Date(startDateTime.getTime() + 30 * 60000);
+      endDateTime.setFullYear(selectedDate.getFullYear());
+      endDateTime.setMonth(selectedDate.getMonth());
+      endDateTime.setDate(selectedDate.getDate());
+
+      // Validar que la fecha/hora no sea en el pasado
+      const now = new Date();
+      if (startDateTime < now) {
+        validation.setFieldError("start", t('calendar.validation.past_time_error'));
+        return;
       }
 
       if (isEdit) {
@@ -217,10 +270,11 @@ const Calender = () => {
           id: event.id,
           title: values.title,
           className: values.category,
-          start: selectedNewDay ? selectedNewDay[0] : event.start,
-          end: selectedNewDay ? updatedDay : event.end,
+          start: startDateTime,
+          end: endDateTime,
           location: values.location,
           description: values.description,
+          email: values.email,
         };
         // update event
         dispatch(onUpdateEvent(updateEvent));
@@ -229,11 +283,12 @@ const Calender = () => {
         const newEvent = {
           id: Math.floor(Math.random() * 100),
           title: values["title"],
-          start: selectedNewDay[0],
-          end: updatedDay,
+          start: startDateTime,
+          end: endDateTime,
           className: values["category"],
           location: values["location"],
           description: values["description"],
+          email: values["email"],
         };
         // save new event
         dispatch(onAddNewEvent(newEvent));
@@ -260,11 +315,15 @@ const Calender = () => {
     document
       .getElementById("event-location")?.classList.replace("d-none", "d-block");
     document
+      .getElementById("event-email")?.classList.replace("d-none", "d-block");
+    document
       .getElementById("event-description")?.classList.replace("d-none", "d-block");
     document
       .getElementById("event-start-date-tag")?.classList.replace("d-block", "d-none");
     document
       .getElementById("event-location-tag")?.classList.replace("d-block", "d-none");
+    document
+      .getElementById("event-email-tag")?.classList.replace("d-block", "d-none");
     document
       .getElementById("event-description-tag")?.classList.replace("d-block", "d-none");
 
@@ -283,40 +342,54 @@ const Calender = () => {
    */
   const onDrop = (event: any) => {
     const date = event["date"];
-    const day = date.getDate();
-    const month = date.getMonth();
-    const year = date.getFullYear();
-
-    const currectDate = new Date();
-    const currentHour = currectDate.getHours();
-    const currentMin = currectDate.getMinutes();
-    const currentSec = currectDate.getSeconds();
-    const modifiedDate = new Date(
-      year,
-      month,
-      day,
-      currentHour,
-      currentMin,
-      currentSec
-    );
+    const now = new Date();
+    
+    // Verificar si la fecha/hora ya pasó
+    if (date < now) {
+      return; // No permitir crear reservas en el pasado
+    }
+    
+    const startDate = new Date(date);
+    // Añadir 30 minutos para la fecha de fin
+    const endDate = new Date(startDate.getTime() + 30 * 60000);
 
     const draggedEl = event.draggedEl;
     const draggedElclass = draggedEl.className;
+    
     if (
       draggedEl.classList.contains("external-event") &&
       draggedElclass.indexOf("fc-event-draggable") === -1
     ) {
-      const modifiedData = {
-        id: Math.floor(Math.random() * 1000),
-        title: draggedEl.innerText,
-        start: modifiedDate,
-        className: draggedEl.className,
-      };
-      dispatch(onAddNewEvent(modifiedData));
+      // Extraer la categoría del elemento arrastrado
+      const categoryTitle = draggedEl.innerText.trim();
+      const category = categories.find((cat: any) => cat.title === categoryTitle);
+      
+      if (category) {
+        // Preparar el modal con la categoría preseleccionada
+        const categoryClass = category.type === "success" ? "bg-success-subtle" :
+                             category.type === "info" ? "bg-info-subtle" :
+                             category.type === "warning" ? "bg-warning-subtle" :
+                             category.type === "danger" ? "bg-danger-subtle" :
+                             category.type === "primary" ? "bg-primary-subtle" :
+                             "bg-dark-subtle";
+        
+        setPreselectedCategory(categoryClass);
+        setSelectedNewDay([startDate]);
+        setEvent({
+          title: "",
+          start: startDate,
+          end: endDate,
+          className: categoryClass,
+          category: categoryClass,
+          defaultDate: [startDate],
+        });
+        toggle();
+      }
     }
   };
 
-  document.title = "Calendar | Nails & Co Midtown - Admin Panel";
+  document.title = t('calendar.title') + " | Nails & Co Midtown - Admin Panel";
+
   return (
     <React.Fragment>
       <DeleteModal
@@ -325,46 +398,118 @@ const Calender = () => {
         onCloseClick={() => { setDeleteModal(false) }} recordId={""} />
       <div className="page-content">
         <Container fluid>
-          <BreadCrumb title="Calendar" pageTitle="Apps" />
+          <BreadCrumb title={t('calendar.title')} pageTitle={t('calendar.breadcrumb')} />
           <Row>
             <Col xs={12}>
+              {/* Card con categorías y botón */}
+              <Card className="mb-3">
+                <CardBody>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <p className="text-muted mb-0">
+                      {t('calendar.drag_description')}
+                    </p>
+                    <button
+                      className="btn btn-sm btn-soft-primary"
+                      onClick={() => setIsCategoriesCollapsed(!isCategoriesCollapsed)}
+                    >
+                      <i className={`mdi mdi-chevron-${isCategoriesCollapsed ? 'down' : 'up'}`}></i>
+                    </button>
+                  </div>
+                  
+                  {!isCategoriesCollapsed && (
+                    <div className="d-flex flex-wrap gap-2" id="visible-categories">
+                      <div
+                        className="bg-primary-subtle external-event fc-event text-primary px-3 py-2 rounded"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          setPreselectedCategory("");
+                          toggle();
+                        }}
+                      >
+                        <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
+                        {t('calendar.create_reservation')}
+                      </div>
+                      {categories &&
+                        categories.map((category: any) => (
+                          <div
+                            className={`bg-${category.type}-subtle external-event fc-event text-${category.type} px-3 py-2 rounded`}
+                            key={"cat-" + category.id}
+                            draggable
+                            onDrag={(event: any) => {
+                              onDrag(event);
+                            }}
+                          >
+                            <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
+                            {category.title}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+
+              {/* Calendario */}
               <Row>
-                <Col xl={3}>
+                <Col xs={12}>
                   <Card className="card-h-100">
                     <CardBody>
-                      <button
-                        className="btn btn-primary w-100"
-                        id="btn-new-event"
-                        onClick={toggle}
-                      >
-                        <i className="mdi mdi-plus"></i> Create New Event
-                      </button>
-
-                      <div id="external-events">
-                        <br />
-                        <p className="text-muted">
-                          Drag and drop your event or click in the calendar
-                        </p>
+                      <div id="external-events" style={{ display: 'none' }}>
                         {categories &&
                           categories.map((category: any) => (
                             <div
                               className={`bg-${category.type}-subtle external-event fc-event text-${category.type}`}
                               key={"cat-" + category.id}
                               draggable
-                              onDrag={(event: any) => {
-                                onDrag(event);
-                              }}
                             >
-                              <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
                               {category.title}
                             </div>
                           ))}
                       </div>
+                      <FullCalendar
+                        plugins={[
+                          BootstrapTheme,
+                          dayGridPlugin,
+                          timeGridPlugin,
+                          interactionPlugin,
+                          listPlugin
+                        ]}
+                        initialView="timeGridWeek"
+                        slotDuration={"00:30:00"}
+                        slotMinTime={"08:00:00"}
+                        slotMaxTime={"20:00:00"}
+                        handleWindowResize={true}
+                        themeSystem="bootstrap"
+                        headerToolbar={{
+                          left: "prev,next today",
+                          center: "title",
+                          right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+                        }}
+                        events={events}
+                        editable={true}
+                        droppable={true}
+                        selectable={true}
+                        selectConstraint={{
+                          start: new Date(),
+                        }}
+                        validRange={{
+                          start: new Date(),
+                        }}
+                        dateClick={handleDateClick}
+                        eventClick={handleEventClick}
+                        drop={onDrop}
+                        allDaySlot={false}
+                      />
                     </CardBody>
                   </Card>
+                </Col>
+              </Row>
+
+              {/* Próximas reservas */}
+              <Row>
+                <Col xs={12}>
                   <div>
-                    <h5 className="mb-1">Upcoming Events</h5>
-                    <p className="text-muted">Don't miss scheduled events</p>
+                    <h5 className="mb-1">{t('calendar.upcoming_reservations')}</h5>
+                    <p className="text-muted">{t('calendar.upcoming_description')}</p>
                     <SimpleBar
                       className="pe-2 me-n1 mb-3"
                       style={{ height: "400px" }}
@@ -379,66 +524,18 @@ const Calender = () => {
                       </div>
                     </SimpleBar>
                   </div>
-
-                  <Card>
-                    <CardBody className="bg-info-subtle">
-                      <div className="d-flex">
-                        <div className="flex-shrink-0">
-                          <FeatherIcon
-                            icon="calendar"
-                            className="text-info icon-dual-info"
-                          />
-                        </div>
-                        <div className="flex-grow-1 ms-3">
-                          <h6 className="fs-15">Welcome to your Calendar!</h6>
-                          <p className="text-muted mb-0">
-                            Event that applications book will appear here. Click
-                            on an event to see the details and manage applicants
-                            event.
-                          </p>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                </Col>
-
-                <Col xl={9}>
-                  <Card className="card-h-100">
-                    <CardBody>
-                      <FullCalendar
-                        plugins={[
-                          BootstrapTheme,
-                          dayGridPlugin,
-                          interactionPlugin,
-                          listPlugin
-                        ]}
-                        initialView="dayGridMonth"
-                        slotDuration={"00:15:00"}
-                        handleWindowResize={true}
-                        themeSystem="bootstrap"
-                        headerToolbar={{
-                          left: "prev,next today",
-                          center: "title",
-                          right: "dayGridMonth,dayGridWeek,dayGridDay,listWeek",
-                        }}
-                        events={events}
-                        editable={true}
-                        droppable={true}
-                        selectable={true}
-                        dateClick={handleDateClick}
-                        eventClick={handleEventClick}
-                        drop={onDrop}
-                      />
-                    </CardBody>
-                  </Card>
                 </Col>
               </Row>
 
               <div style={{ clear: "both" }}></div>
 
-              <Modal isOpen={modal} id="event-modal" centered>
+              <Modal 
+                isOpen={modal} 
+                id="event-modal" 
+                centered
+              >
                 <ModalHeader toggle={toggle} tag="h5" className="p-3 bg-info-subtle modal-title">
-                  {!!isEdit ? eventName : "Add Event"}
+                  {!!isEdit ? eventName : t('calendar.add_reservation')}
                 </ModalHeader>
                 <ModalBody>
                   <Form
@@ -462,11 +559,23 @@ const Calender = () => {
                             submitOtherEvent();
                             return false;
                           }}>
-                          Edit
+                          {t('calendar.edit')}
                         </Link>
                       </div>
                     ) : null}
                     <div className="event-details">
+                      <div className="d-flex align-items-center mb-2">
+                        <div className="flex-shrink-0 me-3">
+                          <i className="ri-user-line text-muted fs-16"></i>
+                        </div>
+                        <div className="flex-grow-1">
+                          <h6 className="d-block fw-semibold mb-0">
+                            <span id="event-title-tag">
+                              {event && event.title !== undefined ? event.title : "No Customer"}
+                            </span>
+                          </h6>
+                        </div>
+                      </div>
                       <div className="d-flex mb-2">
                         <div className="flex-grow-1 d-flex align-items-center">
                           <div className="flex-shrink-0 me-3">
@@ -489,12 +598,24 @@ const Calender = () => {
                       </div>
                       <div className="d-flex align-items-center mb-2">
                         <div className="flex-shrink-0 me-3">
-                          <i className="ri-map-pin-line text-muted fs-16"></i>
+                          <i className="ri-phone-line text-muted fs-16"></i>
                         </div>
                         <div className="flex-grow-1">
                           <h6 className="d-block fw-semibold mb-0">
                             <span id="event-location-tag">
-                              {event && event.location !== undefined ? event.location : "No Location"}
+                              {event && event.location !== undefined ? event.location : "No Phone"}
+                            </span>
+                          </h6>
+                        </div>
+                      </div>
+                      <div className="d-flex align-items-center mb-2">
+                        <div className="flex-shrink-0 me-3">
+                          <i className="ri-mail-line text-muted fs-16"></i>
+                        </div>
+                        <div className="flex-grow-1">
+                          <h6 className="d-block fw-semibold mb-0">
+                            <span id="event-email-tag">
+                              {event && event.email !== undefined ? event.email : "No Email"}
                             </span>
                           </h6>
                         </div>
@@ -513,7 +634,7 @@ const Calender = () => {
                     <Row className="event-form">
                       <Col xs={12}>
                         <div className="mb-3">
-                          <Label className="form-label">Type</Label>
+                          <Label className="form-label">{t('calendar.form.service_type')}</Label>
                           <Input className={!!isEdit ? "form-select d-none" : "form-select d-block"}
                             name="category"
                             id="event-category"
@@ -521,12 +642,12 @@ const Calender = () => {
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.category || ""}>
-                            <option value="bg-danger-subtle">Danger</option>
-                            <option value="bg-success-subtle">Success</option>
-                            <option value="bg-primary-subtle">Primary</option>
-                            <option value="bg-info-subtle">Info</option>
-                            <option value="bg-dark-subtle">Dark</option>
-                            <option value="bg-warning-subtle">Warning</option>
+                            <option value="bg-success-subtle">{t('calendar.service_types.manicure')}</option>
+                            <option value="bg-info-subtle">{t('calendar.service_types.pedicure')}</option>
+                            <option value="bg-warning-subtle">{t('calendar.service_types.gel_nails')}</option>
+                            <option value="bg-danger-subtle">{t('calendar.service_types.acrylic_nails')}</option>
+                            <option value="bg-primary-subtle">{t('calendar.service_types.nail_design')}</option>
+                            <option value="bg-dark-subtle">{t('calendar.service_types.spa_treatment')}</option>
                           </Input>
                           {validation.touched.category && validation.errors.category ? (
                             <FormFeedback type="invalid" className="d-block">{validation.errors.category}</FormFeedback>
@@ -535,10 +656,10 @@ const Calender = () => {
                       </Col>
                       <Col xs={12}>
                         <div className="mb-3">
-                          <Label className="form-label">Event Name</Label>
+                          <Label className="form-label">{t('calendar.form.customer_name')}</Label>
                           <Input
                             className={!!isEdit ? "d-none" : "d-block"}
-                            placeholder="Enter event name"
+                            placeholder={t('calendar.form.customer_name_placeholder')}
                             type="text"
                             name="title"
                             id="event-title"
@@ -552,24 +673,28 @@ const Calender = () => {
                       </Col>
                       <Col xs={12}>
                         <div className="mb-3">
-                          <Label>Event Date</Label>
-                          <div className={!!isEdit ? "input-group d-none" : "input-group"}>
-                            <Flatpickr
-                              className="form-control"
-                              id="event-start-date"
-                              name="defaultDate"
-                              placeholder="Select Date"
-                              value={validation.values.defaultDate || ""}
-                              options={{
-                                mode: "range",
-                                dateFormat: "Y-m-d",
-                              }}
-                              onChange={(date) => { setSelectedNewDay(date); validation.setFieldValue("defaultDate", date) }}
-                            />
-                            <span className="input-group-text">
-                              <i className="ri-calendar-event-line"></i>
-                            </span>
-                          </div>
+                          <Label>{t('calendar.form.reservation_date')}</Label>
+                          <Input
+                            type="date"
+                            className={!!isEdit ? "form-control d-none" : "form-control"}
+                            id="event-start-date"
+                            name="defaultDate"
+                            placeholder={t('calendar.form.select_date')}
+                            min={new Date().toISOString().split('T')[0]}
+                            value={
+                              validation.values.defaultDate && validation.values.defaultDate[0] 
+                                ? new Date(validation.values.defaultDate[0]).toISOString().split('T')[0]
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const selectedDate = new Date(e.target.value);
+                              if (selectedDate) {
+                                setSelectedNewDay([selectedDate]);
+                                validation.setFieldValue("defaultDate", [selectedDate]);
+                              }
+                            }}
+                            onBlur={validation.handleBlur}
+                          />
                           {validation.touched.defaultDate && validation.errors.defaultDate ? (
                             <FormFeedback type="invalid" className="d-block">{validation.errors.defaultDate} </FormFeedback>
                           ) : null}
@@ -577,19 +702,26 @@ const Calender = () => {
                       </Col>
                       <Col xs={6}>
                         <div className="mb-3">
-                          <Label>Start Time</Label>
-                          <div className="input-group">
-                            <Flatpickr className="form-control"
-                              name="start"
-                              value={validation.values.start || ""}
-                              onChange={(date) => validation.setFieldValue("start", date[0])}
-                              options={{
-                                enableTime: true,
-                                noCalendar: true,
-                                dateFormat: "H:i",
-                              }} />
-                            <span className="input-group-text"> <i className="ri-calendar-event-line"></i> </span>
-                          </div>
+                          <Label>{t('calendar.form.start_time')}</Label>
+                          <Input
+                            type="time"
+                            className="form-control"
+                            name="start"
+                            value={
+                              validation.values.start 
+                                ? new Date(validation.values.start).toTimeString().slice(0, 5)
+                                : ""
+                            }
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const [hours, minutes] = e.target.value.split(':');
+                                const date = new Date();
+                                date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                                validation.setFieldValue("start", date);
+                              }
+                            }}
+                            onBlur={validation.handleBlur}
+                          />
                           {validation.touched.start && validation.errors.start ? (
                             <FormFeedback type="invalid" className="d-block">{validation.errors.start} </FormFeedback>
                           ) : null}
@@ -598,19 +730,26 @@ const Calender = () => {
 
                       <Col xs={6}>
                         <div className="mb-3">
-                          <Label>End Time</Label>
-                          <div className="input-group">
-                            <Flatpickr className="form-control input-group"
-                              name="end"
-                              value={validation.values.end || ""}
-                              onChange={(date) => validation.setFieldValue("end", date[0])}
-                              options={{
-                                enableTime: true,
-                                noCalendar: true,
-                                dateFormat: "H:i",
-                              }} />
-                            <span className="input-group-text"> <i className="ri-calendar-event-line"></i> </span>
-                          </div>
+                          <Label>{t('calendar.form.end_time')}</Label>
+                          <Input
+                            type="time"
+                            className="form-control"
+                            name="end"
+                            value={
+                              validation.values.end 
+                                ? new Date(validation.values.end).toTimeString().slice(0, 5)
+                                : ""
+                            }
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const [hours, minutes] = e.target.value.split(':');
+                                const date = new Date();
+                                date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                                validation.setFieldValue("end", date);
+                              }
+                            }}
+                            onBlur={validation.handleBlur}
+                          />
                           {validation.touched.end && validation.errors.end ? (
                             <FormFeedback type="invalid" className="d-block">{validation.errors.end} </FormFeedback>
                           ) : null}
@@ -618,14 +757,14 @@ const Calender = () => {
                       </Col>
                       <Col xs={12}>
                         <div className="mb-3">
-                          <Label htmlFor="event-location">Location</Label>
+                          <Label htmlFor="event-location">{t('calendar.form.phone')}</Label>
                           <div>
                             <Input
                               type="text"
                               className={!!isEdit ? "d-none" : "d-block"}
                               name="location"
                               id="event-location"
-                              placeholder="Event location"
+                              placeholder={t('calendar.form.phone_placeholder')}
                               onChange={validation.handleChange}
                               onBlur={validation.handleBlur}
                               value={validation.values.location} />
@@ -637,12 +776,31 @@ const Calender = () => {
                       </Col>
                       <Col xs={12}>
                         <div className="mb-3">
-                          <Label className="form-label">Description</Label>
+                          <Label htmlFor="event-email">{t('calendar.form.email')}</Label>
+                          <div>
+                            <Input
+                              type="email"
+                              className={!!isEdit ? "d-none" : "d-block"}
+                              name="email"
+                              id="event-email"
+                              placeholder={t('calendar.form.email_placeholder')}
+                              onChange={validation.handleChange}
+                              onBlur={validation.handleBlur}
+                              value={validation.values.email} />
+                            {validation.touched.email && validation.errors.email ? (
+                              <FormFeedback type="invalid" className="d-block">{validation.errors.email}</FormFeedback>
+                            ) : null}
+                          </div>
+                        </div>
+                      </Col>
+                      <Col xs={12}>
+                        <div className="mb-3">
+                          <Label className="form-label">{t('calendar.form.notes')}</Label>
                           <textarea
                             className={!!isEdit ? "form-control d-none" : "form-control d-block"}
                             id="event-description"
                             name="description"
-                            placeholder="Enter a description"
+                            placeholder={t('calendar.form.notes_placeholder')}
                             rows={3}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
@@ -656,12 +814,12 @@ const Calender = () => {
                     <div className="hstack gap-2 justify-content-end">
                       {!!isEdit && (
                         <button type="button" className="btn btn-soft-danger" id="btn-delete-event" onClick={() => { toggle(); setDeleteModal(true) }}>
-                          <i className="ri-close-line align-bottom"></i> Delete
+                          <i className="ri-close-line align-bottom"></i> {t('calendar.delete')}
                         </button>
                       )}
                       {isEditButton &&
                         <button type="submit" className="btn btn-success" id="btn-save-event">
-                          {!!isEdit ? "Edit Event" : "Add Event"}
+                          {!!isEdit ? t('calendar.edit_reservation') : t('calendar.add_reservation')}
                         </button>}
                     </div>
                   </Form>

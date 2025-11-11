@@ -144,7 +144,7 @@ const Navdata = () => {
                 { 
                     id: "vista-calendario", 
                     label: t('menu.admin.reservations.calendar_view'), 
-                    link: "/reservas/calendario", 
+                    link: "/apps-calendar", 
                     parentId: "admin-reservas" 
                 },
             ],
