@@ -23,6 +23,7 @@ import Flatpickr from "react-flatpickr";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
 import DeleteModal from "../../../Components/Common/DeleteModal";
+import ReservationModal from "../../../Components/Common/ReservationModal";
 import { isEmpty } from "lodash";
 
 // Export Modal
@@ -48,6 +49,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { createSelector } from "reselect";
 import moment from "moment";
+import { servicesByCategory, staffMembers } from "../../../common/data/calender";
 
 // i18n
 import { useTranslation } from 'react-i18next';
@@ -57,6 +59,12 @@ const EcommerceOrders = () => {
 
   const [modal, setModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("1");
+  
+  // Estados para ReservationModal
+  const [reservationModal, setReservationModal] = useState<boolean>(false);
+  const [reservationEvent, setReservationEvent] = useState<any>({});
+  const [isEditReservation, setIsEditReservation] = useState<boolean>(false);
+  const [eventName, setEventName] = useState<string>("");
 
   const dispatch: any = useDispatch();
   const selectLayoutState = (state: any) => state.Ecommerce;
@@ -209,6 +217,100 @@ const EcommerceOrders = () => {
     },
   });
 
+  // Validation para ReservationModal
+  const reservationValidation: any = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      title: (reservationEvent && reservationEvent.title) || "",
+      category: (reservationEvent && reservationEvent.category) || "",
+      service: (reservationEvent && reservationEvent.service) || "",
+      staff: (reservationEvent && reservationEvent.staff) || "",
+      defaultDate: (reservationEvent && reservationEvent.defaultDate) || [],
+      start: (reservationEvent && reservationEvent.start) || new Date(),
+      end: (reservationEvent && reservationEvent.end) || new Date(),
+      location: (reservationEvent && reservationEvent.location) || "",
+      email: (reservationEvent && reservationEvent.email) || "",
+      description: (reservationEvent && reservationEvent.description) || "",
+    },
+    validationSchema: Yup.object({
+      title: Yup.string().required(t('calendar.validation.customer_required')),
+      category: Yup.string().required(t('calendar.validation.service_required')),
+      service: Yup.string().required(t('calendar.validation.specific_service_required')),
+      location: Yup.string().required(t('calendar.validation.phone_required')),
+      description: Yup.string().required(t('calendar.validation.notes_required')),
+      start: Yup.date().required(t('calendar.validation.start_required')),
+      end: Yup.date().required(t('calendar.validation.end_required')),
+      defaultDate: Yup.array().of(Yup.date()).required(t('calendar.validation.date_required')).min(1, 'Select a date'),
+      email: Yup.string().email(t('calendar.validation.email_invalid')).required(t('calendar.validation.email_required')),
+      staff: Yup.string().required(t('calendar.validation.staff_required')),
+    }),
+    onSubmit: (values) => {
+      // Convertir la reserva del modal a formato de orden
+      const selectedDate = values.defaultDate && values.defaultDate[0] ? new Date(values.defaultDate[0]) : new Date();
+      
+      let startDateTime = values.start ? new Date(values.start) : new Date();
+      startDateTime.setFullYear(selectedDate.getFullYear());
+      startDateTime.setMonth(selectedDate.getMonth());
+      startDateTime.setDate(selectedDate.getDate());
+      
+      let endDateTime = values.end ? new Date(values.end) : new Date(startDateTime.getTime() + 30 * 60000);
+      endDateTime.setFullYear(selectedDate.getFullYear());
+      endDateTime.setMonth(selectedDate.getMonth());
+      endDateTime.setDate(selectedDate.getDate());
+
+      const now = new Date();
+      if (startDateTime < now) {
+        reservationValidation.setFieldError("start", t('calendar.validation.past_time_error'));
+        return;
+      }
+
+      // Obtener el nombre del servicio
+      const categoryMap: any = {
+        'bg-success-subtle': 1,
+        'bg-info-subtle': 2,
+        'bg-warning-subtle': 3,
+        'bg-danger-subtle': 4,
+        'bg-primary-subtle': 5,
+        'bg-dark-subtle': 6
+      };
+      const categoryId = categoryMap[values.category];
+      const services = servicesByCategory[categoryId] || [];
+      const selectedService = services.find((s: any) => s.id.toString() === values.service.toString());
+      const serviceName = selectedService ? selectedService.name : 'Service';
+
+      if (isEditReservation) {
+        const updateOrder = {
+          id: reservationEvent.id,
+          orderId: reservationEvent.orderId || `ORD-${Math.floor(Math.random() * 10000)}`,
+          customer: values.title,
+          product: serviceName,
+          orderDate: selectedDate.toISOString().split('T')[0],
+          ordertime: startDateTime.toTimeString().slice(0, 5),
+          amount: selectedService ? `$${selectedService.duration * 2}` : '$50',
+          payment: reservationEvent.payment || 'Pending',
+          status: reservationEvent.status || 'Pending',
+        };
+        dispatch(onUpdateOrder(updateOrder));
+        reservationValidation.resetForm();
+      } else {
+        const newOrder = {
+          id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
+          orderId: `ORD-${Math.floor(Math.random() * 10000)}`,
+          customer: values.title,
+          product: serviceName,
+          orderDate: selectedDate.toISOString().split('T')[0],
+          ordertime: startDateTime.toTimeString().slice(0, 5),
+          amount: selectedService ? `$${selectedService.duration * 2}` : '$50',
+          payment: 'Pending',
+          status: 'Pending',
+        };
+        dispatch(onAddNewOrder(newOrder));
+        reservationValidation.resetForm();
+      }
+      toggleReservationModal();
+    },
+  });
+
   useEffect(() => {
     if (orders && !orders.length) {
       dispatch(onGetOrders());
@@ -235,6 +337,20 @@ const EcommerceOrders = () => {
       setModal(true);
     }
   }, [modal]);
+
+  const toggleReservationModal = useCallback(() => {
+    if (reservationModal) {
+      setReservationModal(false);
+      setReservationEvent({});
+    } else {
+      setReservationModal(true);
+    }
+  }, [reservationModal]);
+
+  const submitOtherEvent = () => {
+    // Esta función se usa para habilitar la edición en el modal
+    setIsEditReservation(true);
+  };
 
   const handleOrderClick = useCallback((arg: any) => {
     const order = arg;
@@ -480,7 +596,11 @@ const EcommerceOrders = () => {
                         type="button"
                         className="btn btn-success add-btn"
                         id="create-btn"
-                        onClick={() => { setIsEdit(false); toggle(); }}
+                        onClick={() => { 
+                          setIsEditReservation(false); 
+                          setReservationEvent({});
+                          toggleReservationModal(); 
+                        }}
                       >
                         <i className="ri-add-line align-bottom me-1"></i> {t("reservations.create_reservation")}
                       </button>{" "}
@@ -811,6 +931,18 @@ const EcommerceOrders = () => {
                     </div>
                   </Form>
                 </Modal>
+                
+                <ReservationModal
+                  modal={reservationModal}
+                  toggle={toggleReservationModal}
+                  isEdit={isEditReservation}
+                  isEditButton={true}
+                  eventName={eventName || reservationEvent.title || "Nueva Reserva"}
+                  event={reservationEvent}
+                  validation={reservationValidation}
+                  submitOtherEvent={submitOtherEvent}
+                />
+                
                 <ToastContainer closeButton={false} limit={1} />
               </CardBody>
             </Card>

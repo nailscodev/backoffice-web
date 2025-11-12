@@ -337,4 +337,12 @@ const servicesByCategory: any = {
   ],
 };
 
-export { calenderDefaultCategories, events, defaultevent, servicesByCategory };
+const staffMembers = [
+  { id: 1, name: "María García", specialties: [1, 2, 3, 5] },
+  { id: 2, name: "Ana López", specialties: [1, 2, 5] },
+  { id: 3, name: "Carmen Rodríguez", specialties: [3, 4] },
+  { id: 4, name: "Isabel Martínez", specialties: [2, 6] },
+  { id: 5, name: "Laura Fernández", specialties: [4, 5] },
+];
+
+export { calenderDefaultCategories, events, defaultevent, servicesByCategory, staffMembers };
