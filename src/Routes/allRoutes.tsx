@@ -67,6 +67,11 @@ import EcommerceCheckout from "../pages/Ecommerce/EcommerceCheckout";
 import EcommerceSellers from "../pages/Ecommerce/EcommerceSellers/index";
 import EcommerceSellerDetail from "../pages/Ecommerce/EcommerceSellers/EcommerceSellerDetail";
 
+// Services Pages
+import Categories from "../pages/Services/Categories/index";
+import ServicesList from "../pages/Services/ServicesList/index";
+import AddOns from "../pages/Services/AddOns/index";
+
 // // NFT Marketplace Pages
 import Marketplace from "../pages/NFTMarketplace/Marketplace";
 import Collections from "../pages/NFTMarketplace/Collections";
@@ -276,6 +281,11 @@ const authProtectedRoutes = [
   { path: "/apps-ecommerce-seller-details", component: <EcommerceSellerDetail /> },
   { path: "/apps-file-manager", component: <FileManager /> },
   { path: "/apps-todo", component: <ToDoList /> },
+
+  // Services
+  { path: "/servicios/categories", component: <Categories /> },
+  { path: "/servicios", component: <ServicesList /> },
+  { path: "/servicios/addons", component: <AddOns /> },
 
   // //Chat
   { path: "/apps-chat", component: <Chat /> },

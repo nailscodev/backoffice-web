@@ -155,7 +155,7 @@ const Navdata = () => {
             id: "admin-servicios",
             label: t('menu.admin.services.title'),
             icon: "ri-scissors-line",
-            link: "/servicios",
+            link: "/#",
             click: function (e: any) {
                 e.preventDefault();
                 setIsServicios(!isServicios);
@@ -164,9 +164,9 @@ const Navdata = () => {
             },
             stateVariables: isServicios,
             subItems: [
+                { id: "categories", label: t('menu.admin.services.categories'), link: "/servicios/categories", parentId: "admin-servicios" },
                 { id: "servicios-list", label: t('menu.admin.services.list'), link: "/servicios", parentId: "admin-servicios" },
                 { id: "addons", label: t('menu.admin.services.addons'), link: "/servicios/addons", parentId: "admin-servicios" },
-                { id: "acciones-servicios", label: t('menu.admin.services.actions'), link: "/servicios/acciones", parentId: "admin-servicios" },
             ],
         },
 
