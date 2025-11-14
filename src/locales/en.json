@@ -757,5 +757,10 @@
     "calendar.validation.start_required": "Start time is required",
     "calendar.validation.end_required": "End time is required",
     "calendar.validation.date_required": "Date range is required",
-    "calendar.validation.past_time_error": "Cannot create reservations for past dates or times"
+    "calendar.validation.past_time_error": "Cannot create reservations for past dates or times",
+    "profile_dropdown.welcome": "Welcome",
+    "profile_dropdown.profile": "Profile",
+    "profile_dropdown.change_password": "Change Password",
+    "profile_dropdown.lock_screen": "Lock screen",
+    "profile_dropdown.logout": "Logout"
 }

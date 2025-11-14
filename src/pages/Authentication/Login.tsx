@@ -135,8 +135,8 @@ const Login = (props: any) => {
         // minimal user data expected by UI components
         const fakeUserData = {
             id: '00000000-0000-0000-0000-000000000000',
-            first_name: 'Dev',
-            last_name: 'User',
+            first_name: 'Name',
+            last_name: 'Lastname',
             email: 'dev@local',
         };
 

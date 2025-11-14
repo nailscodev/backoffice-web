@@ -755,5 +755,10 @@
     "calendar.validation.start_required": "La hora de inicio es requerida",
     "calendar.validation.end_required": "La hora de fin es requerida",
     "calendar.validation.date_required": "El rango de fechas es requerido",
-    "calendar.validation.past_time_error": "No se pueden crear reservas para fechas u horas pasadas"
+    "calendar.validation.past_time_error": "No se pueden crear reservas para fechas u horas pasadas",
+    "profile_dropdown.welcome": "Bienvenido",
+    "profile_dropdown.profile": "Perfil",
+    "profile_dropdown.change_password": "Cambiar contraseña",
+    "profile_dropdown.lock_screen": "Bloquear pantalla",
+    "profile_dropdown.logout": "Cerrar sesión"
 }
