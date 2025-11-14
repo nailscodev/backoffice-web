@@ -84,7 +84,7 @@ const ProfileDropdown = () => {
                         </Link>
                     </DropdownItem>
                     <DropdownItem className='p-0'>
-                        <Link to="/pages-profile-settings" className="dropdown-item">
+                        <Link to="/pages-profile-settings?tab=password" className="dropdown-item">
                             <i className="mdi mdi-key-variant text-muted fs-16 align-middle me-1"></i>
                             <span className="align-middle">{t('profile_dropdown.change_password')}</span>
                         </Link>
