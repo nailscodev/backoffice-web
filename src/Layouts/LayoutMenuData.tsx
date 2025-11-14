@@ -235,8 +235,7 @@ const Navdata = () => {
             },
             stateVariables: isConfiguracion,
             subItems: [
-                { id: "usuarios-roles", label: t('menu.admin.settings.users_roles'), link: "/config/usuarios-roles", parentId: "admin-config" },
-                { id: "auth-config", label: t('menu.admin.settings.authentication'), link: "/config/autenticacion", parentId: "admin-config" },
+                { id: "usuarios-roles", label: t('menu.admin.settings.users_roles'), link: "/config/usuarios", parentId: "admin-config" },
                 { id: "idioma", label: t('menu.admin.settings.language'), link: "/config/idioma", parentId: "admin-config" },
             ],
         }

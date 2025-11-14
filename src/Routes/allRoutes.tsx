@@ -72,6 +72,10 @@ import Categories from "../pages/Services/Categories/index";
 import ServicesList from "../pages/Services/ServicesList/index";
 import AddOns from "../pages/Services/AddOns/index";
 
+// Settings Pages
+import UserManagement from "../pages/Settings/Users/index";
+import LanguageManagement from "../pages/Settings/Language/index";
+
 // // NFT Marketplace Pages
 import Marketplace from "../pages/NFTMarketplace/Marketplace";
 import Collections from "../pages/NFTMarketplace/Collections";
@@ -286,6 +290,10 @@ const authProtectedRoutes = [
   { path: "/servicios/categories", component: <Categories /> },
   { path: "/servicios", component: <ServicesList /> },
   { path: "/servicios/addons", component: <AddOns /> },
+
+  // Settings
+  { path: "/config/usuarios", component: <UserManagement /> },
+  { path: "/config/idioma", component: <LanguageManagement /> },
 
   // //Chat
   { path: "/apps-chat", component: <Chat /> },
