@@ -20,15 +20,97 @@ const token = JSON.parse(authUser) ? JSON.parse(authUser).token : null;
 if (token)
   axios.defaults.headers.common["Authorization"] = "Bearer " + token;
 
+// Helper to get CSRF token
+let csrfTokenPromise: Promise<string> | null = null;
+
+const fetchCsrfToken = async (): Promise<string> => {
+  try {
+    const response = await axios.get('/api/v1/csrf/token');
+    const token = response.data?.data?.token || response.data?.token;
+    if (token) {
+      setCsrfToken(token);
+      // Save to session storage
+      const authUser = sessionStorage.getItem('authUser');
+      if (authUser) {
+        const parsed = JSON.parse(authUser);
+        parsed.csrfToken = token;
+        sessionStorage.setItem('authUser', JSON.stringify(parsed));
+      }
+      return token;
+    }
+    throw new Error('No CSRF token received');
+  } catch (error) {
+    throw new Error('Failed to fetch CSRF token');
+  }
+};
+
+// Request interceptor to ensure CSRF token is present
+axios.interceptors.request.use(
+  async (config) => {
+    // Only add CSRF for write operations
+    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase() || '')) {
+      // Check if CSRF token is already set
+      if (!config.headers['X-CSRF-Token']) {
+        // Try to get from session storage first
+        const authUser = sessionStorage.getItem('authUser');
+        if (authUser) {
+          try {
+            const parsed = JSON.parse(authUser);
+            if (parsed.csrfToken) {
+              config.headers['X-CSRF-Token'] = parsed.csrfToken;
+            }
+          } catch (e) {
+            // ignore parse errors
+          }
+        }
+        
+        // If still no token, fetch it (avoid parallel requests)
+        if (!config.headers['X-CSRF-Token']) {
+          if (!csrfTokenPromise) {
+            csrfTokenPromise = fetchCsrfToken().finally(() => {
+              csrfTokenPromise = null;
+            });
+          }
+          const token = await csrfTokenPromise;
+          config.headers['X-CSRF-Token'] = token;
+        }
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // intercepting to capture errors
 axios.interceptors.response.use(
   function (response) {
     return response.data ? response.data : response;
   },
-  function (error) {
+  async function (error) {
+    const originalRequest = error.config;
+    
+    // If CSRF token is invalid/missing and we haven't retried yet
+    if (error.response?.status === 403 && 
+        error.response?.data?.message?.includes('CSRF') && 
+        !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        // Fetch new CSRF token
+        const token = await fetchCsrfToken();
+        originalRequest.headers['X-CSRF-Token'] = token;
+        // Retry the original request
+        return axios(originalRequest);
+      } catch (csrfError) {
+        return Promise.reject('Failed to refresh CSRF token');
+      }
+    }
+    
     // Any status codes that falls outside the range of 2xx cause this function to trigger
     let message;
-    switch (error.status) {
+    switch (error.response?.status || error.status) {
       case 500:
         message = "Internal Server Error";
         break;
@@ -39,7 +121,7 @@ axios.interceptors.response.use(
         message = "Sorry! the data you are looking for could not be found";
         break;
       default:
-        message = error.message || error;
+        message = error.response?.data?.message || error.message || error;
     }
     return Promise.reject(message);
   }

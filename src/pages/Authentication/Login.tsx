@@ -59,93 +59,21 @@ const Login = (props: any) => {
         enableReinitialize: true,
 
         initialValues: {
-            email: userLogin.email || "admin@themesbrand.com" || '',
-            password: userLogin.password || "123456" || '',
+            email: userLogin.email || '',
+            password: userLogin.password || '',
         },
         validationSchema: Yup.object({
             email: Yup.string().required("Please Enter Your Email"),
             password: Yup.string().required("Please Enter Your Password"),
         }),
-        onSubmit: async (values) => {
-            setLoginError(null);
-            setLoader(true);
-            const api = new APIClient();
-            try {
-                // helper to read cookie
-                const getCookie = (name: string) => {
-                    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-                    return match ? decodeURIComponent(match[2]) : null;
-                };
-
-                let xsrfToken: string | null = null;
-
-                // Try the explicit CSRF token endpoint (matches Postman collection)
-                try {
-                    const pre: any = await api.get('/api/v1/csrf/token');
-                    if (pre && pre.data && pre.data.token) xsrfToken = pre.data.token;
-                } catch (e) {
-                    // Ignore error and try a generic GET that may set a cookie
-                    try { await api.get('/api/v1'); } catch { /* ignore */ }
-                }
-
-                // If we still don't have token, try reading cookie
-                xsrfToken = xsrfToken || getCookie('XSRF-TOKEN');
-
-                const headers: any = {};
-                if (xsrfToken) headers['X-CSRF-Token'] = xsrfToken;
-
-                const data: any = await api.create('/api/v1/users/login', { usernameOrEmail: values.email, password: values.password }, Object.keys(headers).length ? { headers } : undefined);
-
-                // api_helper returns response.data (see interceptor). Expecting LoginResponseDto
-                if (!data) {
-                    setLoginError('Respuesta vacía del servidor.');
-                    setLoader(false);
-                    return;
-                }
-
-                // If backend returns token in body, set it for subsequent requests
-                if (data.token) {
-                    // set axios default for future calls
-                    setAuthorization(data.token);
-                    // store fallback token (replace with secure storage as needed)
-                    sessionStorage.setItem('authUser', JSON.stringify({ token: data.token, ...data }));
-                }
-
-                setLoader(false);
-                // dispatch optional redux login success if desired
-                // navigate to root or dashboard
-                props.router.navigate('/');
-            } catch (err: any) {
-                setLoader(false);
-                // api_helper rejects with a string message (see interceptor), or an Error
-                const message = typeof err === 'string' ? err : (err && err.message) ? err.message : 'Error de conexión con el servidor.';
-                setLoginError(message);
-            }
+        onSubmit: (values) => {
+            dispatch(loginUser(values, props.router.navigate));
         }
     });
 
     const signIn = (type: any) => {
         dispatch(socialLogin(type, props.router.navigate));
     };
-
-    const simulateLogin = () => {
-        // fake tokens for development/testing
-        const fakeJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.FAKE_PAYLOAD.FAKE_SIG';
-        const fakeCsrf = 'fake-csrf-token-1234567890';
-        // minimal user data expected by UI components
-        const fakeUserData = {
-            id: '00000000-0000-0000-0000-000000000000',
-            first_name: 'Name',
-            last_name: 'Lastname',
-            email: 'dev@local',
-        };
-
-        // save tokens and optional extra data (include data.* to match backend shape)
-        saveAuthTokens(fakeJwt, fakeCsrf, { demo: true, data: fakeUserData });
-        // navigate to home/dashboard
-        props.router.navigate('/');
-    };
-
 
     //for facebook and google authentication
     const socialResponse = (type: any) => {
@@ -189,6 +117,7 @@ const Login = (props: any) => {
                                             <p className="text-muted">Sign in to continue.</p>
                                         </div>
                                         {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
+                                        {loginError && <Alert color="danger">{loginError}</Alert>}
                                         <div className="p-2 mt-4">
                                             <Form
                                                 onSubmit={(e) => {
@@ -203,7 +132,7 @@ const Login = (props: any) => {
                                                     <Input
                                                         name="email"
                                                         className="form-control"
-                                                        placeholder="Enter email"
+                                                        placeholder="Email"
                                                         type="email"
                                                         onChange={validation.handleChange}
                                                         onBlur={validation.handleBlur}
@@ -228,7 +157,7 @@ const Login = (props: any) => {
                                                             value={validation.values.password || ""}
                                                             type={passwordShow ? "text" : "password"}
                                                             className="form-control pe-5"
-                                                            placeholder="Enter Password"
+                                                            placeholder="Password"
                                                             onChange={validation.handleChange}
                                                             onBlur={validation.handleBlur}
                                                             invalid={
@@ -275,9 +204,6 @@ const Login = (props: any) => {
                                                         {loader && <Spinner size="sm" className='me-2'> Loading... </Spinner>}
                                                         Sign In
                                                     </Button>
-                                                </div>
-                                                <div className="mt-2 text-center">
-                                                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={simulateLogin}>Simulate Login (dev)</button>
                                                 </div>
                                             </Form>
                                         </div>

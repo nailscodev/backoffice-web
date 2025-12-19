@@ -1,3 +1,14 @@
+//==============================================
+// NAILSCO BACKEND API ENDPOINTS
+//==============================================
+
+//AUTH
+export const POST_LOGIN = "/api/v1/users/login";
+
+//==============================================
+// TEMPLATE LEGACY ENDPOINTS (Original del template)
+//==============================================
+
 //REGISTER
 export const POST_FAKE_REGISTER = "/auth/signup";
 
