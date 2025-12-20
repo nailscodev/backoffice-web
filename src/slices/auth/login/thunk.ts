@@ -47,7 +47,10 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
           dispatch(loginSuccess({ token, ...userData }));
           history('/dashboard');
         } else {
-          dispatch(apiError({ data: data.error || 'Invalid response from server' }));
+          dispatch(apiError({ 
+            message: data.error || data.message || 'Invalid response from server',
+            field: data.field || null 
+          }));
         }
       } else {
         sessionStorage.setItem("authUser", JSON.stringify(data));
@@ -68,8 +71,40 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
         }
       }
     }
-  } catch (error) {
-    dispatch(apiError(error));
+  } catch (error: any) {
+    // Extract error message from different error structures
+    let errorMessage = "An error occurred during login";
+    let errorField = null;
+    
+    if (error?.response?.data) {
+      errorMessage = error.response.data.error || error.response.data.message || errorMessage;
+      errorField = error.response.data.field || null;
+      
+      // If message contains "Invalid credentials" or similar, associate with password field
+      if (!errorField && (
+        errorMessage.toLowerCase().includes('invalid credentials') ||
+        errorMessage.toLowerCase().includes('incorrect password') ||
+        errorMessage.toLowerCase().includes('wrong password')
+      )) {
+        errorField = 'password';
+        errorMessage = 'Invalid password';
+      }
+    } else if (error?.message) {
+      errorMessage = error.message;
+      // Check for invalid credentials in error message
+      if (errorMessage.toLowerCase().includes('invalid credentials')) {
+        errorField = 'password';
+        errorMessage = 'Invalid password';
+      }
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+      if (errorMessage.toLowerCase().includes('invalid credentials')) {
+        errorField = 'password';
+        errorMessage = 'Invalid password';
+      }
+    }
+    
+    dispatch(apiError({ message: errorMessage, field: errorField }));
   }
 };
 

@@ -206,19 +206,16 @@ const Navdata = () => {
         {
             id: "admin-reportes",
             label: t('menu.admin.reports.title'),
-            icon: "ri-bar-chart-line",
-            link: "/reportes",
+            icon: "ri-time-line",
+            link: "/#",
+            disabled: true,
+            badgeName: "Coming Soon",
+            badgeColor: "info",
             click: function (e: any) {
                 e.preventDefault();
-                setIsReportes(!isReportes);
-                setIscurrentState('Reportes');
-                updateIconSidebar(e);
+                // Don't navigate or expand - it's disabled
             },
-            stateVariables: isReportes,
-            subItems: [
-                { id: "reportes-fecha", label: t('menu.admin.reports.by_date'), link: "/reportes/fecha", parentId: "admin-reportes" },
-                { id: "reportes-metrics", label: t('menu.admin.reports.metrics'), link: "/reportes/metrics", parentId: "admin-reportes" },
-            ],
+            stateVariables: false,
         },
 
         // 8) Configuración

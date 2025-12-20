@@ -29,11 +29,12 @@ const Login = (props: any) => {
             user: state.Account.user,
             error: state.Login.error,
             errorMsg: state.Login.errorMsg,
+            errorField: state.Login.errorField,
         })
     );
     // Inside your component
     const {
-        user, error, errorMsg
+        user, error, errorMsg, errorField
     } = useSelector(loginpageData);
 
     const [userLogin, setUserLogin] = useState<any>([]);
@@ -67,6 +68,7 @@ const Login = (props: any) => {
             password: Yup.string().required("Please Enter Your Password"),
         }),
         onSubmit: (values) => {
+            setLoader(true);
             dispatch(loginUser(values, props.router.navigate));
         }
     });
@@ -116,7 +118,7 @@ const Login = (props: any) => {
                                             <h5 className="text-dark fw-semibold">Welcome Back!</h5>
                                             <p className="text-muted">Sign in to continue.</p>
                                         </div>
-                                        {error && error ? (<Alert color="danger"> {error} </Alert>) : null}
+                                        {error && errorMsg && !errorField ? (<Alert color="danger"> {error} </Alert>) : null}
                                         {loginError && <Alert color="danger">{loginError}</Alert>}
                                         <div className="p-2 mt-4">
                                             <Form
@@ -134,15 +136,24 @@ const Login = (props: any) => {
                                                         className="form-control"
                                                         placeholder="Email"
                                                         type="email"
-                                                        onChange={validation.handleChange}
+                                                        onChange={(e) => {
+                                                            validation.handleChange(e);
+                                                            if (errorMsg) {
+                                                                dispatch(resetLoginFlag());
+                                                            }
+                                                        }}
                                                         onBlur={validation.handleBlur}
                                                         value={validation.values.email || ""}
                                                         invalid={
-                                                            validation.touched.email && validation.errors.email ? true : false
+                                                            (validation.touched.email && validation.errors.email) ||
+                                                            (errorMsg && errorField === 'email') ? true : false
                                                         }
                                                     />
                                                     {validation.touched.email && validation.errors.email ? (
                                                         <FormFeedback type="invalid">{validation.errors.email}</FormFeedback>
+                                                    ) : null}
+                                                    {errorMsg && errorField === 'email' && !validation.errors.email ? (
+                                                        <div className="text-danger mt-1" style={{fontSize: '0.875em'}}>{error}</div>
                                                     ) : null}
                                                 </div>
 
@@ -158,16 +169,27 @@ const Login = (props: any) => {
                                                             type={passwordShow ? "text" : "password"}
                                                             className="form-control pe-5"
                                                             placeholder="Password"
-                                                            onChange={validation.handleChange}
+                                                            onChange={(e) => {
+                                                                validation.handleChange(e);
+                                                                if (errorMsg) {
+                                                                    dispatch(resetLoginFlag());
+                                                                }
+                                                            }}
                                                             onBlur={validation.handleBlur}
                                                             invalid={
-                                                                validation.touched.password && validation.errors.password ? true : false
+                                                                (validation.touched.password && validation.errors.password) ||
+                                                                (errorMsg && errorField === 'password') ? true : false
                                                             }
                                                         />
                                                         {validation.touched.password && validation.errors.password ? (
                                                             <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
                                                         ) : null}
-                                                        <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted" type="button" id="password-addon" onClick={() => setPasswordShow(!passwordShow)}><i className="ri-eye-fill align-middle"></i></button>
+                                                        {errorMsg && errorField === 'password' && !validation.errors.password ? (
+                                                            <div className="text-danger mt-1" style={{fontSize: '0.875em'}}>{error}</div>
+                                                        ) : null}
+                                                        {!((validation.touched.password && validation.errors.password) || (errorMsg && errorField === 'password')) && (
+                                                            <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted" type="button" id="password-addon" onClick={() => setPasswordShow(!passwordShow)}><i className="ri-eye-fill align-middle"></i></button>
+                                                        )}
                                                     </div>
                                                 </div>
 

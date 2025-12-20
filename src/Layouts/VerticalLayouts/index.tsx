@@ -249,8 +249,11 @@ const VerticalLayout = (props : any) => {
                                 ) : (
                                     <li className="nav-item">
                                         <Link
-                                            className="nav-link menu-link"
-                                            to={item.link ? item.link : "/#"}>
+                                            className={`nav-link menu-link ${item.disabled ? 'disabled' : ''}`}
+                                            to={item.disabled ? "#" : (item.link ? item.link : "/#")}
+                                            onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+                                            style={item.disabled ? { cursor: 'not-allowed', opacity: 0.6 } : undefined}
+                                        >
                                             <i className={item.icon}></i> <span>{props.t(item.label)}</span>
                                             {item.badgeName ?
                                                 <span className={"badge badge-pill bg-" + item.badgeColor} data-key="t-new">{item.badgeName}</span>

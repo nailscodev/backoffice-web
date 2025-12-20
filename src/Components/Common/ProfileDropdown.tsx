@@ -12,48 +12,41 @@ const ProfileDropdown = () => {
 
     const { t } = useTranslation();
 
-    const profiledropdownData = createSelector(
-        (state: any) => state.Profile,
-        (user) => user.user
+    // Get user data from Login slice
+    const loginData = createSelector(
+        (state: any) => state.Login,
+        (login) => login.user
     );
-    // Inside your component
-    const user = useSelector(profiledropdownData);
+    const userData = useSelector(loginData);
 
     const [userName, setUserName] = useState("Admin");
-    const [userRole, setUserRole] = useState("Administrator"); // TODO: Get from user data
+    const [userRole, setUserRole] = useState("Administrator");
     const [userInitials, setUserInitials] = useState("AD");
+    const [userAvatar, setUserAvatar] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState("");
 
     useEffect(() => {
-        const authUser = sessionStorage.getItem("authUser");
-        if (authUser) {
-            const obj = JSON.parse(authUser);
+        // Get user data from Redux state (Login.user)
+        // userData is the user object directly, not wrapped in another user property
+        if (userData && Object.keys(userData).length > 0) {
             
-            let firstName = "";
-            let lastName = "";
+            // Set user name
+            setUserName(userData.name || userData.username || "Admin");
             
-            if (process.env.REACT_APP_DEFAULTAUTH === "fake") {
-                firstName = user.first_name || obj.data?.first_name || obj.first_name || "";
-                lastName = user.last_name || obj.data?.last_name || obj.last_name || "";
-                setUserName(firstName || "Admin");
-            } else if (process.env.REACT_APP_DEFAULTAUTH === "firebase") {
-                const displayName = obj.displayName || obj.email || "Admin";
-                setUserName(displayName);
-                firstName = displayName.split(" ")[0] || "";
-                lastName = displayName.split(" ")[1] || "";
-            } else {
-                setUserName("Admin");
-                firstName = "Ad";
-                lastName = "min";
-            }
+            // Set user email
+            setUserEmail(userData.email || "");
             
-            // Generate initials
-            const initials = `${firstName.charAt(0).toUpperCase()}${lastName.charAt(0).toUpperCase()}`;
-            setUserInitials(initials || "AD");
+            // Set user role - capitalize first letter
+            const role = userData.role || "user";
+            setUserRole(role.charAt(0).toUpperCase() + role.slice(1));
             
-            // TODO: Get user role from obj or user data
-            // setUserRole(obj.role || user.role || "Administrator");
+            // Set user initials (use the initials from API if available)
+            setUserInitials(userData.initials || "AD");
+            
+            // Set user avatar
+            setUserAvatar(userData.avatar || null);
         }
-    }, [userName, user]);
+    }, [userData]);
 
     //Dropdown Toggle
     const [isProfileDropdown, setIsProfileDropdown] = useState(false);
@@ -65,18 +58,34 @@ const ProfileDropdown = () => {
             <Dropdown isOpen={isProfileDropdown} toggle={toggleProfileDropdown} className="ms-sm-3 header-item topbar-user">
                 <DropdownToggle tag="button" type="button" className="btn">
                     <span className="d-flex align-items-center">
-                        <div className="rounded-circle header-profile-user d-flex align-items-center justify-content-center bg-primary text-white fw-medium" 
-                             style={{ width: '32px', height: '32px', fontSize: '14px' }}>
-                            {userInitials}
-                        </div>
+                        {userAvatar ? (
+                            <img 
+                                className="rounded-circle header-profile-user" 
+                                src={userAvatar} 
+                                alt={userName}
+                                style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                            />
+                        ) : (
+                            <div 
+                                className="rounded-circle header-profile-user d-flex align-items-center justify-content-center bg-primary text-white fw-medium" 
+                                style={{ width: '32px', height: '32px', fontSize: '14px' }}
+                            >
+                                {userInitials}
+                            </div>
+                        )}
                         <span className="text-start ms-xl-2">
-                            <span className="d-none d-xl-inline-block ms-1 fw-medium user-name-text"> {userName || "Admin"}</span>
+                            <span className="d-none d-xl-inline-block ms-1 fw-medium user-name-text">{userName}</span>
                             <span className="d-none d-xl-block ms-1 fs-12 text-muted user-name-sub-text">{userRole}</span>
                         </span>
                     </span>
                 </DropdownToggle>
                 <DropdownMenu className="dropdown-menu-end">
                     <h6 className="dropdown-header">{t('profile_dropdown.welcome')} {userName}!</h6>
+                    {userEmail && (
+                        <div className="dropdown-header pb-0">
+                            <small className="text-muted">{userEmail}</small>
+                        </div>
+                    )}
                     <DropdownItem className='p-0'>
                         <Link to="/profile" className="dropdown-item">
                             <i className="mdi mdi-account-circle text-muted fs-16 align-middle me-1"></i>
