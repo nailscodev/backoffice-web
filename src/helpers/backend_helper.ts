@@ -14,6 +14,18 @@ export const postLogin = (data: { email: string; password: string }) => {
   });
 };
 
+export const postLogout = async () => {
+  try {
+    // Try to call backend logout endpoint (may not exist yet)
+    return await api.create(url.POST_LOGOUT, {});
+  } catch (error: any) {
+    // If endpoint doesn't exist, just return success
+    // The main cleanup happens in the frontend
+    console.warn('Logout endpoint not available, clearing local session only');
+    return { success: true };
+  }
+};
+
 //==============================================
 // USER API
 //==============================================

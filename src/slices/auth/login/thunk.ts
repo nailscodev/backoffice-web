@@ -4,7 +4,7 @@ import {
   postFakeLogin,
   postJwtLogin,
 } from "../../../helpers/fakebackend_helper";
-import { postLogin } from "../../../helpers/backend_helper";
+import { postLogin, postLogout } from "../../../helpers/backend_helper";
 import { saveAuthTokens, clearAuthTokens } from "../../../helpers/api_helper";
 
 import { loginSuccess, logoutUserSuccess, apiError, reset_login_flag } from './reducer';
@@ -109,11 +109,27 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
   }
 };
 
-export const logoutUser = () => async (dispatch : any) => {
+export const logoutUser = (history?: any) => async (dispatch : any) => {
   try {
     if (process.env.REACT_APP_DEFAULTAUTH === "nailsco") {
+      // Call backend logout endpoint to revoke token
+      try {
+        await postLogout();
+      } catch (error) {
+        // Even if backend call fails, we still want to clear local session
+        console.warn('Logout API call failed, but clearing local session:', error);
+      }
+      
+      // Clear auth tokens from sessionStorage and axios defaults
       clearAuthTokens();
+      
+      // Dispatch logout success to clear Redux state
       dispatch(logoutUserSuccess(true));
+      
+      // Navigate to login page if history is provided
+      if (history) {
+        history('/login');
+      }
     } else {
       sessionStorage.removeItem("authUser");
       let fireBaseBackend : any = getFirebaseBackend();
@@ -122,6 +138,9 @@ export const logoutUser = () => async (dispatch : any) => {
         dispatch(logoutUserSuccess(response));
       } else {
         dispatch(logoutUserSuccess(true));
+      }
+      if (history) {
+        history('/login');
       }
     }
   } catch (error) {

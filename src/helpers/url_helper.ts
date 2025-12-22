@@ -4,6 +4,7 @@
 
 //AUTH
 export const POST_LOGIN = "/api/v1/users/login";
+export const POST_LOGOUT = "/api/v1/users/logout";
 
 //USERS
 export const USERS = "/api/v1/users";
