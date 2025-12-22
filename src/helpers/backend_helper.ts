@@ -77,3 +77,16 @@ export const updateUserProfile = async (userId: string, data: any) => {
     throw 'Error al actualizar el perfil';
   }
 };
+
+//==============================================
+// BOOKINGS / DASHBOARD API
+//==============================================
+
+export const getDashboardStats = async (startDate: string, endDate: string) => {
+  try {
+    return await api.get(`${url.DASHBOARD_STATS}?startDate=${startDate}&endDate=${endDate}`);
+  } catch (error: any) {
+    console.error('Error fetching dashboard stats:', error);
+    throw error;
+  }
+};

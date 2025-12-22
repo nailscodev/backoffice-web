@@ -99,12 +99,12 @@ const ProfileDropdown = () => {
                             <span className="align-middle">{t('profile_dropdown.change_password')}</span>
                         </Link>
                     </DropdownItem>
-                    <DropdownItem className='p-0'>
+                    {/* <DropdownItem className='p-0'>
                         <Link to="/auth-lockscreen-basic" className="dropdown-item">
                             <i className="mdi mdi-lock text-muted fs-16 align-middle me-1"></i>
                             <span className="align-middle">{t('profile_dropdown.lock_screen')}</span>
                         </Link>
-                    </DropdownItem>
+                    </DropdownItem> */}
                     <DropdownItem className='p-0'>
                         <Link to="/logout" className="dropdown-item">
                             <i className="mdi mdi-logout text-muted fs-16 align-middle me-1"></i>

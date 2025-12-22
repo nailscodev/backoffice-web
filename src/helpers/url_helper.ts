@@ -9,6 +9,10 @@ export const POST_LOGOUT = "/api/v1/users/logout";
 //USERS
 export const USERS = "/api/v1/users";
 
+//BOOKINGS
+export const BOOKINGS = "/api/v1/bookings";
+export const DASHBOARD_STATS = "/api/v1/bookings/dashboard/stats";
+
 //==============================================
 // TEMPLATE LEGACY ENDPOINTS (Original del template)
 //==============================================
