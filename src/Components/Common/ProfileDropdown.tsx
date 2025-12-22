@@ -36,9 +36,10 @@ const ProfileDropdown = () => {
             // Set user email
             setUserEmail(userData.email || "");
             
-            // Set user role - capitalize first letter
+            // Set user role - use translation key
             const role = userData.role || "user";
-            setUserRole(role.charAt(0).toUpperCase() + role.slice(1));
+            const roleKey = `profile.role_${role.toLowerCase()}`;
+            setUserRole(t(roleKey));
             
             // Set user initials (use the initials from API if available)
             setUserInitials(userData.initials || "AD");
@@ -46,7 +47,7 @@ const ProfileDropdown = () => {
             // Set user avatar
             setUserAvatar(userData.avatar || null);
         }
-    }, [userData]);
+    }, [userData, t]);
 
     //Dropdown Toggle
     const [isProfileDropdown, setIsProfileDropdown] = useState(false);
@@ -87,7 +88,7 @@ const ProfileDropdown = () => {
                         </div>
                     )}
                     <DropdownItem className='p-0'>
-                        <Link to="/profile" className="dropdown-item">
+                        <Link to="/pages-profile-settings" className="dropdown-item">
                             <i className="mdi mdi-account-circle text-muted fs-16 align-middle me-1"></i>
                             <span className="align-middle">{t('profile_dropdown.profile')}</span>
                         </Link>

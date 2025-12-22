@@ -43,6 +43,7 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
         // Backend NailsCo returns: { success: true, data: { token: string, user: {...} } }
         if (data.success && data.data) {
           const { token, user: userData } = data.data;
+          // Don't save CSRF token from login - we'll get a fresh one for each request
           saveAuthTokens(token, null, { user: userData });
           dispatch(loginSuccess({ token, ...userData }));
           history('/dashboard');

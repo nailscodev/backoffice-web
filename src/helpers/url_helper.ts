@@ -5,6 +5,9 @@
 //AUTH
 export const POST_LOGIN = "/api/v1/users/login";
 
+//USERS
+export const USERS = "/api/v1/users";
+
 //==============================================
 // TEMPLATE LEGACY ENDPOINTS (Original del template)
 //==============================================

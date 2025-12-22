@@ -7,6 +7,11 @@ import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useSelector } from 'react-redux';
+import { createSelector } from 'reselect';
+
+// API helpers
+import { changeUserPassword, updateUserProfile } from '../../../../helpers/backend_helper';
 
 //import images
 import progileBg from '../../../../assets/images/Hero.jpg';
@@ -14,10 +19,21 @@ import progileBg from '../../../../assets/images/Hero.jpg';
 const Settings = () => {
     const { t } = useTranslation();
     const location = useLocation();
+    
+    // Get user data from Redux (Login slice)
+    const loginData = createSelector(
+        (state: any) => state.Login,
+        (login) => login.user
+    );
+    const userData = useSelector(loginData);
+    
     const [activeTab, setActiveTab] = useState("1");
     const [userInitials, setUserInitials] = useState("AD");
     const [userName, setUserName] = useState("Admin User");
     const [userRole, setUserRole] = useState("Administrator");
+    const [userId, setUserId] = useState<string | null>(null);
+    const [isLoadingPassword, setIsLoadingPassword] = useState(false);
+    const [isLoadingPersonal, setIsLoadingPersonal] = useState(false);
 
     const tabChange = (tab: any) => {
         if (activeTab !== tab) setActiveTab(tab);
@@ -33,40 +49,78 @@ const Settings = () => {
     }, [location]);
 
     useEffect(() => {
-        const authUser = sessionStorage.getItem("authUser");
-        if (authUser) {
-            const obj = JSON.parse(authUser);
-            const firstName = obj.data?.first_name || obj.first_name || "Admin";
-            const lastName = obj.data?.last_name || obj.last_name || "User";
+        // Get user data from Redux state (Login.user)
+        if (userData && Object.keys(userData).length > 0) {
+            // Set user ID
+            setUserId(userData.id || null);
             
-            setUserName(`${firstName} ${lastName}`);
-            const initials = `${firstName.charAt(0).toUpperCase()}${lastName.charAt(0).toUpperCase()}`;
-            setUserInitials(initials || "AD");
+            // Set user name
+            const name = userData.name || userData.username || "Admin User";
+            setUserName(name);
             
-            // TODO: Get user role from backend
-            // setUserRole(obj.role || "Administrator");
+            // Set user role - use translation key
+            const role = userData.role || "user";
+            const roleKey = `profile.role_${role.toLowerCase()}`;
+            setUserRole(t(roleKey));
+            
+            // Set user initials
+            setUserInitials(userData.initials || "AD");
         }
-    }, []);
+    }, [userData, t]);
 
     // Validation for Personal Details
     const validationPersonal: any = useFormik({
         enableReinitialize: true,
         initialValues: {
-            firstName: '',
-            lastName: '',
-            email: '',
-            phone: '',
+            name: userData?.name || userData?.first_name || '',
+            username: userData?.username || '',
+            email: userData?.email || '',
         },
         validationSchema: Yup.object({
-            firstName: Yup.string().required(t('profile.first_name_required')),
-            lastName: Yup.string().required(t('profile.last_name_required')),
+            name: Yup.string().required(t('profile.name_required')),
+            username: Yup.string().required(t('profile.username_required')),
             email: Yup.string().email(t('profile.email_invalid')).required(t('profile.email_required')),
-            phone: Yup.string().required(t('profile.phone_required')),
         }),
-        onSubmit: (values) => {
-            // TODO: Connect with API
-            console.log('Personal details:', values);
-            toast.success(t('profile.updated_successfully'), { autoClose: 3000 });
+        onSubmit: async (values: any) => {
+            if (!userId) {
+                toast.error('No se pudo identificar el usuario. Por favor, inicie sesión nuevamente.', { autoClose: 3000 });
+                return;
+            }
+
+            setIsLoadingPersonal(true);
+            try {
+                await updateUserProfile(userId, {
+                    name: values.name,
+                    username: values.username,
+                    email: values.email,
+                });
+                
+                toast.success(t('profile.updated_successfully'), { autoClose: 3000 });
+            } catch (error: any) {
+                console.error('Error updating profile:', error);
+                
+                let errorMessage = 'Error al actualizar el perfil';
+                
+                if (typeof error === 'string') {
+                    errorMessage = error;
+                } else if (Array.isArray(error)) {
+                    errorMessage = error.filter((msg: any) => msg).join('. ') || errorMessage;
+                } else if (error?.message) {
+                    if (Array.isArray(error.message)) {
+                        errorMessage = error.message.filter((msg: any) => msg).join('. ') || errorMessage;
+                    } else {
+                        errorMessage = error.message;
+                    }
+                }
+                
+                if (typeof errorMessage !== 'string') {
+                    errorMessage = String(errorMessage);
+                }
+                
+                toast.error(errorMessage, { autoClose: 5000 });
+            } finally {
+                setIsLoadingPersonal(false);
+            }
         },
     });
 
@@ -80,16 +134,78 @@ const Settings = () => {
         },
         validationSchema: Yup.object({
             oldPassword: Yup.string().required(t('profile.current_password_required')),
-            newPassword: Yup.string().min(6, t('profile.new_password_min')).required(t('profile.new_password_required')),
+            newPassword: Yup.string()
+                .min(6, t('profile.new_password_min'))
+                .matches(
+                    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                    'La contraseña debe contener al menos una mayúscula, una minúscula y un número'
+                )
+                .required(t('profile.new_password_required')),
             confirmPassword: Yup.string()
                 .oneOf([Yup.ref('newPassword')], t('profile.passwords_must_match'))
                 .required(t('profile.confirm_password_required')),
         }),
-        onSubmit: (values) => {
-            // TODO: Connect with API
-            console.log('Password change:', values);
-            toast.success(t('profile.password_changed_successfully'), { autoClose: 3000 });
-            validationPassword.resetForm();
+        onSubmit: async (values: any) => {
+            if (!userId) {
+                toast.error('No se pudo identificar el usuario. Por favor, inicie sesión nuevamente.', { autoClose: 3000 });
+                return;
+            }
+
+            setIsLoadingPassword(true);
+            try {
+                const result = await changeUserPassword(userId, {
+                    currentPassword: values.oldPassword,
+                    newPassword: values.newPassword,
+                });
+                
+                toast.success(t('profile.password_changed_successfully'), { autoClose: 3000 });
+                validationPassword.resetForm();
+            } catch (error: any) {
+                console.error('Error changing password:', error);
+                
+                // Handle specific error messages
+                let errorMessage = 'Error al cambiar la contraseña';
+                
+                // The error from backend_helper is already extracted
+                if (typeof error === 'string') {
+                    errorMessage = error;
+                } else if (Array.isArray(error)) {
+                    // Backend might return an array of messages - join them
+                    errorMessage = error.filter((msg: any) => msg).join('. ') || errorMessage;
+                } else if (error?.message) {
+                    // error.message might be an array or string
+                    if (Array.isArray(error.message)) {
+                        errorMessage = error.message.filter((msg: any) => msg).join('. ') || errorMessage;
+                    } else {
+                        errorMessage = error.message;
+                    }
+                }
+                
+                // Ensure errorMessage is a string before using string methods
+                if (typeof errorMessage !== 'string') {
+                    errorMessage = String(errorMessage);
+                }
+                
+                // Check for common error types and provide user-friendly messages
+                if (errorMessage.toLowerCase().includes('incorrect') || 
+                    errorMessage.toLowerCase().includes('invalid current') ||
+                    errorMessage.toLowerCase().includes('wrong')) {
+                    errorMessage = 'La contraseña actual es incorrecta';
+                } else if (errorMessage.toLowerCase().includes('unauthorized')) {
+                    errorMessage = 'No autorizado. Por favor, inicie sesión nuevamente.';
+                } else if (errorMessage.toLowerCase().includes('csrf')) {
+                    errorMessage = 'Error de seguridad. Por favor, recargue la página e inténtelo de nuevo.';
+                } else if (errorMessage.toLowerCase().includes('uppercase') || 
+                           errorMessage.toLowerCase().includes('lowercase') ||
+                           errorMessage.toLowerCase().includes('special character')) {
+                    // Keep the original validation error message from backend
+                    errorMessage = 'La nueva contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial';
+                }
+                
+                toast.error(errorMessage, { autoClose: 5000 });
+            } finally {
+                setIsLoadingPassword(false);
+            }
         },
     });
 
@@ -161,50 +277,50 @@ const Settings = () => {
                                                 <Row>
                                                     <Col lg={6}>
                                                         <div className="mb-3">
-                                                            <Label htmlFor="firstnameInput" className="form-label">
-                                                                {t('profile.first_name')}
+                                                            <Label htmlFor="nameInput" className="form-label">
+                                                                {t('profile.name')} *
                                                             </Label>
                                                             <Input 
                                                                 type="text" 
                                                                 className="form-control" 
-                                                                id="firstnameInput"
-                                                                name="firstName"
-                                                                placeholder={t('profile.first_name_placeholder')}
+                                                                id="nameInput"
+                                                                name="name"
+                                                                placeholder={t('profile.name_placeholder')}
                                                                 onChange={validationPersonal.handleChange}
                                                                 onBlur={validationPersonal.handleBlur}
-                                                                value={validationPersonal.values.firstName || ""}
-                                                                invalid={validationPersonal.touched.firstName && validationPersonal.errors.firstName ? true : false}
+                                                                value={validationPersonal.values.name || ""}
+                                                                invalid={validationPersonal.touched.name && validationPersonal.errors.name ? true : false}
                                                             />
-                                                            {validationPersonal.touched.firstName && validationPersonal.errors.firstName ? (
-                                                                <div className="invalid-feedback d-block">{validationPersonal.errors.firstName}</div>
+                                                            {validationPersonal.touched.name && validationPersonal.errors.name ? (
+                                                                <div className="invalid-feedback d-block">{validationPersonal.errors.name}</div>
                                                             ) : null}
                                                         </div>
                                                     </Col>
                                                     <Col lg={6}>
                                                         <div className="mb-3">
-                                                            <Label htmlFor="lastnameInput" className="form-label">
-                                                                {t('profile.last_name')}
+                                                            <Label htmlFor="usernameInput" className="form-label">
+                                                                {t('profile.username')} *
                                                             </Label>
                                                             <Input 
                                                                 type="text" 
                                                                 className="form-control" 
-                                                                id="lastnameInput"
-                                                                name="lastName"
-                                                                placeholder={t('profile.last_name_placeholder')}
+                                                                id="usernameInput"
+                                                                name="username"
+                                                                placeholder={t('profile.username_placeholder')}
                                                                 onChange={validationPersonal.handleChange}
                                                                 onBlur={validationPersonal.handleBlur}
-                                                                value={validationPersonal.values.lastName || ""}
-                                                                invalid={validationPersonal.touched.lastName && validationPersonal.errors.lastName ? true : false}
+                                                                value={validationPersonal.values.username || ""}
+                                                                invalid={validationPersonal.touched.username && validationPersonal.errors.username ? true : false}
                                                             />
-                                                            {validationPersonal.touched.lastName && validationPersonal.errors.lastName ? (
-                                                                <div className="invalid-feedback d-block">{validationPersonal.errors.lastName}</div>
+                                                            {validationPersonal.touched.username && validationPersonal.errors.username ? (
+                                                                <div className="invalid-feedback d-block">{validationPersonal.errors.username}</div>
                                                             ) : null}
                                                         </div>
                                                     </Col>
                                                     <Col lg={6}>
                                                         <div className="mb-3">
                                                             <Label htmlFor="emailInput" className="form-label">
-                                                                {t('profile.email')}
+                                                                {t('profile.email')} *
                                                             </Label>
                                                             <Input 
                                                                 type="email" 
@@ -224,29 +340,35 @@ const Settings = () => {
                                                     </Col>
                                                     <Col lg={6}>
                                                         <div className="mb-3">
-                                                            <Label htmlFor="phonenumberInput" className="form-label">
-                                                                {t('profile.phone')}
+                                                            <Label htmlFor="roleInput" className="form-label">
+                                                                {t('profile.role')}
                                                             </Label>
                                                             <Input 
                                                                 type="text" 
-                                                                className="form-control"
-                                                                id="phonenumberInput"
-                                                                name="phone"
-                                                                placeholder={t('profile.phone_placeholder')}
-                                                                onChange={validationPersonal.handleChange}
-                                                                onBlur={validationPersonal.handleBlur}
-                                                                value={validationPersonal.values.phone || ""}
-                                                                invalid={validationPersonal.touched.phone && validationPersonal.errors.phone ? true : false}
+                                                                className="form-control" 
+                                                                id="roleInput"
+                                                                value={userRole}
+                                                                readOnly
+                                                                disabled
                                                             />
-                                                            {validationPersonal.touched.phone && validationPersonal.errors.phone ? (
-                                                                <div className="invalid-feedback d-block">{validationPersonal.errors.phone}</div>
-                                                            ) : null}
+                                                            <small className="text-muted">{t('profile.role_read_only')}</small>
                                                         </div>
                                                     </Col>
                                                     <Col lg={12}>
                                                         <div className="hstack gap-2 justify-content-end">
-                                                            <Button type="submit" color="primary">
-                                                                {t('profile.update')}
+                                                            <Button 
+                                                                type="submit" 
+                                                                color="primary"
+                                                                disabled={isLoadingPersonal}
+                                                            >
+                                                                {isLoadingPersonal ? (
+                                                                    <>
+                                                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                                        {t('profile.updating')}
+                                                                    </>
+                                                                ) : (
+                                                                    t('profile.update')
+                                                                )}
                                                             </Button>
                                                             <Button type="button" color="light" onClick={() => validationPersonal.resetForm()}>
                                                                 {t('profile.cancel')}
@@ -332,8 +454,19 @@ const Settings = () => {
 
                                                     <Col lg={12}>
                                                         <div className="text-end">
-                                                            <Button type="submit" color="success">
-                                                                {t('profile.change_password')}
+                                                            <Button 
+                                                                type="submit" 
+                                                                color="success"
+                                                                disabled={isLoadingPassword}
+                                                            >
+                                                                {isLoadingPassword ? (
+                                                                    <>
+                                                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                                        Cambiando...
+                                                                    </>
+                                                                ) : (
+                                                                    t('profile.change_password')
+                                                                )}
                                                             </Button>
                                                         </div>
                                                     </Col>
