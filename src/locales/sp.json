@@ -455,7 +455,16 @@
     "invoices.in_bank": "En banco",
 
     "invoices.cash_vs_bank": "Efectivo vs Banco",
-    "invoices.revenue_by_service": "Ingresos por servicio"
+    "invoices.revenue_by_service": "Ingresos por servicio",
+
+    "dashboard.widgets.bank": "Banco",
+    "dashboard.widgets.bank_link": "Ver ganancias netas",
+    "dashboard.widgets.bookings": "Reservas",
+    "dashboard.widgets.bookings_link": "Ver todas las reservas",
+    "dashboard.widgets.new_customers": "Nuevos Clientes",
+    "dashboard.widgets.new_customers_link": "Ver detalles",
+    "dashboard.widgets.cash": "Efectivo",
+    "dashboard.widgets.cash_link": "Retirar dinero"
     ,
     "invoices.form.title": "Ajuste manual",
     "invoices.form.type": "Tipo",

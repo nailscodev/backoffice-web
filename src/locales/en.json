@@ -457,7 +457,16 @@
     "invoices.in_bank": "In bank",
 
     "invoices.cash_vs_bank": "Cash vs Bank",
-    "invoices.revenue_by_service": "Revenue by Service"
+    "invoices.revenue_by_service": "Revenue by Service",
+
+    "dashboard.widgets.bank": "Bank",
+    "dashboard.widgets.bank_link": "View net earnings",
+    "dashboard.widgets.bookings": "Bookings",
+    "dashboard.widgets.bookings_link": "View all bookings",
+    "dashboard.widgets.new_customers": "New Customers",
+    "dashboard.widgets.new_customers_link": "See details",
+    "dashboard.widgets.cash": "Cash",
+    "dashboard.widgets.cash_link": "Withdraw money"
     ,
     "invoices.form.title": "Manual Adjustment",
     "invoices.form.type": "Type",
