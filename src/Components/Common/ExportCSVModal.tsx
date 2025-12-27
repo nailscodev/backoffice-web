@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 import React from "react";
 import { Modal, ModalBody, ModalHeader } from "reactstrap";
-import { CSVLink } from "react-csv";
+import * as XLSX from "xlsx";
 
 interface ExportCSVModalProps {
   show: boolean;
@@ -10,17 +10,30 @@ interface ExportCSVModalProps {
 }
 
 const ExportCSVModal = ({ show, onCloseClick, data } : ExportCSVModalProps) => {
+  const handleExportToExcel = () => {
+    // Crear un nuevo libro de trabajo
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+    
+    // Generar el archivo y descargarlo
+    XLSX.writeFile(workbook, `export_${new Date().getTime()}.xlsx`);
+    
+    // Cerrar el modal
+    onCloseClick();
+  };
+
   return (
     <Modal isOpen={show} toggle={onCloseClick} centered={true}>
         <ModalHeader toggle={onCloseClick}></ModalHeader>
           <ModalBody className="py-3 px-5">
           <div className="mt-2 text-center">
-              <i className="ri-file-text-line display-5 text-success"></i>
+              <i className="ri-file-excel-line display-5 text-success"></i>
 
               <div className="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
                   <h4>Are you sure ?</h4>
                   <p className="text-muted mx-4 mb-0">
-                      Are you sure you want to export CSV file?
+                      Are you sure you want to export Excel file?
                   </p>
                   </div>
               </div>
@@ -33,15 +46,14 @@ const ExportCSVModal = ({ show, onCloseClick, data } : ExportCSVModalProps) => {
               >
                   Close
               </button>
-              {/* <CSVLink
-                  data={data}
+              <button
                   type="button"
-                  onClick={onCloseClick}
+                  onClick={handleExportToExcel}
                   className="btn w-sm btn-success "
-                  id="delete-record"
+                  id="export-excel"
               >
-              Download
-              </CSVLink> */}
+                  Download
+              </button>
               </div>
       </ModalBody>
     </Modal>

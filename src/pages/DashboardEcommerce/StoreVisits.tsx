@@ -1,11 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, Col, DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown } from 'reactstrap';
 import { StoreVisitsCharts } from './DashboardEcommerceCharts';
-
+import { getBookingsBySource } from '../../helpers/backend_helper';
 import { useTranslation } from 'react-i18next';
 
-const StoreVisits = () => {
+interface StoreVisitsProps {
+    dateRange: Date[];
+}
+
+const StoreVisits: React.FC<StoreVisitsProps> = ({ dateRange }) => {
     const { t } = useTranslation();
+    const [bookingsData, setBookingsData] = useState({ web: 80, other: 20 });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (dateRange && dateRange.length >= 2) {
+            fetchBookingsBySource();
+        }
+    }, [dateRange]);
+
+    const fetchBookingsBySource = async () => {
+        setLoading(true);
+        try {
+            const start = dateRange[0].toISOString().split('T')[0];
+            const end = dateRange[1].toISOString().split('T')[0];
+            
+            const response = await getBookingsBySource(start, end);
+            
+            if (response && response.data && response.data.data) {
+                setBookingsData(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching bookings by source:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const total = bookingsData.web + bookingsData.other;
+    const webPercentage = total > 0 ? Math.round((bookingsData.web / total) * 100) : 0;
+    const otherPercentage = total > 0 ? Math.round((bookingsData.other / total) * 100) : 0;
+
     return (
         <React.Fragment>
             <Col xl={4}>
@@ -27,13 +62,19 @@ const StoreVisits = () => {
                     </CardHeader>
 
                     <div className="card-body">
-                        {/* <div dir="ltr"> */}
+                        {loading ? (
+                            <div className="text-center py-4">
+                                <div className="spinner-border text-primary" role="status">
+                                    <span className="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        ) : (
                             <StoreVisitsCharts
                                 dataColors='["--vz-primary", "--vz-success"]'
-                                series={[80,20]}
+                                series={[webPercentage, otherPercentage]}
                                 labels={[t('dashboard.store_visits.web','Web'), t('dashboard.store_visits.other','Other')]}
                             />
-                        {/* </div> */}
+                        )}
                     </div>
                 </Card>
             </Col>

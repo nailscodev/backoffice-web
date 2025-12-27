@@ -406,11 +406,17 @@
     "dashboard.best_selling.title": "Best Selling Services",
     "dashboard.best_selling.sort_by": "Sort by",
     "dashboard.best_selling.today": "Today",
+    "dashboard.best_selling.service": "Service",
     "dashboard.best_selling.price": "Price",
     "dashboard.best_selling.orders": "Orders",
     "dashboard.best_selling.availability": "Availability",
+    "dashboard.best_selling.available": "Available",
     "dashboard.best_selling.na": "N/A",
     "dashboard.best_selling.amount": "Amount",
+    "dashboard.best_selling.no_data": "No data available for the selected period",
+    "dashboard.best_selling.showing": "Showing",
+    "dashboard.best_selling.of": "of",
+    "dashboard.best_selling.results": "Results",
 
     "dashboard.revenue.title": "Revenue",
     "dashboard.revenue.orders": "Orders",
@@ -421,17 +427,28 @@
     ,"dashboard.top_sellers.title": "Top Sellers",
     "dashboard.top_sellers.name": "Name",
     "dashboard.top_sellers.role": "Role",
+    "dashboard.top_sellers.bookings": "Bookings",
+    "dashboard.top_sellers.revenue": "Revenue",
     "dashboard.top_sellers.reserved_today": "Reserved Today",
+    "dashboard.top_sellers.no_data": "No data available for the selected period",
 
     "dashboard.store_visits.title": "Reservations by Source",
+    "dashboard.store_visits.web": "Web",
+    "dashboard.store_visits.other": "Other",
 
     "dashboard.upcoming_services.title": "Upcoming Services",
     "dashboard.upcoming_services.service_id": "Service ID",
     "dashboard.upcoming_services.customer": "Customer",
     "dashboard.upcoming_services.service": "Service",
+    "dashboard.upcoming_services.date": "Date",
     "dashboard.upcoming_services.time": "Time",
+    "dashboard.upcoming_services.staff": "Staff",
     "dashboard.upcoming_services.technician": "Technician",
-    "dashboard.upcoming_services.status": "Status"
+    "dashboard.upcoming_services.status": "Status",
+    "dashboard.upcoming_services.generate_report": "Generate Report",
+    "dashboard.upcoming_services.loading": "Loading...",
+    "dashboard.upcoming_services.no_bookings": "No upcoming bookings",
+    "dashboard.upcoming_services.no_data_to_export": "No data to export"
 
     ,"dashboard.section.range_text": "Here's what's happening between {{start}} and {{end}}.",
 

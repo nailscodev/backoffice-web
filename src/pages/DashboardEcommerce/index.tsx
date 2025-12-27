@@ -95,11 +95,11 @@ const DashboardEcommerce = () => {
                   />
                 </Row>
                 <Row>
-                  <BestSellingServices />
-                  <TopSellers />
+                  <BestSellingServices dateRange={dateRange} />
+                  <TopSellers dateRange={dateRange} />
                 </Row>
                 <Row>
-                  <StoreVisits />
+                  <StoreVisits dateRange={dateRange} />
                   <UpcomingServices />
                 </Row>
               </div>

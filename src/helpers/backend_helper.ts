@@ -90,3 +90,39 @@ export const getDashboardStats = async (startDate: string, endDate: string) => {
     throw error;
   }
 };
+
+export const getBestSellingServices = async (startDate: string, endDate: string, limit: number = 5) => {
+  try {
+    return await api.get(`${url.DASHBOARD_BEST_SELLING}?startDate=${startDate}&endDate=${endDate}&limit=${limit}`);
+  } catch (error: any) {
+    console.error('Error fetching best selling services:', error);
+    throw error;
+  }
+};
+
+export const getTopStaff = async (startDate: string, endDate: string, limit: number = 10) => {
+  try {
+    return await api.get(`${url.DASHBOARD_TOP_STAFF}?startDate=${startDate}&endDate=${endDate}&limit=${limit}`);
+  } catch (error: any) {
+    console.error('Error fetching top staff:', error);
+    throw error;
+  }
+};
+
+export const getUpcomingBookings = async (limit: number = 10) => {
+  try {
+    return await api.get(`${url.BOOKINGS_UPCOMING}?limit=${limit}`);
+  } catch (error: any) {
+    console.error('Error fetching upcoming bookings:', error);
+    throw error;
+  }
+};
+
+export const getBookingsBySource = async (startDate: string, endDate: string) => {
+  try {
+    return await api.get(`${url.DASHBOARD_BOOKINGS_BY_SOURCE}?startDate=${startDate}&endDate=${endDate}`);
+  } catch (error: any) {
+    console.error('Error fetching bookings by source:', error);
+    throw error;
+  }
+};
