@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Col,
     Row,
@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import Flatpickr from "react-flatpickr";
 import Select from "react-select";
 import { useTranslation } from 'react-i18next';
+import { getAllServices } from '../../helpers/backend_helper';
 
 const ProductsGlobalFilter = () => {
     return (
@@ -267,15 +268,49 @@ const CryptoOrdersGlobalFilter = () => {
     );
 };
 
-const InvoiceListGlobalSearch = ({ dateRange, setDateRange, service, setService }: any) => {
+const InvoiceListGlobalSearch = ({ dateRange, setDateRange, service, setService, onReload }: any) => {
     // If parent passes handlers, use them; otherwise keep local state
-    const [localDateRange, setLocalDateRange] = useState<any>(dateRange || []);
     const [localService, setLocalService] = useState<any>(service || null);
+    const [serviceOptions, setServiceOptions] = useState<any>([]);
+    const [loadingServices, setLoadingServices] = useState(false);
 
-    // Sync from parent when props change
-    React.useEffect(() => {
-        if (dateRange !== undefined) setLocalDateRange(dateRange);
-    }, [dateRange]);
+    // Load services from backend on mount
+    useEffect(() => {
+        const fetchServices = async () => {
+            setLoadingServices(true);
+            try {
+                const response = await getAllServices();
+                console.log('Services response:', response); // Debug
+                if (response?.data) {
+                    const servicesData = response.data.data || response.data;
+                    const services = servicesData.map((service: any) => ({
+                        label: service.name,
+                        value: service.id,
+                    }));
+                    setServiceOptions([
+                        {
+                            options: [
+                                { label: "All Services", value: "All" },
+                                ...services,
+                            ],
+                        },
+                    ]);
+                }
+            } catch (error) {
+                console.error('Error loading services:', error);
+                // Fallback to empty options with "All Services" only
+                setServiceOptions([
+                    {
+                        options: [{ label: "All Services", value: "All" }],
+                    },
+                ]);
+            } finally {
+                setLoadingServices(false);
+            }
+        };
+
+        fetchServices();
+    }, []);
 
     React.useEffect(() => {
         if (service !== undefined) setLocalService(service);
@@ -286,50 +321,13 @@ const InvoiceListGlobalSearch = ({ dateRange, setDateRange, service, setService 
         if (setService) setService(selected);
     }
 
-    function handleDateChange(selected: any) {
-        setLocalDateRange(selected);
-        if (setDateRange) setDateRange(selected);
-    }
-
     function clearFilters() {
-        setLocalDateRange([]);
         setLocalService(null);
-        if (setDateRange) setDateRange([]);
         if (setService) setService(null);
     }
 
-    // Services options (kept small — update as needed)
-    const serviceOptions = [
-        {
-            options: [
-                { label: "All Services", value: "All" },
-                { label: "Manicure", value: "Manicure" },
-                { label: "Pedicure", value: "Pedicure" },
-                { label: "Gel Polish", value: "Gel Polish" },
-                { label: "Mascara", value: "Mascara" },
-                { label: "Full Set Acrylic", value: "Full Set Acrylic" },
-            ],
-        },
-    ];
-
     return (
         <React.Fragment>
-            <Col sm={4} xxl={3}>
-                <Flatpickr
-                    className="form-control bg-light border-light"
-                    id="datepicker-publish-input"
-                    placeholder="Select a date"
-                    value={localDateRange}
-                    options={{
-                        altInput: true,
-                        altFormat: "F j, Y",
-                        mode: "range",
-                        dateFormat: "d M, Y",
-                    }}
-                    onChange={(selected: any) => handleDateChange(selected)}
-                />
-            </Col>
-
             <Col sm={4} xxl={3}>
                 <div className="input-light">
                     <Select
@@ -338,13 +336,30 @@ const InvoiceListGlobalSearch = ({ dateRange, setDateRange, service, setService 
                         options={serviceOptions}
                         name="choices-single-default"
                         id="idService"
+                        placeholder="Filter by service"
                     ></Select>
                 </div>
             </Col>
 
-            <Col sm={4} xxl={1}>
-                <Button color="secondary" className="btn-icon" onClick={clearFilters} aria-label="Clear filters" title="Clear filters">
+            <Col sm={4} xxl={2} className="d-flex gap-2">
+                <Button 
+                    color="success" 
+                    className="btn-icon" 
+                    onClick={onReload} 
+                    aria-label="Reload data" 
+                    title="Reload data"
+                    disabled={!onReload}
+                >
                     <i className="ri-refresh-line"></i>
+                </Button>
+                <Button 
+                    color="secondary" 
+                    className="btn-icon" 
+                    onClick={clearFilters} 
+                    aria-label="Clear filters" 
+                    title="Clear filters"
+                >
+                    <i className="ri-filter-off-line"></i>
                 </Button>
             </Col>
 

@@ -100,6 +100,15 @@ export const getBestSellingServices = async (startDate: string, endDate: string,
   }
 };
 
+export const getRevenueByService = async (startDate: string, endDate: string) => {
+  try {
+    return await api.get(`${url.DASHBOARD_REVENUE_BY_SERVICE}?startDate=${startDate}&endDate=${endDate}`);
+  } catch (error: any) {
+    console.error('Error fetching revenue by service:', error);
+    throw error;
+  }
+};
+
 export const getTopStaff = async (startDate: string, endDate: string, limit: number = 10) => {
   try {
     return await api.get(`${url.DASHBOARD_TOP_STAFF}?startDate=${startDate}&endDate=${endDate}&limit=${limit}`);
@@ -123,6 +132,47 @@ export const getBookingsBySource = async (startDate: string, endDate: string) =>
     return await api.get(`${url.DASHBOARD_BOOKINGS_BY_SOURCE}?startDate=${startDate}&endDate=${endDate}`);
   } catch (error: any) {
     console.error('Error fetching bookings by source:', error);
+    throw error;
+  }
+};
+
+export const getInvoices = async (startDate: string, endDate: string, page: number = 1, limit: number = 10) => {
+  try {
+    return await api.get(`${url.INVOICES}?startDate=${startDate}&endDate=${endDate}&page=${page}&limit=${limit}`);
+  } catch (error: any) {
+    console.error('Error fetching invoices:', error);
+    throw error;
+  }
+};
+
+export const createManualAdjustment = async (data: {
+  type: 'income' | 'expense';
+  description: string;
+  amount: number;
+  paymentMethod: 'CASH' | 'CARD';
+}) => {
+  try {
+    return await api.create(url.MANUAL_ADJUSTMENTS, data);
+  } catch (error: any) {
+    console.error('Error creating manual adjustment:', error);
+    throw error;
+  }
+};
+
+export const getServiceById = async (serviceId: string) => {
+  try {
+    return await api.get(`${url.SERVICES}/${serviceId}`);
+  } catch (error: any) {
+    console.error('Error fetching service:', error);
+    throw error;
+  }
+};
+
+export const getAllServices = async () => {
+  try {
+    return await api.get(url.SERVICES);
+  } catch (error: any) {
+    console.error('Error fetching services:', error);
     throw error;
   }
 };

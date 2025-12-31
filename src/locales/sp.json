@@ -261,7 +261,7 @@
     "menu.admin.dashboard.alerts": "Alertas: cancelaciones y pendientes",
 
     "menu.admin.revenue.title": "Administración de Ingresos y Egresos",
-    "menu.admin.revenue.daily_revenue": "Ingresos diarios",
+    "menu.admin.revenue.daily_revenue": "Ingresos",
     "menu.admin.revenue.completed_shifts_list": "Lista de turnos completados",
     "menu.admin.revenue.manual_adjustments": "Ajustes manuales",
     "menu.admin.revenue.external_transactions": "Egresos/ingresos fuera de sistema",
@@ -416,11 +416,14 @@
     "dashboard.best_selling.of": "de",
     "dashboard.best_selling.results": "Resultados",
 
-    "dashboard.revenue.title": "Revenue",
-    "dashboard.revenue.orders": "Orders",
-    "dashboard.revenue.earnings": "Earnings",
-    "dashboard.revenue.refunds": "Refunds",
-    "dashboard.revenue.conversion_ratio": "Conversion Ratio"
+    "dashboard.revenue.title": "Ingresos",
+    "dashboard.revenue.total_revenue": "Ingresos Totales",
+    "dashboard.revenue.cash": "Efectivo",
+    "dashboard.revenue.card": "Tarjeta",
+    "dashboard.revenue.orders": "Pedidos",
+    "dashboard.revenue.earnings": "Ganancias",
+    "dashboard.revenue.refunds": "Reembolsos",
+    "dashboard.revenue.conversion_ratio": "Ratio de Conversión"
 
     ,"dashboard.top_sellers.title": "Mejores Vendedores",
     "dashboard.top_sellers.name": "Nombre",
@@ -497,8 +500,11 @@
     "invoices.form.invoice_number": "Número de factura (opcional)",
     "invoices.form.provider": "Proveedor / Beneficiario (opcional)",
     "invoices.form.cancel": "Cancelar",
-    "invoices.form.save": "Guardar",
-    "invoices.toast.saved": "Ajuste guardado",
+    "invoices.form.save": "Guardar Ajuste",
+    "invoices.form.saving": "Guardando...",
+    "invoices.form.income_info": "Esto aumentará tu flujo de efectivo",
+    "invoices.form.expense_info": "Esto disminuirá tu flujo de efectivo",
+    "invoices.toast.saved": "Ajuste guardado exitosamente",
     "invoices.toast.save_failed": "Error al guardar el ajuste",
 
     "dashboard.ecom.widget.total_earnings": "Ingresos Totales",

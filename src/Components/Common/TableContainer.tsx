@@ -112,11 +112,13 @@ interface TableContainerProps {
   handleCompanyClick?: any;
   handleContactClick?: any;
   handleTicketClick?: any;
+  isPagination?: boolean;
   // Invoice-specific external controls (optional)
   invoiceDateRange?: any;
   setInvoiceDateRange?: any;
   invoiceService?: any;
   setInvoiceService?: any;
+  onReloadData?: () => void;
 }
 
 const TableContainer = ({
@@ -141,10 +143,12 @@ const TableContainer = ({
   thClass,
   divClass,
   SearchPlaceholder,
+  isPagination = true,
   invoiceDateRange,
   setInvoiceDateRange,
   invoiceService,
   setInvoiceService,
+  onReloadData,
 
 }: TableContainerProps) => {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -198,11 +202,15 @@ const TableContainer = ({
 
   // When the local invoice service selection changes, apply it to the table filters
   React.useEffect(() => {
-    const serviceVal = localInvoiceService && localInvoiceService.value ? localInvoiceService.value : localInvoiceService;
-    const col = table.getColumn ? table.getColumn('services') : null;
+    const col = table.getColumn ? table.getColumn('serviceName') : null;
     if (col) {
-      if (!serviceVal || serviceVal === 'All') col.setFilterValue(undefined);
-      else col.setFilterValue(serviceVal);
+      if (!localInvoiceService || localInvoiceService.value === 'All') {
+        col.setFilterValue(undefined);
+      } else {
+        // Filter by service name (label) instead of ID
+        const serviceName = localInvoiceService.label;
+        col.setFilterValue(serviceName);
+      }
     }
   }, [localInvoiceService, table]);
 
@@ -253,6 +261,7 @@ const TableContainer = ({
                   setDateRange={setInvoiceDateRange}
                   service={localInvoiceService}
                   setService={setLocalInvoiceService}
+                  onReload={onReloadData}
                 />
               )}
               {isTicketsListFilter && (
@@ -324,29 +333,31 @@ const TableContainer = ({
         </Table>
       </div>
 
-      <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
-        <div className="col-sm">
-          <div className="text-muted">Showing<span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> of <span className="fw-semibold">{data.length}</span> Results
+      {isPagination && (
+        <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
+          <div className="col-sm">
+            <div className="text-muted">Showing<span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> of <span className="fw-semibold">{data.length}</span> Results
+            </div>
           </div>
-        </div>
-        <div className="col-sm-auto">
-          <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
-            <li className={!getCanPreviousPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={previousPage}>Previous</Link>
-            </li>
-            {getPageOptions().map((item: any, key: number) => (
-              <React.Fragment key={key}>
-                <li className="page-item">
-                  <Link to="#" className={getState().pagination.pageIndex === item ? "page-link active" : "page-link"} onClick={() => setPageIndex(item)}>{item + 1}</Link>
-                </li>
-              </React.Fragment>
-            ))}
-            <li className={!getCanNextPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={nextPage}>Next</Link>
-            </li>
-          </ul>
-        </div>
-      </Row>
+          <div className="col-sm-auto">
+            <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
+              <li className={!getCanPreviousPage() ? "page-item disabled" : "page-item"}>
+                <Link to="#" className="page-link" onClick={previousPage}>Previous</Link>
+              </li>
+              {getPageOptions().map((item: any, key: number) => (
+                <React.Fragment key={key}>
+                  <li className="page-item">
+                    <Link to="#" className={getState().pagination.pageIndex === item ? "page-link active" : "page-link"} onClick={() => setPageIndex(item)}>{item + 1}</Link>
+                  </li>
+                </React.Fragment>
+              ))}
+              <li className={!getCanNextPage() ? "page-item disabled" : "page-item"}>
+                <Link to="#" className="page-link" onClick={nextPage}>Next</Link>
+              </li>
+            </ul>
+          </div>
+        </Row>
+      )}
     </Fragment>
   );
 };

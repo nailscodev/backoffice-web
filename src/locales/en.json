@@ -263,7 +263,7 @@
     "menu.admin.dashboard.alerts": "Alerts: cancellations and pending",
 
     "menu.admin.revenue.title": "Revenue Management",
-    "menu.admin.revenue.daily_revenue": "Daily revenue",
+    "menu.admin.revenue.daily_revenue": "Revenue",
     "menu.admin.revenue.completed_shifts_list": "Completed shifts list",
     "menu.admin.revenue.manual_adjustments": "Manual adjustments",
     "menu.admin.revenue.external_transactions": "External transactions (out-of-system)",
@@ -419,6 +419,9 @@
     "dashboard.best_selling.results": "Results",
 
     "dashboard.revenue.title": "Revenue",
+    "dashboard.revenue.total_revenue": "Total Revenue",
+    "dashboard.revenue.cash": "Cash",
+    "dashboard.revenue.card": "Card",
     "dashboard.revenue.orders": "Orders",
     "dashboard.revenue.earnings": "Earnings",
     "dashboard.revenue.refunds": "Refunds",
@@ -499,8 +502,11 @@
     "invoices.form.invoice_number": "Invoice Number (optional)",
     "invoices.form.provider": "Provider / Payee (optional)",
     "invoices.form.cancel": "Cancel",
-    "invoices.form.save": "Save",
-    "invoices.toast.saved": "Manual adjustment saved",
+    "invoices.form.save": "Save Adjustment",
+    "invoices.form.saving": "Saving...",
+    "invoices.form.income_info": "This will increase your cash flow",
+    "invoices.form.expense_info": "This will decrease your cash flow",
+    "invoices.toast.saved": "Manual adjustment saved successfully",
     "invoices.toast.save_failed": "Failed to save adjustment",
 
     "dashboard.ecom.widget.total_earnings": "Total Earnings",

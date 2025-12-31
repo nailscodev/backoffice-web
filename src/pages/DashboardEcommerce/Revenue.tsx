@@ -3,9 +3,59 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardBody, CardHeader, Col, Row } from "reactstrap";
 import { RevenueCharts } from "./DashboardEcommerceCharts";
 import CountUp from "react-countup";
+import { getDashboardStats } from "../../helpers/backend_helper";
 
-const Revenue = () => {
+interface RevenueProps {
+  dateRange: Date[];
+}
+
+const Revenue: React.FC<RevenueProps> = ({ dateRange }) => {
+  const { t } = useTranslation();
   const [chartData, setchartData] = useState<any>([]);
+  const [revenueStats, setRevenueStats] = useState({
+    totalRevenue: 0,
+    cash: 0,
+    bank: 0,
+    bookings: 0,
+  });
+  const [loading, setLoading] = useState(false);
+
+  // Fetch revenue data based on date range
+  useEffect(() => {
+    const fetchRevenueData = async () => {
+      if (!dateRange || dateRange.length < 2) return;
+      
+      setLoading(true);
+      try {
+        const start = dateRange[0].toISOString().split('T')[0];
+        const end = dateRange[1].toISOString().split('T')[0];
+        
+        const response = await getDashboardStats(start, end);
+        
+        if (response && response.data && response.data.data) {
+          const data = response.data.data;
+          setRevenueStats({
+            totalRevenue: (data.cash || 0) + (data.bank || 0),
+            cash: data.cash || 0,
+            bank: data.bank || 0,
+            bookings: data.bookings || 0,
+          });
+          
+          // Update chart with real data (you can expand this logic)
+          setchartData([{
+            name: 'Revenue',
+            data: [data.cash, data.bank] // Simplified for now
+          }]);
+        }
+      } catch (error) {
+        console.error('Error fetching revenue data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRevenueData();
+  }, [dateRange]);
 
   // Local mock series data for the chart
   const mockSeriesAll = [
@@ -24,11 +74,6 @@ const Revenue = () => {
     { name: 'Revenue', data: [800, 900, 1000, 1200, 1500, 1700, 2000, 2300, 2600, 2800, 3000, 3200] }
   ];
 
-  useEffect(() => {
-    // default to 'all'
-    setchartData(mockSeriesAll);
-  }, []);
-
   const onChangeChartPeriod = (pType:any) => {
     switch (pType) {
       case 'month':
@@ -44,7 +89,6 @@ const Revenue = () => {
         setchartData(mockSeriesAll);
     }
   };
-  const { t } = useTranslation();
 
   return (
     <React.Fragment>
@@ -69,49 +113,49 @@ const Revenue = () => {
 
         <CardHeader className="p-0 border-0 bg-light-subtle">
           <Row className="g-0 text-center">
-            <Col xs={6} sm={3}>
+            <Col xs={6} sm={4}>
               <div className="p-3 border border-dashed border-start-0">
                 <h5 className="mb-1">
-                  <CountUp start={0} end={7585} duration={3} separator="," />
+                  <CountUp 
+                    start={0} 
+                    end={revenueStats.totalRevenue} 
+                    duration={3} 
+                    separator="," 
+                    decimals={2}
+                    prefix="$"
+                  />
                 </h5>
-                <p className="text-muted mb-0">{t('dashboard.revenue.orders')}</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.total_revenue')}</p>
               </div>
             </Col>
-            <Col xs={6} sm={3}>
+            <Col xs={6} sm={4}>
               <div className="p-3 border border-dashed border-start-0">
                 <h5 className="mb-1">
                   <CountUp
-                    suffix="k"
                     prefix="$"
                     start={0}
                     decimals={2}
-                    end={22.89}
+                    end={revenueStats.cash}
                     duration={3}
+                    separator=","
                   />
                 </h5>
-                <p className="text-muted mb-0">{t('dashboard.revenue.earnings')}</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.cash')}</p>
               </div>
             </Col>
-            <Col xs={6} sm={3}>
-              <div className="p-3 border border-dashed border-start-0">
-                <h5 className="mb-1">
-                  <CountUp start={0} end={367} duration={3} />
-                </h5>
-                <p className="text-muted mb-0">{t('dashboard.revenue.refunds')}</p>
-              </div>
-            </Col>
-            <Col xs={6} sm={3}>
+            <Col xs={6} sm={4}>
               <div className="p-3 border border-dashed border-start-0 border-end-0">
-                <h5 className="mb-1 text-success">
+                <h5 className="mb-1">
                   <CountUp
+                    prefix="$"
                     start={0}
-                    end={18.92}
                     decimals={2}
+                    end={revenueStats.bank}
                     duration={3}
-                    suffix="%"
+                    separator=","
                   />
                 </h5>
-                <p className="text-muted mb-0">{t('dashboard.revenue.conversion_ratio')}</p>
+                <p className="text-muted mb-0">{t('dashboard.revenue.card')}</p>
               </div>
             </Col>
           </Row>

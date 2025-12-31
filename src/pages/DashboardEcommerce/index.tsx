@@ -8,6 +8,7 @@ import Section from "./Section";
 import StoreVisits from "./StoreVisits";
 import TopSellers from "./TopSellers";
 import { getDashboardStats } from "../../helpers/backend_helper";
+import { useDateRange } from "../../contexts/DateRangeContext";
 
 const DashboardEcommerce = () => {
   document.title = "Nails & Co Midtown - Admin Panel";
@@ -17,23 +18,8 @@ const DashboardEcommerce = () => {
     setRightColumn(!rightColumn);
   };
 
-  // Date range state
-  const getWeekRange = (d: Date) => {
-    const date = new Date(d);
-    const day = date.getDay();
-    const diffToMonday = (day + 6) % 7;
-    const start = new Date(date);
-    start.setDate(date.getDate() - diffToMonday);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  };
-
-  const today = new Date();
-  const { start: weekStart, end: weekEnd } = getWeekRange(today);
-  const [dateRange, setDateRange] = useState<Date[]>([weekStart, weekEnd]);
+  // Use DateRangeContext
+  const { dateRange, setDateRange } = useDateRange();
   
   // Dashboard stats state
   const [dashboardStats, setDashboardStats] = useState({

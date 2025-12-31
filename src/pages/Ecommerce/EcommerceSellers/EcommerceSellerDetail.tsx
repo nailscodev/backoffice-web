@@ -46,6 +46,24 @@ const EcommerceSellerDetail = () => {
   const products = useSelector(ecomsellerData);
 
   const [productList, setProductList] = useState([]);
+  
+  // Date range state for Revenue component
+  const getWeekRange = (d: Date) => {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diffToMonday = (day + 6) % 7;
+    const start = new Date(date);
+    start.setDate(date.getDate() - diffToMonday);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  };
+
+  const today = new Date();
+  const { start: weekStart, end: weekEnd } = getWeekRange(today);
+  const [dateRange] = useState<Date[]>([weekStart, weekEnd]);
 
   useEffect(() => {
     if (products && !products.length) {
@@ -449,7 +467,7 @@ const EcommerceSellerDetail = () => {
             </div>
 
             <div className="col-xxl-9">
-              <Revenue />
+              <Revenue dateRange={dateRange} />
 
               <Row className="g-4 mb-1">
                 <div className="col-sm-auto">

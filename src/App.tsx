@@ -6,6 +6,9 @@ import './assets/scss/themes.scss';
 //imoprt Route
 import Route from './Routes';
 
+// Import DateRangeContext
+import { DateRangeProvider } from './contexts/DateRangeContext';
+
 // Import Firebase Configuration file
 // import { initFirebaseBackend } from "./helpers/firebase_helper";
 
@@ -32,7 +35,9 @@ fakeBackend();
 function App() {
   return (
     <React.Fragment>
-      <Route />
+      <DateRangeProvider>
+        <Route />
+      </DateRangeProvider>
     </React.Fragment>
   );
 }
