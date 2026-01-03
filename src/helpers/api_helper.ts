@@ -262,7 +262,7 @@ class APIClient {
    * Updates data
    */
   update = (url: string, data: any): Promise<AxiosResponse> => {
-    return axios.patch(url, data);
+    return axios.put(url, data);
   };
 
   patch = (url: string, data: any): Promise<AxiosResponse> => {

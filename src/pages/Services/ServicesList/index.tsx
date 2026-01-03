@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Row,
@@ -18,6 +18,7 @@ import {
   Input,
   FormFeedback,
   Button,
+  Spinner,
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
@@ -27,18 +28,16 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
-
-interface Service {
-  id: number;
-  titleEn: string;
-  titleEs: string;
-  descriptionEn: string;
-  descriptionEs: string;
-  duration: number;
-  addOns: number[];
-  staff: number[];
-  status: boolean;
-}
+import {
+  getServices,
+  getService,
+  createService,
+  updateService,
+  deleteService,
+  getServiceCategories,
+  Service,
+} from "../../../api/services";
+import { getCategories } from "../../../api/categories";
 
 const ServicesList = () => {
   const { t, i18n } = useTranslation();
@@ -48,77 +47,85 @@ const ServicesList = () => {
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteModalMulti, setDeleteModalMulti] = useState(false);
   const [viewModal, setViewModal] = useState(false);
-  const [showAddOnsDropdown, setShowAddOnsDropdown] = useState(false);
-  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Mock data - esto se reemplazará con Redux
-  const [services, setServices] = useState<Service[]>([
-    {
-      id: 1,
-      titleEn: "Classic Manicure",
-      titleEs: "Manicura Clásica",
-      descriptionEn: "Traditional manicure with nail shaping, cuticle care, and polish application",
-      descriptionEs: "Manicura tradicional con moldeado de uñas, cuidado de cutículas y aplicación de esmalte",
-      duration: 45,
-      addOns: [1, 2],
-      staff: [1, 2],
-      status: true,
-    },
-    {
-      id: 2,
-      titleEn: "Spa Pedicure",
-      titleEs: "Pedicura Spa",
-      descriptionEn: "Relaxing pedicure with foot soak, exfoliation, massage, and polish",
-      descriptionEs: "Pedicura relajante con remojo de pies, exfoliación, masaje y esmalte",
-      duration: 60,
-      addOns: [1],
-      staff: [1, 3],
-      status: true,
-    },
-    {
-      id: 3,
-      titleEn: "Gel Manicure",
-      titleEs: "Manicura en Gel",
-      descriptionEn: "Long-lasting gel manicure with UV curing",
-      descriptionEs: "Manicura en gel de larga duración con curado UV",
-      duration: 60,
-      addOns: [2],
-      staff: [2],
-      status: false,
-    },
-  ]);
+  // Get current language for API calls
+  const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
 
-  // Mock add-ons data
-  const mockAddOns = [
-    { id: 1, titleEn: "Gel Polish", titleEs: "Esmalte en Gel" },
-    { id: 2, titleEn: "French Tips", titleEs: "Puntas Francesas" },
-    { id: 3, titleEn: "Nail Art", titleEs: "Arte de Uñas" },
-  ];
+  // Load services and categories on mount
+  useEffect(() => {
+    loadServices();
+    loadCategories();
+  }, [currentLang]);
 
-  // Mock staff data
-  const mockStaff = [
-    { id: 1, name: "María González" },
-    { id: 2, name: "Ana Martínez" },
-    { id: 3, name: "Sofia López" },
-    { id: 4, name: "Laura Rodríguez" },
-  ];
+  const loadServices = async () => {
+    try {
+      setLoading(true);
+      const response = await getServices(1, 1000, undefined, undefined, undefined, currentLang);
+      setServices(response || []);
+    } catch (error: any) {
+      console.error('Error loading services:', error);
+      toast.error(t('services.list.error.load') || 'Error loading services');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await getCategories(currentLang);
+      console.log('Categories response:', response); // Debug
+      console.log('Categories response.data:', response.data); // Debug
+      setCategories(response || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
 
   const toggle = () => {
     if (modal) {
       setModal(false);
       setSelectedService(null);
       setIsEdit(false);
-      setShowAddOnsDropdown(false);
-      setShowStaffDropdown(false);
     } else {
       setModal(true);
     }
   };
 
-  const handleEdit = (service: Service) => {
-    setSelectedService(service);
-    setIsEdit(true);
-    setModal(true);
+  const handleEdit = async (service: Service) => {
+    try {
+      setLoading(true);
+      // Fetch service with English translations
+      const serviceEN = await getService(service.id, 'EN');
+      console.log('Service EN:', serviceEN);
+      
+      // Fetch service with Spanish translations
+      const serviceES = await getService(service.id, 'ES');
+      console.log('Service ES:', serviceES);
+      
+      // Combine both translations into one object
+      const serviceWithTranslations = {
+        ...service,
+        titleEN: serviceEN.name,
+        descriptionEN: serviceEN.description,
+        titleES: serviceES.name,
+        descriptionES: serviceES.description,
+      };
+      
+      console.log('Service with translations:', serviceWithTranslations);
+      
+      setSelectedService(serviceWithTranslations as any);
+      setIsEdit(true);
+      setModal(true);
+    } catch (error: any) {
+      console.error('Error loading service translations:', error);
+      toast.error(t('services.list.error.load') || 'Error loading service');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddNew = () => {
@@ -135,50 +142,86 @@ const ServicesList = () => {
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
-      titleEn: (selectedService && selectedService.titleEn) || "",
-      titleEs: (selectedService && selectedService.titleEs) || "",
-      descriptionEn: (selectedService && selectedService.descriptionEn) || "",
-      descriptionEs: (selectedService && selectedService.descriptionEs) || "",
+      name: (selectedService && selectedService.name) || "",
+      description: (selectedService && selectedService.description) || "",
+      titleEN: (selectedService && (selectedService as any).titleEN) || (selectedService && selectedService.name) || "",
+      descriptionEN: (selectedService && (selectedService as any).descriptionEN) || (selectedService && selectedService.description) || "",
+      titleES: (selectedService && (selectedService as any).titleES) || (selectedService && selectedService.name) || "",
+      descriptionES: (selectedService && (selectedService as any).descriptionES) || (selectedService && selectedService.description) || "",
+      categoryId: (selectedService && selectedService.categoryId) || "",
+      price: (selectedService && selectedService.price) || 0,
       duration: (selectedService && selectedService.duration) || 30,
-      addOns: (selectedService && selectedService.addOns) || [] as number[],
-      staff: (selectedService && selectedService.staff) || [] as number[],
-      status: selectedService?.status !== undefined ? selectedService.status : true,
+      bufferTime: (selectedService && selectedService.bufferTime) || 15,
+      displayOrder: (selectedService && selectedService.displayOrder) || 0,
+      isActive: selectedService?.isActive !== undefined ? selectedService.isActive : true,
+      isPopular: selectedService?.isPopular !== undefined ? selectedService.isPopular : false,
     },
     validationSchema: Yup.object({
-      titleEn: Yup.string().required("English title is required"),
-      titleEs: Yup.string().required("Spanish title is required"),
-      descriptionEn: Yup.string().required("English description is required"),
-      descriptionEs: Yup.string().required("Spanish description is required"),
+      name: Yup.string(),
+      description: Yup.string(),
+      titleEN: Yup.string().required("Title in English is required"),
+      descriptionEN: Yup.string().required("Description in English is required"),
+      titleES: Yup.string().required("Title in Spanish is required"),
+      descriptionES: Yup.string().required("Description in Spanish is required"),
+      categoryId: Yup.string().required("Category is required"),
+      price: Yup.number().min(0, "Price must be at least 0").required("Price is required"),
       duration: Yup.number().min(1, "Duration must be at least 1 minute").required("Duration is required"),
-      addOns: Yup.array().of(Yup.number()),
-      staff: Yup.array().of(Yup.number()),
-      status: Yup.boolean(),
+      bufferTime: Yup.number().min(0, "Buffer time must be at least 0"),
+      displayOrder: Yup.number().min(0, "Display order must be at least 0"),
+      isActive: Yup.boolean(),
+      isPopular: Yup.boolean(),
     }),
-    onSubmit: (values) => {
-      if (isEdit && selectedService) {
-        const updatedServices = services.map((svc) =>
-          svc.id === selectedService.id ? { ...svc, ...values } : svc
-        );
-        setServices(updatedServices);
-        toast.success(t('services.list.success.updated'));
-      } else {
-        const newService = {
-          id: services.length + 1,
-          ...values,
+    onSubmit: async (values) => {
+      try {
+        setSubmitting(true);
+        
+        // Prepare the payload with base English values and translations
+        const payload = {
+          name: values.titleEN,  // Use English title as base name
+          description: values.descriptionEN,  // Use English description as base
+          titleEN: values.titleEN,  // English translation
+          descriptionEN: values.descriptionEN,  // English translation
+          titleES: values.titleES,  // Spanish translation
+          descriptionES: values.descriptionES,  // Spanish translation
+          categoryId: values.categoryId,
+          price: values.price,
+          duration: values.duration,
+          bufferTime: values.bufferTime,
+          displayOrder: values.displayOrder,
+          isActive: values.isActive,
+          isPopular: values.isPopular,
         };
-        setServices([...services, newService]);
-        toast.success(t('services.list.success.added'));
+        
+        if (isEdit && selectedService) {
+          await updateService(selectedService.id, payload);
+          toast.success(t('services.list.success.updated') || 'Service updated successfully');
+        } else {
+          await createService(payload);
+          toast.success(t('services.list.success.added') || 'Service added successfully');
+        }
+        toggle();
+        validation.resetForm();
+        await loadServices();
+      } catch (error: any) {
+        console.error('Error saving service:', error);
+        toast.error(error.response?.data?.message || t('services.list.error.save') || 'Error saving service');
+      } finally {
+        setSubmitting(false);
       }
-      toggle();
-      validation.resetForm();
     },
   });
 
-  const handleDeleteService = () => {
+  const handleDeleteService = async () => {
     if (selectedService) {
-      setServices(services.filter((svc) => svc.id !== selectedService.id));
-      setDeleteModal(false);
-      toast.success(t('services.list.success.deleted'));
+      try {
+        await deleteService(selectedService.id);
+        setDeleteModal(false);
+        toast.success(t('services.list.success.deleted') || 'Service deleted successfully');
+        await loadServices();
+      } catch (error: any) {
+        console.error('Error deleting service:', error);
+        toast.error(error.response?.data?.message || t('services.list.error.delete') || 'Error deleting service');
+      }
     }
   };
 
@@ -187,12 +230,18 @@ const ServicesList = () => {
     setDeleteModal(true);
   };
 
-  const toggleStatus = (service: Service) => {
-    const updatedServices = services.map((svc) =>
-      svc.id === service.id ? { ...svc, status: !svc.status } : svc
-    );
-    setServices(updatedServices);
-    toast.success(!service.status ? t('services.list.success.activated') : t('services.list.success.deactivated'));
+  const toggleStatus = async (service: Service) => {
+    try {
+      await updateService(service.id, { isActive: !service.isActive });
+      toast.success(!service.isActive ? 
+        t('services.list.success.activated') || 'Service activated' : 
+        t('services.list.success.deactivated') || 'Service deactivated'
+      );
+      await loadServices();
+    } catch (error: any) {
+      console.error('Error toggling service status:', error);
+      toast.error(error.response?.data?.message || t('services.list.error.toggle') || 'Error toggling status');
+    }
   };
 
   const columns = useMemo(
@@ -213,25 +262,47 @@ const ServicesList = () => {
         },
       },
       {
-        header: "Service",
-        accessorKey: "titleEn",
+        header: t('services.list.table.service'),
+        accessorKey: "name",
         enableColumnFilter: false,
         cell: (cell: any) => {
           const service = cell.row.original;
           return (
             <div className="d-flex flex-column" onClick={() => handleView(service)} style={{ cursor: 'pointer' }}>
               <h5 className="fs-14 mb-1">
-                {i18n.language === 'sp' ? service.titleEs : service.titleEn}
+                {service.name}
               </h5>
               <p className="text-muted mb-0 fs-12">
-                {i18n.language === 'sp' ? service.descriptionEs : service.descriptionEn}
+                {service.description || '-'}
               </p>
             </div>
           );
         },
       },
       {
-        header: "Duration (min)",
+        header: t('services.list.table.category'),
+        accessorKey: "categoryRelation",
+        enableColumnFilter: false,
+        cell: (cell: any) => {
+          const category = cell.getValue();
+          return category ? (
+            <span className="badge bg-secondary">{category.name}</span>
+          ) : (
+            <span className="text-muted">-</span>
+          );
+        },
+      },
+      {
+        header: t('services.list.table.price'),
+        accessorKey: "price",
+        enableColumnFilter: false,
+        cell: (cell: any) => {
+          const price = cell.getValue();
+          return <span className="text-success fw-semibold">${(price / 100).toFixed(2)}</span>;
+        },
+      },
+      {
+        header: t('services.list.table.duration'),
         accessorKey: "duration",
         enableColumnFilter: false,
         cell: (cell: any) => {
@@ -239,8 +310,8 @@ const ServicesList = () => {
         },
       },
       {
-        header: "Status",
-        accessorKey: "status",
+        header: t('services.list.table.status'),
+        accessorKey: "isActive",
         enableColumnFilter: false,
         cell: (cell: any) => {
           const service = cell.row.original;
@@ -258,7 +329,7 @@ const ServicesList = () => {
         },
       },
       {
-        header: "Action",
+        header: t('services.list.table.action'),
         cell: (cell: any) => {
           const service = cell.row.original;
           return (
@@ -273,12 +344,12 @@ const ServicesList = () => {
               <DropdownMenu className="dropdown-menu-end">
                 <DropdownItem onClick={() => handleEdit(service)}>
                   <i className="ri-pencil-fill align-bottom me-2 text-muted"></i>
-                  Edit
+                  {t('common.edit')}
                 </DropdownItem>
                 <DropdownItem divider />
                 <DropdownItem onClick={() => onClickDelete(service)}>
                   <i className="ri-delete-bin-fill align-bottom me-2 text-muted"></i>
-                  Delete
+                  {t('common.delete')}
                 </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
@@ -286,10 +357,25 @@ const ServicesList = () => {
         },
       },
     ],
-    [i18n.language, services]
+    [i18n.language, services, t]
   );
 
   document.title = "Services | Nails & Co - Admin Panel";
+
+  console.log('Services state:', services); // Debug
+  console.log('Services length:', services?.length); // Debug
+
+  if (loading) {
+    return (
+      <div className="page-content">
+        <Container fluid>
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+            <Spinner color="primary" />
+          </div>
+        </Container>
+      </div>
+    );
+  }
 
   return (
     <div className="page-content">
@@ -349,98 +435,81 @@ const ServicesList = () => {
                 <Row>
                   <Col md={6}>
                     <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.titleEn')}</Label>
-                      <p className="text-muted">{selectedService.titleEn}</p>
+                      <Label className="fw-bold">{t('services.list.form.name')}</Label>
+                      <p className="text-muted">{selectedService.name}</p>
                     </div>
                   </Col>
                   <Col md={6}>
                     <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.titleEs')}</Label>
-                      <p className="text-muted">{selectedService.titleEs}</p>
-                    </div>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.descriptionEn')}</Label>
-                      <p className="text-muted">{selectedService.descriptionEn}</p>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.descriptionEs')}</Label>
-                      <p className="text-muted">{selectedService.descriptionEs}</p>
+                      <Label className="fw-bold">{t('services.list.form.category')}</Label>
+                      <p className="text-muted">
+                        {selectedService.categoryRelation?.name || '-'}
+                      </p>
                     </div>
                   </Col>
                 </Row>
 
                 <Row>
-                  <Col md={6}>
+                  <Col md={12}>
                     <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.duration.label')}</Label>
+                      <Label className="fw-bold">{t('services.list.form.description')}</Label>
+                      <p className="text-muted">{selectedService.description || '-'}</p>
+                    </div>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={4}>
+                    <div className="mb-3">
+                      <Label className="fw-bold">{t('services.list.form.price')}</Label>
+                      <p className="text-success fw-semibold">
+                        ${(selectedService.price / 100).toFixed(2)}
+                      </p>
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="mb-3">
+                      <Label className="fw-bold">{t('services.list.form.duration')}</Label>
                       <div>
                         <span className="badge bg-info text-white">{selectedService.duration} min</span>
                       </div>
                     </div>
                   </Col>
-                  <Col md={6}>
+                  <Col md={4}>
                     <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.status')}</Label>
+                      <Label className="fw-bold">{t('services.list.form.bufferTime')}</Label>
                       <div>
-                        <span className={`badge ${selectedService.status ? 'bg-success' : 'bg-danger'}`}>
-                          {selectedService.status ? t('services.list.active') : t('services.list.inactive')}
+                        <span className="badge bg-secondary text-white">{selectedService.bufferTime} min</span>
+                      </div>
+                    </div>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={4}>
+                    <div className="mb-3">
+                      <Label className="fw-bold">{t('services.list.table.status')}</Label>
+                      <div>
+                        <span className={`badge ${selectedService.isActive ? 'bg-success' : 'bg-danger'}`}>
+                          {selectedService.isActive ? t('services.list.active') : t('services.list.inactive')}
                         </span>
                       </div>
                     </div>
                   </Col>
-                </Row>
-
-                <Row>
-                  <Col md={12}>
+                  <Col md={4}>
                     <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.addons.label')}</Label>
+                      <Label className="fw-bold">{t('services.list.form.popular')}</Label>
                       <div>
-                        {selectedService.addOns && selectedService.addOns.length > 0 ? (
-                          <div className="d-flex flex-wrap gap-2">
-                            {selectedService.addOns.map((addOnId: number) => {
-                              const addOn = mockAddOns.find(a => a.id === addOnId);
-                              return addOn ? (
-                                <span key={addOnId} className="badge bg-primary text-white">
-                                  {addOn.titleEn} / {addOn.titleEs}
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-muted mb-0">{t('services.list.none')}</p>
-                        )}
+                        <span className={`badge ${selectedService.isPopular ? 'bg-warning' : 'bg-light text-dark'}`}>
+                          {selectedService.isPopular ? t('common.yes') : t('common.no')}
+                        </span>
                       </div>
                     </div>
                   </Col>
-                </Row>
-
-                <Row>
-                  <Col md={12}>
+                  <Col md={4}>
                     <div className="mb-3">
-                      <Label className="fw-bold">{t('services.list.staff.label')}</Label>
-                      <div>
-                        {selectedService.staff && selectedService.staff.length > 0 ? (
-                          <div className="d-flex flex-wrap gap-2">
-                            {selectedService.staff.map((staffId: number) => {
-                              const staffMember = mockStaff.find(s => s.id === staffId);
-                              return staffMember ? (
-                                <span key={staffId} className="badge bg-info text-white">
-                                  {staffMember.name}
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-muted mb-0">{t('services.list.none')}</p>
-                        )}
-                      </div>
+                      <Label className="fw-bold">{t('services.list.form.displayOrder')}</Label>
+                      <p className="text-muted">{selectedService.displayOrder}</p>
                     </div>
                   </Col>
                 </Row>
@@ -475,49 +544,37 @@ const ServicesList = () => {
                 return false;
               }}
             >
+              {/* English Translation */}
               <Row>
-                <Col md={6}>
-                  <div className="mb-3">
-                    <Label>{t('services.list.titleEn')} <span className="text-danger">*</span></Label>
-                    <Input
-                      name="titleEn"
-                      type="text"
-                      placeholder="Enter title in English"
-                      onChange={validation.handleChange}
-                      onBlur={validation.handleBlur}
-                      value={validation.values.titleEn}
-                      invalid={
-                        validation.touched.titleEn && validation.errors.titleEn
-                          ? true
-                          : false
-                      }
-                    />
-                    {validation.touched.titleEn && validation.errors.titleEn ? (
-                      <FormFeedback type="invalid">
-                        {validation.errors.titleEn as string}
-                      </FormFeedback>
-                    ) : null}
+                <Col md={12}>
+                  <div className="mb-2">
+                    <h6 className="text-primary mb-3">
+                      <i className="ri-global-line me-2"></i>
+                      {t('services.form.translations_english')}
+                    </h6>
                   </div>
                 </Col>
-                <Col md={6}>
+              </Row>
+              <Row>
+                <Col md={12}>
                   <div className="mb-3">
-                    <Label>{t('services.list.titleEs')} <span className="text-danger">*</span></Label>
+                    <Label>{t('services.form.title_en')} <span className="text-danger">*</span></Label>
                     <Input
-                      name="titleEs"
+                      name="titleEN"
                       type="text"
-                      placeholder="Ingrese título en español"
+                      placeholder="Enter service title in English"
                       onChange={validation.handleChange}
                       onBlur={validation.handleBlur}
-                      value={validation.values.titleEs}
+                      value={validation.values.titleEN}
                       invalid={
-                        validation.touched.titleEs && validation.errors.titleEs
+                        validation.touched.titleEN && validation.errors.titleEN
                           ? true
                           : false
                       }
                     />
-                    {validation.touched.titleEs && validation.errors.titleEs ? (
+                    {validation.touched.titleEN && validation.errors.titleEN ? (
                       <FormFeedback type="invalid">
-                        {validation.errors.titleEs as string}
+                        {validation.errors.titleEN as string}
                       </FormFeedback>
                     ) : null}
                   </div>
@@ -525,54 +582,65 @@ const ServicesList = () => {
               </Row>
 
               <Row>
-                <Col md={6}>
+                <Col md={12}>
                   <div className="mb-3">
-                    <Label>{t('services.list.descriptionEn')} <span className="text-danger">*</span></Label>
+                    <Label>{t('services.form.description_en')} <span className="text-danger">*</span></Label>
                     <Input
-                      name="descriptionEn"
+                      name="descriptionEN"
                       type="textarea"
                       rows={3}
-                      placeholder="Enter description in English"
+                      placeholder="Enter service description in English"
                       onChange={validation.handleChange}
                       onBlur={validation.handleBlur}
-                      value={validation.values.descriptionEn}
+                      value={validation.values.descriptionEN}
                       invalid={
-                        validation.touched.descriptionEn &&
-                        validation.errors.descriptionEn
+                        validation.touched.descriptionEN &&
+                        validation.errors.descriptionEN
                           ? true
                           : false
                       }
                     />
-                    {validation.touched.descriptionEn &&
-                    validation.errors.descriptionEn ? (
+                    {validation.touched.descriptionEN &&
+                    validation.errors.descriptionEN ? (
                       <FormFeedback type="invalid" className="d-block">
-                        {validation.errors.descriptionEn as string}
+                        {validation.errors.descriptionEN as string}
                       </FormFeedback>
                     ) : null}
                   </div>
                 </Col>
-                <Col md={6}>
+              </Row>
+
+              {/* Spanish Translation */}
+              <Row>
+                <Col md={12}>
+                  <div className="mb-2 mt-3">
+                    <h6 className="text-primary mb-3">
+                      <i className="ri-global-line me-2"></i>
+                      {t('services.form.translations_spanish')}
+                    </h6>
+                  </div>
+                </Col>
+              </Row>
+              <Row>
+                <Col md={12}>
                   <div className="mb-3">
-                    <Label>{t('services.list.descriptionEs')} <span className="text-danger">*</span></Label>
+                    <Label>{t('services.form.title_es')} <span className="text-danger">*</span></Label>
                     <Input
-                      name="descriptionEs"
-                      type="textarea"
-                      rows={3}
-                      placeholder="Ingrese descripción en español"
+                      name="titleES"
+                      type="text"
+                      placeholder="Ingrese el título del servicio en español"
                       onChange={validation.handleChange}
                       onBlur={validation.handleBlur}
-                      value={validation.values.descriptionEs}
+                      value={validation.values.titleES}
                       invalid={
-                        validation.touched.descriptionEs &&
-                        validation.errors.descriptionEs
+                        validation.touched.titleES && validation.errors.titleES
                           ? true
                           : false
                       }
                     />
-                    {validation.touched.descriptionEs &&
-                    validation.errors.descriptionEs ? (
-                      <FormFeedback type="invalid" className="d-block">
-                        {validation.errors.descriptionEs as string}
+                    {validation.touched.titleES && validation.errors.titleES ? (
+                      <FormFeedback type="invalid">
+                        {validation.errors.titleES as string}
                       </FormFeedback>
                     ) : null}
                   </div>
@@ -580,13 +648,107 @@ const ServicesList = () => {
               </Row>
 
               <Row>
+                <Col md={12}>
+                  <div className="mb-3">
+                    <Label>{t('services.form.description_es')} <span className="text-danger">*</span></Label>
+                    <Input
+                      name="descriptionES"
+                      type="textarea"
+                      rows={3}
+                      placeholder="Ingrese la descripción del servicio en español"
+                      onChange={validation.handleChange}
+                      onBlur={validation.handleBlur}
+                      value={validation.values.descriptionES}
+                      invalid={
+                        validation.touched.descriptionES &&
+                        validation.errors.descriptionES
+                          ? true
+                          : false
+                      }
+                    />
+                    {validation.touched.descriptionES &&
+                    validation.errors.descriptionES ? (
+                      <FormFeedback type="invalid" className="d-block">
+                        {validation.errors.descriptionES as string}
+                      </FormFeedback>
+                    ) : null}
+                  </div>
+                </Col>
+              </Row>
+
+              <hr className="my-4" />
+
+              <Row>
                 <Col md={6}>
                   <div className="mb-3">
-                    <Label>{t('services.list.duration.label')} <span className="text-danger">*</span></Label>
+                    <Label>{t('services.list.form.category')} <span className="text-danger">*</span></Label>
+                    <Input
+                      name="categoryId"
+                      type="select"
+                      onChange={validation.handleChange}
+                      onBlur={validation.handleBlur}
+                      value={validation.values.categoryId}
+                      invalid={
+                        validation.touched.categoryId && validation.errors.categoryId
+                          ? true
+                          : false
+                      }
+                    >
+                      <option value="">{t('services.list.form.selectCategory')}</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </Input>
+                    {validation.touched.categoryId && validation.errors.categoryId ? (
+                      <FormFeedback type="invalid">
+                        {validation.errors.categoryId as string}
+                      </FormFeedback>
+                    ) : null}
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="mb-3">
+                    <Label>{t('services.list.form.price')} <span className="text-danger">*</span></Label>
+                    <div className="input-group">
+                      <span className="input-group-text">$</span>
+                      <Input
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        onChange={(e) => {
+                          // Convert dollars to cents for backend
+                          const dollars = parseFloat(e.target.value) || 0;
+                          validation.setFieldValue('price', Math.round(dollars * 100));
+                        }}
+                        onBlur={validation.handleBlur}
+                        value={(validation.values.price / 100).toFixed(2)}
+                        invalid={
+                          validation.touched.price && validation.errors.price
+                            ? true
+                            : false
+                        }
+                      />
+                      {validation.touched.price && validation.errors.price ? (
+                        <FormFeedback type="invalid">
+                          {validation.errors.price as string}
+                        </FormFeedback>
+                      ) : null}
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={4}>
+                  <div className="mb-3">
+                    <Label>{t('services.list.form.duration')} (min) <span className="text-danger">*</span></Label>
                     <Input
                       name="duration"
                       type="number"
-                      placeholder="e.g., 45"
+                      placeholder="45"
                       onChange={validation.handleChange}
                       onBlur={validation.handleBlur}
                       value={validation.values.duration}
@@ -603,210 +765,100 @@ const ServicesList = () => {
                     ) : null}
                   </div>
                 </Col>
+                <Col md={4}>
+                  <div className="mb-3">
+                    <Label>{t('services.list.form.bufferTime')} (min)</Label>
+                    <Input
+                      name="bufferTime"
+                      type="number"
+                      placeholder="15"
+                      onChange={validation.handleChange}
+                      onBlur={validation.handleBlur}
+                      value={validation.values.bufferTime}
+                      invalid={
+                        validation.touched.bufferTime && validation.errors.bufferTime
+                          ? true
+                          : false
+                      }
+                    />
+                    {validation.touched.bufferTime && validation.errors.bufferTime ? (
+                      <FormFeedback type="invalid">
+                        {validation.errors.bufferTime as string}
+                      </FormFeedback>
+                    ) : null}
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <div className="mb-3">
+                    <Label>{t('services.list.form.displayOrder')}</Label>
+                    <Input
+                      name="displayOrder"
+                      type="number"
+                      placeholder="0"
+                      onChange={validation.handleChange}
+                      onBlur={validation.handleBlur}
+                      value={validation.values.displayOrder}
+                      invalid={
+                        validation.touched.displayOrder && validation.errors.displayOrder
+                          ? true
+                          : false
+                      }
+                    />
+                    {validation.touched.displayOrder && validation.errors.displayOrder ? (
+                      <FormFeedback type="invalid">
+                        {validation.errors.displayOrder as string}
+                      </FormFeedback>
+                    ) : null}
+                  </div>
+                </Col>
+              </Row>
+
+              <Row>
                 <Col md={6}>
                   <div className="mb-3">
-                    <Label>{t('services.list.status')}</Label>
+                    <Label>{t('services.list.table.status')}</Label>
                     <div className="form-check form-switch form-switch-lg" style={{ paddingTop: '0.5rem' }}>
                       <Input
                         className="form-check-input"
                         type="checkbox"
                         role="switch"
-                        name="status"
-                        checked={validation.values.status}
-                        onChange={(e) => validation.setFieldValue('status', e.target.checked)}
+                        name="isActive"
+                        checked={validation.values.isActive}
+                        onChange={(e) => validation.setFieldValue('isActive', e.target.checked)}
                       />
                       <Label className="form-check-label">
-                        {validation.values.status ? t('services.list.active') : t('services.list.inactive')}
+                        {validation.values.isActive ? t('services.list.active') : t('services.list.inactive')}
+                      </Label>
+                    </div>
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="mb-3">
+                    <Label>{t('services.list.form.popular')}</Label>
+                    <div className="form-check form-switch form-switch-lg" style={{ paddingTop: '0.5rem' }}>
+                      <Input
+                        className="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        name="isPopular"
+                        checked={validation.values.isPopular}
+                        onChange={(e) => validation.setFieldValue('isPopular', e.target.checked)}
+                      />
+                      <Label className="form-check-label">
+                        {validation.values.isPopular ? t('common.yes') : t('common.no')}
                       </Label>
                     </div>
                   </div>
                 </Col>
               </Row>
 
-              <Row>
-                <Col md={12}>
-                  <div className="mb-3">
-                    <Label>{t('services.list.addons.label')} <span className="text-muted">({t('common.optional')})</span></Label>
-                    <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                      {t('services.list.addons.hint')}
-                    </p>
-                    
-                    {/* Selected chips */}
-                    {validation.values.addOns && validation.values.addOns.length > 0 && (
-                      <div className="d-flex flex-wrap gap-2 mb-2">
-                        {validation.values.addOns.map((addOnId: number) => {
-                          const addOn = mockAddOns.find(a => a.id === addOnId);
-                          return addOn ? (
-                            <span key={addOnId} className="badge bg-primary text-white fs-12 d-inline-flex align-items-center">
-                              {addOn.titleEn} / {addOn.titleEs}
-                              <button
-                                type="button"
-                                className="btn-close ms-2"
-                                style={{ fontSize: '0.65rem', padding: '0.25rem' }}
-                                onClick={() => {
-                                  const currentValues = validation.values.addOns || [];
-                                  validation.setFieldValue('addOns', currentValues.filter((id: number) => id !== addOnId));
-                                }}
-                                aria-label="Remove"
-                              ></button>
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-
-                    {/* Dropdown selector */}
-                    <div className="position-relative">
-                      <Input
-                        type="text"
-                        placeholder={t('services.list.addons.placeholder')}
-                        onClick={() => setShowAddOnsDropdown(!showAddOnsDropdown)}
-                        readOnly
-                        style={{ cursor: 'pointer' }}
-                      />
-                      {showAddOnsDropdown && (
-                        <div 
-                          className="position-absolute w-100 border rounded bg-white shadow-sm" 
-                          style={{ 
-                            maxHeight: '200px', 
-                            overflowY: 'auto', 
-                            zIndex: 1000,
-                            top: '100%',
-                            marginTop: '4px'
-                          }}
-                        >
-                          {mockAddOns.map(addOn => {
-                            const isSelected = validation.values.addOns?.includes(addOn.id) || false;
-                            return (
-                              <div
-                                key={addOn.id}
-                                className={`p-2 cursor-pointer ${isSelected ? 'bg-light' : ''}`}
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => {
-                                  const currentValues = validation.values.addOns || [];
-                                  if (isSelected) {
-                                    validation.setFieldValue('addOns', currentValues.filter((id: number) => id !== addOn.id));
-                                  } else {
-                                    validation.setFieldValue('addOns', [...currentValues, addOn.id]);
-                                  }
-                                }}
-                              >
-                                <div className="form-check">
-                                  <Input
-                                    className="form-check-input"
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => {}} // Controlled by parent div onClick
-                                  />
-                                  <Label className="form-check-label" style={{ cursor: 'pointer' }}>
-                                    {addOn.titleEn} / {addOn.titleEs}
-                                  </Label>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-              </Row>
-
-              <Row>
-                <Col md={12}>
-                  <div className="mb-3">
-                    <Label>{t('services.list.staff.label')} <span className="text-muted">({t('common.optional')})</span></Label>
-                    <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                      {t('services.list.staff.hint')}
-                    </p>
-                    
-                    {/* Selected chips */}
-                    {validation.values.staff && validation.values.staff.length > 0 && (
-                      <div className="d-flex flex-wrap gap-2 mb-2">
-                        {validation.values.staff.map((staffId: number) => {
-                          const staffMember = mockStaff.find(s => s.id === staffId);
-                          return staffMember ? (
-                            <span key={staffId} className="badge bg-info text-white fs-12 d-inline-flex align-items-center">
-                              {staffMember.name}
-                              <button
-                                type="button"
-                                className="btn-close ms-2"
-                                style={{ fontSize: '0.65rem', padding: '0.25rem' }}
-                                onClick={() => {
-                                  const currentValues = validation.values.staff || [];
-                                  validation.setFieldValue('staff', currentValues.filter((id: number) => id !== staffId));
-                                }}
-                                aria-label="Remove"
-                              ></button>
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-
-                    {/* Dropdown selector */}
-                    <div className="position-relative">
-                      <Input
-                        type="text"
-                        placeholder={t('services.list.staff.placeholder')}
-                        onClick={() => setShowStaffDropdown(!showStaffDropdown)}
-                        readOnly
-                        style={{ cursor: 'pointer' }}
-                      />
-                      {showStaffDropdown && (
-                        <div 
-                          className="position-absolute w-100 border rounded bg-white shadow-sm" 
-                          style={{ 
-                            maxHeight: '200px', 
-                            overflowY: 'auto', 
-                            zIndex: 1000,
-                            top: '100%',
-                            marginTop: '4px'
-                          }}
-                        >
-                          {mockStaff.map(staff => {
-                            const isSelected = validation.values.staff?.includes(staff.id) || false;
-                            return (
-                              <div
-                                key={staff.id}
-                                className={`p-2 cursor-pointer ${isSelected ? 'bg-light' : ''}`}
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => {
-                                  const currentValues = validation.values.staff || [];
-                                  if (isSelected) {
-                                    validation.setFieldValue('staff', currentValues.filter((id: number) => id !== staff.id));
-                                  } else {
-                                    validation.setFieldValue('staff', [...currentValues, staff.id]);
-                                  }
-                                }}
-                              >
-                                <div className="form-check">
-                                  <Input
-                                    className="form-check-input"
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => {}} // Controlled by parent div onClick
-                                  />
-                                  <Label className="form-check-label" style={{ cursor: 'pointer' }}>
-                                    {staff.name}
-                                  </Label>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-              </Row>
-
               <div className="hstack gap-2 justify-content-end">
-                <Button color="light" onClick={toggle}>
+                <Button color="light" onClick={toggle} disabled={submitting}>
                   {t('common.close')}
                 </Button>
-                <Button color="success" type="submit">
-                  {isEdit ? t('common.update') : t('common.add')} {t('services.list.service')}
+                <Button color="success" type="submit" disabled={submitting}>
+                  {submitting && <Spinner size="sm" className="me-2" />}
+                  {isEdit ? t('common.update') : t('common.add')}
                 </Button>
               </div>
             </Form>
