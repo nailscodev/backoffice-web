@@ -35,7 +35,6 @@ const Widgets: React.FC<WidgetsProps> = ({ stats, loading }) => {
             badgeClass: "success",
             percentage: "+0.00",
             counter: safeStats.bank,
-            link: t('dashboard.widgets.bank_link'),
             bgcolor: "success",
             icon: "bx bx-dollar-circle",
             decimals: 2,
@@ -45,12 +44,24 @@ const Widgets: React.FC<WidgetsProps> = ({ stats, loading }) => {
         },
         {
             id: 2,
+            label: t('dashboard.widgets.cash'),
+            badgeClass: "muted",
+            percentage: "+0.00",
+            counter: safeStats.cash,
+            bgcolor: "primary",
+            icon: "bx bx-wallet",
+            decimals: 2,
+            prefix: "$",
+            suffix: "",
+            separator: ","
+        },
+        {
+            id: 3,
             label: t('dashboard.widgets.bookings'),
             badge: "ri-arrow-right-down-line",
             badgeClass: "info",
             percentage: "0",
             counter: safeStats.bookings,
-            link: t('dashboard.widgets.bookings_link'),
             bgcolor: "info",
             icon: "bx bx-shopping-bag",
             decimals: 0,
@@ -59,32 +70,17 @@ const Widgets: React.FC<WidgetsProps> = ({ stats, loading }) => {
             suffix: ""
         },
         {
-            id: 3,
+            id: 4,
             label: t('dashboard.widgets.new_customers'),
             badge: "ri-arrow-right-up-line",
             badgeClass: "success",
             percentage: "+0.00",
             counter: safeStats.newCustomers,
-            link: t('dashboard.widgets.new_customers_link'),
             bgcolor: "warning",
             icon: "bx bx-user-circle",
             decimals: 0,
             prefix: "",
             suffix: ""
-        },
-        {
-            id: 4,
-            label: t('dashboard.widgets.cash'),
-            badgeClass: "muted",
-            percentage: "+0.00",
-            counter: safeStats.cash,
-            link: t('dashboard.widgets.cash_link'),
-            bgcolor: "primary",
-            icon: "bx bx-wallet",
-            decimals: 2,
-            prefix: "$",
-            suffix: "",
-            separator: ","
         },
     ];
 
@@ -126,7 +122,6 @@ const Widgets: React.FC<WidgetsProps> = ({ stats, loading }) => {
                                             </span>
                                         </h4>
                                     )}
-                                    <Link to="#" className="text-decoration-underline">{item.link}</Link>
                                 </div>
                                 <div className="avatar-sm flex-shrink-0">
                                     <span className={"avatar-title rounded fs-3 bg-" + item.bgcolor+"-subtle"}>
