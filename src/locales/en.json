@@ -285,6 +285,8 @@
     "services.categories.add": "Add Category",
     "services.categories.edit": "Edit Category",
     "services.categories.delete": "Delete Category",
+    "services.categories.name": "Category Name",
+    "services.categories.namePlaceholder": "Enter category name",
     "services.categories.titleEn": "Title (English)",
     "services.categories.titleEs": "Title (Spanish)",
     "services.categories.descriptionEn": "Description (English)",
@@ -378,6 +380,7 @@
     "common.cancel": "Cancel",
     "common.save": "Save",
     "common.actions": "Actions",
+    "common.order": "Display Order",
 
     "menu.admin.staff.title": "Team / Staff",
     "menu.admin.staff.basic_register": "Basic register",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardBody,
@@ -13,106 +13,148 @@ import {
   Label,
   Input,
   FormFeedback,
+  Spinner,
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
+import CloudinaryUploadWidget from "../../../Components/Common/CloudinaryUploadWidget";
 import { useTranslation } from "react-i18next";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-
-interface Category {
-  id: number;
-  titleEn: string;
-  titleEs: string;
-  descriptionEn: string;
-  descriptionEs: string;
-  image: string;
-  excludingCategories: number[];
-}
+import { getCategories, getCategory, createCategory, updateCategory, deleteCategory, Category } from "../../../api/categories";
+import { toast } from "react-toastify";
 
 const Categories = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [modal, setModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - esto se reemplazará con Redux
-  const [categories, setCategories] = useState<Category[]>([
-    {
-      id: 1,
-      titleEn: "Manicure",
-      titleEs: "Manicura",
-      descriptionEn: "Professional manicure services",
-      descriptionEs: "Servicios profesionales de manicura",
-      image: "https://thumbs.dreamstime.com/z/manicure-treatment-nail-salon-closeup-shot-women-receiving-beautician-file-woman-getting-beautician-55414826.jpg?ct=jpeg",
-      excludingCategories: [] as number[],
-    },
-    {
-      id: 2,
-      titleEn: "Pedicure",
-      titleEs: "Pedicura",
-      descriptionEn: "Professional pedicure services",
-      descriptionEs: "Servicios profesionales de pedicura",
-      image: "https://as1.ftcdn.net/v2/jpg/15/77/63/40/1000_F_1577634084_NELWuiLyXkF6pSo6ME9JcVNIru3LWfX5.jpg",
-      excludingCategories: [] as number[],
-    },
-  ]);
+  // Load categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, [i18n.language]);
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      // Map frontend language codes to backend codes
+      const langMap: { [key: string]: string } = {
+        'sp': 'ES',
+        'en': 'EN',
+      };
+      const currentLang = langMap[i18n.language] || i18n.language.toUpperCase();
+      console.log('Fetching categories with lang:', currentLang);
+      const data = await getCategories(currentLang);
+      console.log('Categories received:', data);
+      setCategories(data || []);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      setCategories([]);
+      toast.error("Error loading categories");
+    } finally {
+      setLoading(false);
+      console.log('Loading finished');
+    }
+  };
 
   const toggle = () => {
     if (modal) {
       setModal(false);
       setSelectedCategory(null);
       setIsEdit(false);
-      setShowDropdown(false);
     } else {
       setModal(true);
     }
   };
 
-  const handleEdit = (category: any) => {
-    setSelectedCategory(category);
-    setIsEdit(true);
-    setModal(true);
+  const handleEdit = async (category: Category) => {
+    try {
+      // Fetch full category data with translations
+      const response = await getCategory(category.id);
+      const fullCategory = response.data || response;
+      console.log('Full category data:', fullCategory);
+      setSelectedCategory(fullCategory);
+      setIsEdit(true);
+      setModal(true);
+    } catch (error) {
+      console.error("Error loading category:", error);
+      toast.error("Error loading category data");
+    }
   };
 
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
+      name: (selectedCategory && selectedCategory.name) || "",
+      displayOrder: (selectedCategory && selectedCategory.displayOrder) || 0,
+      imageUrl: (selectedCategory && selectedCategory.imageUrl) || "",
       titleEn: (selectedCategory && selectedCategory.titleEn) || "",
       titleEs: (selectedCategory && selectedCategory.titleEs) || "",
       descriptionEn: (selectedCategory && selectedCategory.descriptionEn) || "",
       descriptionEs: (selectedCategory && selectedCategory.descriptionEs) || "",
-      image: (selectedCategory && selectedCategory.image) || "",
-      excludingCategories: (selectedCategory && selectedCategory.excludingCategories) || [] as number[],
     },
     validationSchema: Yup.object({
-      titleEn: Yup.string().required("English title is required"),
-      titleEs: Yup.string().required("Spanish title is required"),
-      descriptionEn: Yup.string().required("English description is required"),
-      descriptionEs: Yup.string().required("Spanish description is required"),
-      image: Yup.string().url("Must be a valid URL"),
-      excludingCategories: Yup.array().of(Yup.number()),
+      displayOrder: Yup.number().required("Display order is required"),
+      imageUrl: Yup.string().url("Must be a valid URL"),
+      titleEn: Yup.string().required(t("services.categories.required.titleEn")),
+      titleEs: Yup.string().required(t("services.categories.required.titleEs")),
+      descriptionEn: Yup.string(),
+      descriptionEs: Yup.string(),
     }),
-    onSubmit: (values) => {
-      if (isEdit && selectedCategory) {
-        const updatedCategories = categories.map((cat) =>
-          cat.id === selectedCategory.id ? { ...cat, ...values } : cat
-        );
-        setCategories(updatedCategories);
-      } else {
-        const newCategory = {
-          id: categories.length + 1,
-          ...values,
+    onSubmit: async (values) => {
+      try {
+        console.log("Submitting form values:", values);
+        
+        const categoryData = {
+          name: values.titleEn, // Use titleEn as the base name
+          displayOrder: values.displayOrder,
+          imageUrl: values.imageUrl,
+          titleEn: values.titleEn,
+          titleEs: values.titleEs,
+          descriptionEn: values.descriptionEn,
+          descriptionEs: values.descriptionEs,
         };
-        setCategories([...categories, newCategory]);
+        
+        if (isEdit && selectedCategory) {
+          // Update existing category
+          await updateCategory(selectedCategory.id, categoryData);
+          toast.success("Category updated successfully");
+        } else {
+          // Create new category
+          await createCategory(categoryData);
+          toast.success("Category created successfully");
+        }
+        
+        // Refresh categories list
+        await fetchCategories();
+        
+        // Close modal and reset form
+        toggle();
+        validation.resetForm();
+      } catch (error: any) {
+        console.error("Error submitting category:", error);
+        toast.error(error.message || "Failed to save category");
       }
-      toggle();
-      validation.resetForm();
     },
   });
 
-  const handleDelete = (id: number) => {
-    setCategories(categories.filter((cat) => cat.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      if (!window.confirm("Are you sure you want to delete this category?")) {
+        return;
+      }
+      
+      await deleteCategory(id);
+      toast.success("Category deleted successfully");
+      
+      // Refresh categories list
+      await fetchCategories();
+    } catch (error: any) {
+      console.error("Error deleting category:", error);
+      toast.error(error.message || "Failed to delete category");
+    }
   };
 
   return (
@@ -141,55 +183,71 @@ const Categories = () => {
                     </Button>
                   </div>
 
-                  <Row>
-                    {categories.map((category) => (
-                      <Col xl={3} lg={4} md={6} key={category.id}>
-                        <Card className="border">
-                          <CardBody>
-                            <div className="text-center">
-                              <img
-                                src={category.image}
-                                alt={category.titleEn}
-                                className="img-fluid rounded mb-3"
-                                style={{ height: "150px", objectFit: "cover" }}
-                              />
-                              <h5 className="mb-1">{category.titleEn}</h5>
-                              <p className="text-muted small mb-1">
-                                {category.titleEs}
-                              </p>
-                              <p className="text-muted small">
-                                {category.descriptionEn}
-                              </p>
-                            </div>
-                            <div className="d-flex gap-2 mt-3">
-                              <Button
-                                color="primary"
-                                size="sm"
-                                className="flex-fill"
-                                onClick={() => handleEdit(category)}
-                              >
-                                <i className="ri-pencil-line"></i> Edit
-                              </Button>
-                              <Button
-                                color="danger"
-                                size="sm"
-                                className="flex-fill"
-                                onClick={() => handleDelete(category.id)}
-                              >
-                                <i className="ri-delete-bin-line"></i> Delete
-                              </Button>
-                            </div>
-                          </CardBody>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
+                  {loading ? (
+                    <div className="text-center py-5">
+                      <Spinner color="primary" />
+                      <p className="mt-2 text-muted">Loading...</p>
+                    </div>
+                  ) : !categories || categories.length === 0 ? (
+                    <div className="text-center py-5">
+                      <p className="text-muted">No categories found (count: {categories?.length || 0})</p>
+                    </div>
+                  ) : (
+                    <>
+                      {console.log('Rendering categories:', categories)}
+                      <Row>
+                        {categories.map((category) => (
+                        <Col xl={3} lg={4} md={6} key={category.id}>
+                          <Card className="border">
+                            <CardBody>
+                              <div className="text-center">
+                                <div 
+                                  className="bg-light rounded mb-3 d-flex align-items-center justify-content-center"
+                                  style={{ height: "150px", overflow: "hidden" }}
+                                >
+                                  {category.imageUrl ? (
+                                    <img 
+                                      src={category.imageUrl} 
+                                      alt={category.name}
+                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    />
+                                  ) : (
+                                    <i className="ri-price-tag-3-line" style={{ fontSize: "4rem", color: "#ccc" }}></i>
+                                  )}
+                                </div>
+                                <h5 className="mb-2">{category.name}</h5>
+                              </div>
+                              <div className="d-flex gap-2 mt-3">
+                                <Button
+                                  color="primary"
+                                  size="sm"
+                                  className="flex-fill"
+                                  onClick={() => handleEdit(category)}
+                                >
+                                  <i className="ri-pencil-line"></i> {t("common.edit")}
+                                </Button>
+                                <Button
+                                  color="danger"
+                                  size="sm"
+                                  className="flex-fill"
+                                  onClick={() => handleDelete(category.id)}
+                                >
+                                  <i className="ri-delete-bin-line"></i> {t("common.delete")}
+                                </Button>
+                              </div>
+                            </CardBody>
+                          </Card>
+                        </Col>
+                      ))}
+                      </Row>
+                    </>
+                  )}
                 </CardBody>
               </Card>
             </Col>
           </Row>
 
-          <Modal isOpen={modal} toggle={toggle} centered size="lg">
+          <Modal isOpen={modal} toggle={toggle} centered>
             <ModalHeader toggle={toggle}>
               {isEdit ? t('services.categories.edit') : t('services.categories.add')}
             </ModalHeader>
@@ -202,13 +260,12 @@ const Categories = () => {
                 }}
               >
                 <Row>
-                  <Col md={6}>
+                  <Col md={12}>
                     <div className="mb-3">
-                      <Label>{t('services.categories.descriptionEn')}</Label>
+                      <Label>{t('services.categories.titleEn')}</Label>
                       <Input
                         name="titleEn"
                         type="text"
-                        placeholder="Enter title in English"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
                         value={validation.values.titleEn}
@@ -227,13 +284,25 @@ const Categories = () => {
                       ) : null}
                     </div>
                   </Col>
-                  <Col md={6}>
+                  <Col md={12}>
                     <div className="mb-3">
-                      <Label>{t('services.categories.descriptionEs')}</Label>
+                      <Label>{t('services.categories.descriptionEn')}</Label>
+                      <Input
+                        name="descriptionEn"
+                        type="textarea"
+                        rows={3}
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.descriptionEn}
+                      />
+                    </div>
+                  </Col>
+                  <Col md={12}>
+                    <div className="mb-3">
+                      <Label>{t('services.categories.titleEs')}</Label>
                       <Input
                         name="titleEs"
                         type="text"
-                        placeholder="Ingrese título en español"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
                         value={validation.values.titleEs}
@@ -252,158 +321,61 @@ const Categories = () => {
                       ) : null}
                     </div>
                   </Col>
-                  <Col md={6}>
+                  <Col md={12}>
                     <div className="mb-3">
-                      <Label>Description (English)</Label>
-                      <textarea
-                        name="descriptionEn"
-                        className="form-control"
-                        rows={3}
-                        placeholder="Enter description in English"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.descriptionEn}
-                      />
-                      {validation.touched.descriptionEn &&
-                      validation.errors.descriptionEn ? (
-                        <FormFeedback type="invalid" className="d-block">
-                          {validation.errors.descriptionEn as string}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <Label>Descripción (Español)</Label>
-                      <textarea
+                      <Label>{t('services.categories.descriptionEs')}</Label>
+                      <Input
                         name="descriptionEs"
-                        className="form-control"
+                        type="textarea"
                         rows={3}
-                        placeholder="Ingrese descripción en español"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
                         value={validation.values.descriptionEs}
                       />
-                      {validation.touched.descriptionEs &&
-                      validation.errors.descriptionEs ? (
-                        <FormFeedback type="invalid" className="d-block">
-                          {validation.errors.descriptionEs as string}
-                        </FormFeedback>
-                      ) : null}
                     </div>
                   </Col>
                   <Col md={12}>
                     <div className="mb-3">
-                      <Label>{t('services.categories.image')}</Label>
+                      <Label>{t('common.order')}</Label>
                       <Input
-                        name="image"
-                        type="text"
-                        placeholder="Enter image URL"
+                        name="displayOrder"
+                        type="number"
+                        placeholder="0"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
-                        value={validation.values.image}
+                        value={validation.values.displayOrder}
                         invalid={
-                          validation.touched.image && validation.errors.image
+                          validation.touched.displayOrder &&
+                          validation.errors.displayOrder
                             ? true
                             : false
                         }
                       />
-                      {validation.touched.image && validation.errors.image ? (
+                      {validation.touched.displayOrder &&
+                      validation.errors.displayOrder ? (
                         <FormFeedback type="invalid">
-                          {validation.errors.image as string}
+                          {validation.errors.displayOrder as string}
                         </FormFeedback>
                       ) : null}
                     </div>
                   </Col>
-                </Row>
-
-                <Row>
                   <Col md={12}>
                     <div className="mb-3">
-                      <Label>{t('services.categories.excludingCategories')} <span className="text-muted">({t('common.optional')})</span></Label>
-                      <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                        {t('services.categories.excludingCategories.hint')}
-                      </p>
-                      
-                      {/* Selected chips */}
-                      {validation.values.excludingCategories && validation.values.excludingCategories.length > 0 && (
-                        <div className="d-flex flex-wrap gap-2 mb-2">
-                        {validation.values.excludingCategories.map((catId: number) => {
-                          const cat = categories.find(c => c.id === catId);
-                          return cat ? (
-                            <span key={catId} className="badge bg-primary-subtle text-primary fs-12 d-inline-flex align-items-center">
-                                {cat.titleEn} / {cat.titleEs}
-                                <button
-                                  type="button"
-                                  className="btn-close ms-2"
-                                  style={{ fontSize: '0.65rem', padding: '0.25rem' }}
-                                  onClick={() => {
-                                    const currentValues = validation.values.excludingCategories || [];
-                                    validation.setFieldValue('excludingCategories', currentValues.filter((id: number) => id !== catId));
-                                  }}
-                                  aria-label="Remove"
-                                ></button>
-                              </span>
-                            ) : null;
-                          })}
+                      <Label>Category Image</Label>
+                      <CloudinaryUploadWidget
+                        currentImage={validation.values.imageUrl}
+                        onUploadSuccess={(url) => {
+                          console.log('onUploadSuccess called with URL:', url);
+                          validation.setFieldValue('imageUrl', url);
+                          console.log('Field value updated');
+                        }}
+                        folder="nailsco/categories"
+                      />
+                      {validation.touched.imageUrl && validation.errors.imageUrl ? (
+                        <div className="text-danger small mt-1">
+                          {validation.errors.imageUrl as string}
                         </div>
-                      )}
-
-                      {/* Dropdown selector */}
-                      <div className="position-relative">
-                        <Input
-                          type="text"
-                          placeholder={t('services.categories.excludingCategories.placeholder')}
-                          onClick={() => setShowDropdown(!showDropdown)}
-                          readOnly
-                          style={{ cursor: 'pointer' }}
-                        />
-                        {showDropdown && (
-                          <div 
-                            className="position-absolute w-100 border rounded bg-white shadow-sm" 
-                            style={{ 
-                              maxHeight: '200px', 
-                              overflowY: 'auto', 
-                              zIndex: 1000,
-                              top: '100%',
-                              marginTop: '4px'
-                            }}
-                          >
-                            {categories
-                              .filter(cat => !selectedCategory || cat.id !== selectedCategory.id)
-                              .map(cat => {
-                                const isSelected = validation.values.excludingCategories?.includes(cat.id) || false;
-                                return (
-                                  <div
-                                    key={cat.id}
-                                    className={`p-2 cursor-pointer ${isSelected ? 'bg-light' : ''}`}
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => {
-                                      const currentValues = validation.values.excludingCategories || [];
-                                      if (isSelected) {
-                                        validation.setFieldValue('excludingCategories', currentValues.filter((id: number) => id !== cat.id));
-                                      } else {
-                                        validation.setFieldValue('excludingCategories', [...currentValues, cat.id]);
-                                      }
-                                    }}
-                                  >
-                                    <div className="form-check">
-                                      <Input
-                                        className="form-check-input"
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => {}} // Controlled by parent div onClick
-                                      />
-                                      <Label className="form-check-label" style={{ cursor: 'pointer' }}>
-                                        {cat.titleEn} / {cat.titleEs}
-                                      </Label>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        )}
-                      </div>
+                      ) : null}
                     </div>
                   </Col>
                 </Row>
@@ -413,7 +385,7 @@ const Categories = () => {
                     {t('common.close')}
                   </Button>
                   <Button color="success" type="submit">
-                    {isEdit ? t('common.update') : t('common.add')} {t('menu.admin.services.categories')}
+                    {isEdit ? t('common.update') : t('common.add')}
                   </Button>
                 </div>
               </Form>
