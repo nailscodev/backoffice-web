@@ -163,11 +163,18 @@ const TableContainer = ({
     return itemRank.passed;
   };
 
+  const strictFilter: FilterFn<any> = (row, columnId, value) => {
+    const cellValue = row.getValue(columnId);
+    if (cellValue == null) return false;
+    return String(cellValue).toLowerCase().includes(String(value).toLowerCase());
+  };
+
   const table = useReactTable({
     columns,
     data,
     filterFns: {
       fuzzy: fuzzyFilter,
+      strict: strictFilter,
     },
     state: {
       columnFilters,
@@ -175,7 +182,7 @@ const TableContainer = ({
     },
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: fuzzyFilter,
+    globalFilterFn: strictFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -222,7 +229,7 @@ const TableContainer = ({
     <Fragment>
       {isGlobalFilter && <Row className="mb-3">
         <CardBody className="border border-dashed border-end-0 border-start-0">
-          <form>
+          <form onSubmit={(e) => e.preventDefault()}>
             <Row>
               <Col sm={5}>
                 <div className={(isProductsFilter || isContactsFilter || isCompaniesFilter || isNFTRankingFilter) ? "search-box me-2 mb-2 d-inline-block" : "search-box me-2 mb-2 d-inline-block col-12"}>

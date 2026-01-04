@@ -265,65 +265,83 @@ const ServicesList = () => {
         header: t('services.list.table.service'),
         accessorKey: "name",
         enableColumnFilter: false,
+        enableGlobalFilter: true,
         cell: (cell: any) => {
           const service = cell.row.original;
           return (
-            <div className="d-flex flex-column" onClick={() => handleView(service)} style={{ cursor: 'pointer' }}>
-              <h5 className="fs-14 mb-1">
-                {service.name}
-              </h5>
-              <p className="text-muted mb-0 fs-12">
-                {service.description || '-'}
-              </p>
+            <div className="d-flex align-items-center">
+              <div className="flex-grow-1" onClick={() => handleView(service)} style={{ cursor: 'pointer' }}>
+                <h5 className="fs-14 mb-1">
+                  {service.name}
+                </h5>
+                <p className="text-muted mb-0 fs-12">
+                  {service.categoryRelation?.name || '-'}
+                </p>
+              </div>
+            </div>
+          );
+        },
+        filterFn: (row: any, columnId: string, filterValue: string) => {
+          const serviceName = row.original.name || '';
+          return serviceName.toLowerCase().includes(filterValue.toLowerCase());
+        },
+      },
+      {
+        header: () => <div className="text-center">{t('services.list.table.price')}</div>,
+        accessorKey: "price",
+        enableColumnFilter: false,
+        enableGlobalFilter: false,
+        cell: (cell: any) => {
+          const price = cell.getValue();
+          return (
+            <div className="text-center">
+              <h6 className="mb-0 text-success">${(price / 100).toFixed(2)}</h6>
             </div>
           );
         },
       },
       {
-        header: t('services.list.table.category'),
-        accessorKey: "categoryRelation",
+        header: () => <div className="text-center">{t('services.list.table.duration')}</div>,
+        accessorKey: "duration",
         enableColumnFilter: false,
+        enableGlobalFilter: false,
         cell: (cell: any) => {
-          const category = cell.getValue();
-          return category ? (
-            <span className="badge bg-secondary">{category.name}</span>
-          ) : (
-            <span className="text-muted">-</span>
+          const service = cell.row.original;
+          return (
+            <div className="text-center">
+              <div className="mb-1">
+                <span className="badge bg-info text-white">{cell.getValue()} min</span>
+              </div>
+              {service.bufferTime > 0 && (
+                <small className="text-muted">+{service.bufferTime} min buffer</small>
+              )}
+            </div>
           );
         },
       },
       {
-        header: t('services.list.table.price'),
-        accessorKey: "price",
-        enableColumnFilter: false,
-        cell: (cell: any) => {
-          const price = cell.getValue();
-          return <span className="text-success fw-semibold">${(price / 100).toFixed(2)}</span>;
-        },
-      },
-      {
-        header: t('services.list.table.duration'),
-        accessorKey: "duration",
-        enableColumnFilter: false,
-        cell: (cell: any) => {
-          return <span className="badge bg-info text-white">{cell.getValue()} min</span>;
-        },
-      },
-      {
-        header: t('services.list.table.status'),
+        header: () => <div className="text-center">{t('services.list.table.status')}</div>,
         accessorKey: "isActive",
         enableColumnFilter: false,
         cell: (cell: any) => {
           const service = cell.row.original;
+          const isActive = cell.getValue();
           return (
-            <div className="form-check form-switch">
-              <Input
-                className="form-check-input"
-                type="checkbox"
-                role="switch"
-                checked={cell.getValue()}
-                onChange={() => toggleStatus(service)}
-              />
+            <div className="text-center">
+              <div className="form-check form-switch d-inline-block">
+                <Input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id={`service-status-${service.id}`}
+                  checked={isActive}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleStatus(service);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
             </div>
           );
         },

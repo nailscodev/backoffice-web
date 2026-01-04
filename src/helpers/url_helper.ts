@@ -23,6 +23,9 @@ export const BOOKINGS_UPCOMING = "/api/v1/bookings/upcoming";
 //SERVICES
 export const SERVICES = "/api/v1/services";
 
+//ADDONS
+export const ADDONS = "/api/v1/addons";
+
 //CATEGORIES
 export const CATEGORIES = "/api/v1/categories";
 

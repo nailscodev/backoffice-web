@@ -80,7 +80,7 @@ export const updateCategory = async (
     descriptionEs?: string;
   }
 ): Promise<any> => {
-  const response = await api.update(`${url.CATEGORIES}/${id}`, data);
+  const response = await api.patch(`${url.CATEGORIES}/${id}`, data);
   return response;
 };
 

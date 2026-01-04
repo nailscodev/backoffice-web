@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -18,6 +18,7 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
+  Spinner,
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
@@ -26,17 +27,17 @@ import { useTranslation } from "react-i18next";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast, ToastContainer } from "react-toastify";
-
-interface AddOn {
-  id: number;
-  titleEn: string;
-  titleEs: string;
-  descriptionEn: string;
-  descriptionEs: string;
-  duration: number;
-  associatedServices: string[];
-  status: boolean;
-}
+import {
+  getAddOns,
+  getAddOn,
+  createAddOn,
+  updateAddOn,
+  deleteAddOn,
+  activateAddOn,
+  deactivateAddOn,
+  AddOn,
+} from "../../../api/addons";
+import { getServices, Service } from "../../../api/services";
 
 const AddOns = () => {
   const { t, i18n } = useTranslation();
@@ -46,30 +47,55 @@ const AddOns = () => {
   const [deleteModal, setDeleteModal] = useState(false);
   const [viewModal, setViewModal] = useState(false);
   const [showServicesDropdown, setShowServicesDropdown] = useState(false);
+  const [addOns, setAddOns] = useState<AddOn[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Mock data - esto se reemplazará con Redux
-  const [addOns, setAddOns] = useState<AddOn[]>([
-    {
-      id: 1,
-      titleEn: "Gel Polish",
-      titleEs: "Esmalte en Gel",
-      descriptionEn: "Long-lasting gel polish application",
-      descriptionEs: "Aplicación de esmalte en gel de larga duración",
-      duration: 15,
-      associatedServices: ["Manicure", "Pedicure"],
-      status: true,
-    },
-    {
-      id: 2,
-      titleEn: "French Tips",
-      titleEs: "Puntas Francesas",
-      descriptionEn: "Classic french manicure tips",
-      descriptionEs: "Puntas clásicas de manicura francesa",
-      duration: 20,
-      associatedServices: ["Manicure"],
-      status: true,
-    },
-  ]);
+  // Get current language for API calls
+  const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
+
+  // Load add-ons and services on mount
+  useEffect(() => {
+    loadAddOns();
+    loadServices();
+  }, [currentLang]);
+
+  // Debug: Log validation values when they change
+  useEffect(() => {
+    if (modal && isEdit) {
+      console.log('Form initialized with values:', {
+        compatibleServiceIds: validation.values.compatibleServiceIds,
+        selectedAddOn: selectedAddOn?.compatibleServiceIds,
+      });
+    }
+  }, [modal, isEdit, selectedAddOn]);
+
+  const loadAddOns = async () => {
+    try {
+      setLoading(true);
+      const response = await getAddOns(1, 1000, undefined, undefined, undefined, currentLang);
+      console.log('Loaded addons:', response);
+      if (response && response.length > 0) {
+        console.log('First addon compatibleServiceIds:', response[0].compatibleServiceIds);
+      }
+      setAddOns(response || []);
+    } catch (error: any) {
+      console.error('Error loading add-ons:', error);
+      toast.error(t('services.addons.error.load') || 'Error loading add-ons');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadServices = async () => {
+    try {
+      const response = await getServices(1, 1000, undefined, undefined, undefined, currentLang);
+      setServices(response || []);
+    } catch (error) {
+      console.error('Error loading services:', error);
+    }
+  };
 
   const toggle = () => {
     if (modal) {
@@ -82,10 +108,44 @@ const AddOns = () => {
     }
   };
 
-  const handleEdit = (addOn: AddOn) => {
-    setSelectedAddOn(addOn);
-    setIsEdit(true);
-    setModal(true);
+  const handleEdit = async (addOn: AddOn) => {
+    try {
+      setLoading(true);
+      // Load both English and Spanish translations
+      const [addOnEN, addOnES] = await Promise.all([
+        getAddOn(addOn.id, 'EN'),
+        getAddOn(addOn.id, 'ES'),
+      ]);
+      
+      console.log('AddOn EN from API:', addOnEN);
+      console.log('AddOn ES from API:', addOnES);
+      
+      // Extract service IDs from the services array (from service_addons table)
+      const serviceIds = addOnEN.services?.map(s => s.id) || [];
+      
+      // Merge translations into one object
+      const fullAddOn = {
+        ...addOnEN,
+        titleEN: addOnEN.name,
+        titleES: addOnES.name,
+        descriptionEN: addOnEN.description,
+        descriptionES: addOnES.description,
+        compatibleServiceIds: serviceIds,
+        services: addOnEN.services,
+      };
+      
+      console.log('Merged fullAddOn:', fullAddOn);
+      console.log('Service IDs from service_addons:', serviceIds);
+      
+      setSelectedAddOn(fullAddOn as any);
+      setIsEdit(true);
+      setModal(true);
+    } catch (error) {
+      console.error('Error loading add-on details:', error);
+      toast.error(t('services.addons.error.load'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddNew = () => {
@@ -104,61 +164,98 @@ const AddOns = () => {
     setDeleteModal(true);
   };
 
-  const handleDeleteAddOn = () => {
+  const handleDeleteAddOn = async () => {
     if (selectedAddOn) {
-      setAddOns(addOns.filter((addon) => addon.id !== selectedAddOn.id));
-      setDeleteModal(false);
-      toast.success(t('services.addons.success.deleted'));
+      try {
+        await deleteAddOn(selectedAddOn.id);
+        await loadAddOns();
+        setDeleteModal(false);
+        toast.success(t('services.addons.success.deleted'));
+      } catch (error) {
+        console.error('Error deleting add-on:', error);
+        toast.error(t('services.addons.error.delete'));
+      }
     }
   };
 
-  const toggleStatus = (addOn: AddOn) => {
-    const updatedAddOns = addOns.map((addon) =>
-      addon.id === addOn.id ? { ...addon, status: !addon.status } : addon
-    );
-    setAddOns(updatedAddOns);
-    toast.success(!addOn.status ? t('services.addons.success.activated') : t('services.addons.success.deactivated'));
+  const toggleStatus = async (addOn: AddOn) => {
+    try {
+      if (addOn.isActive) {
+        await deactivateAddOn(addOn.id);
+        toast.success(t('services.addons.success.deactivated'));
+      } else {
+        await activateAddOn(addOn.id);
+        toast.success(t('services.addons.success.activated'));
+      }
+      await loadAddOns();
+    } catch (error) {
+      console.error('Error toggling add-on status:', error);
+      toast.error(t('services.addons.error.toggle'));
+    }
   };
 
   const validation = useFormik({
     enableReinitialize: true,
     initialValues: {
-      titleEn: (selectedAddOn && selectedAddOn.titleEn) || "",
-      titleEs: (selectedAddOn && selectedAddOn.titleEs) || "",
-      descriptionEn: (selectedAddOn && selectedAddOn.descriptionEn) || "",
-      descriptionEs: (selectedAddOn && selectedAddOn.descriptionEs) || "",
-      duration: (selectedAddOn && selectedAddOn.duration) || 0,
-      associatedServices:
-        (selectedAddOn && selectedAddOn.associatedServices) || [],
-      status: selectedAddOn?.status !== undefined ? selectedAddOn.status : true,
+      titleEN: (selectedAddOn && selectedAddOn.titleEN) || (selectedAddOn && selectedAddOn.name) || "",
+      titleES: (selectedAddOn && selectedAddOn.titleES) || "",
+      descriptionEN: (selectedAddOn && selectedAddOn.descriptionEN) || (selectedAddOn && selectedAddOn.description) || "",
+      descriptionES: (selectedAddOn && selectedAddOn.descriptionES) || "",
+      price: (selectedAddOn && selectedAddOn.price / 100) || 0, // Convert from cents to dollars
+      additionalTime: (selectedAddOn && selectedAddOn.additionalTime) || 0,
+      compatibleServiceIds:
+        (selectedAddOn && selectedAddOn.compatibleServiceIds) || [],
+      isActive: selectedAddOn?.isActive !== undefined ? selectedAddOn.isActive : true,
     },
     validationSchema: Yup.object({
-      titleEn: Yup.string().required("English title is required"),
-      titleEs: Yup.string().required("Spanish title is required"),
-      descriptionEn: Yup.string().required("English description is required"),
-      descriptionEs: Yup.string().required("Spanish description is required"),
-      duration: Yup.number()
-        .required("Duration is required")
-        .min(1, "Duration must be at least 1 minute"),
-      status: Yup.boolean(),
+      titleEN: Yup.string().required(t('services.addons.required.titleEn')),
+      titleES: Yup.string().required(t('services.addons.required.titleEs')),
+      descriptionEN: Yup.string().required(t('services.addons.required.descriptionEn')),
+      descriptionES: Yup.string().required(t('services.addons.required.descriptionEs')),
+      price: Yup.number()
+        .required("Price is required")
+        .min(0, "Price must be at least 0"),
+      additionalTime: Yup.number()
+        .required(t('services.addons.required.duration'))
+        .min(0, t('services.addons.required.duration.min')),
+      isActive: Yup.boolean(),
     }),
-    onSubmit: (values) => {
-      if (isEdit && selectedAddOn) {
-        const updatedAddOns = addOns.map((addon) =>
-          addon.id === selectedAddOn.id ? { ...addon, ...values } : addon
-        );
-        setAddOns(updatedAddOns);
-        toast.success(t('services.addons.success.updated'));
-      } else {
-        const newAddOn = {
-          id: addOns.length + 1,
-          ...values,
+    onSubmit: async (values) => {
+      try {
+        setSubmitting(true);
+        const data = {
+          name: values.titleEN, // Use English title as name
+          description: values.descriptionEN, // Use English description
+          price: Math.round(values.price * 100), // Convert dollars to cents
+          additionalTime: values.additionalTime,
+          compatibleServiceIds: values.compatibleServiceIds,
+          isActive: values.isActive,
+          titleEn: values.titleEN,
+          titleEs: values.titleES,
+          descriptionEn: values.descriptionEN,
+          descriptionEs: values.descriptionES,
         };
-        setAddOns([...addOns, newAddOn]);
-        toast.success(t('services.addons.success.added'));
+
+        if (isEdit && selectedAddOn) {
+          await updateAddOn(selectedAddOn.id, data);
+          toast.success(t('services.addons.success.updated'));
+        } else {
+          await createAddOn(data);
+          toast.success(t('services.addons.success.added'));
+        }
+
+        await loadAddOns();
+        toggle();
+        validation.resetForm();
+      } catch (error: any) {
+        console.error('Error saving add-on:', error);
+        const errorMessage = isEdit
+          ? t('services.addons.error.update')
+          : t('services.addons.error.create');
+        toast.error(errorMessage);
+      } finally {
+        setSubmitting(false);
       }
-      toggle();
-      validation.resetForm();
     },
   });
 
@@ -180,52 +277,85 @@ const AddOns = () => {
         },
       },
       {
-        header: "Add-on",
-        accessorKey: "titleEn",
+        header: t('services.addons.addon'),
+        accessorKey: "name",
         enableColumnFilter: false,
         cell: (cell: any) => {
           const addOn = cell.row.original;
           return (
-            <div className="d-flex flex-column" onClick={() => handleView(addOn)} style={{ cursor: 'pointer' }}>
-              <h5 className="fs-14 mb-1">
-                {i18n.language === 'sp' ? addOn.titleEs : addOn.titleEn}
+            <div 
+              className="d-flex flex-column" 
+              onClick={() => handleView(addOn)} 
+              style={{ 
+                cursor: 'pointer',
+                maxWidth: '250px',
+                overflow: 'hidden'
+              }}
+            >
+              <h5 className="fs-14 mb-1 text-truncate" title={addOn.name}>
+                {addOn.name}
               </h5>
-              <p className="text-muted mb-0 fs-12">
-                {i18n.language === 'sp' ? addOn.descriptionEs : addOn.descriptionEn}
+              <p className="text-muted mb-0 fs-12 text-truncate" title={addOn.description}>
+                {addOn.description || ''}
               </p>
             </div>
           );
         },
       },
       {
-        header: "Duration (min)",
-        accessorKey: "duration",
+        header: () => <div className="text-center">{t('services.addons.price')}</div>,
+        accessorKey: "price",
         enableColumnFilter: false,
         cell: (cell: any) => {
-          return <span className="badge bg-info text-white">{cell.getValue()} min</span>;
-        },
-      },
-      {
-        header: "Status",
-        accessorKey: "status",
-        enableColumnFilter: false,
-        cell: (cell: any) => {
-          const addOn = cell.row.original;
+          const price = cell.getValue() / 100; // Convert cents to dollars
           return (
-            <div className="form-check form-switch">
-              <Input
-                className="form-check-input"
-                type="checkbox"
-                role="switch"
-                checked={cell.getValue()}
-                onChange={() => toggleStatus(addOn)}
-              />
+            <div className="text-center">
+              <span className="badge bg-success text-white">${price.toFixed(2)}</span>
             </div>
           );
         },
       },
       {
-        header: "Action",
+        header: () => <div className="text-center">{t('services.addons.additionalTime')}</div>,
+        accessorKey: "additionalTime",
+        enableColumnFilter: false,
+        cell: (cell: any) => {
+          return (
+            <div className="text-center">
+              <span className="badge bg-info text-white">{cell.getValue() || 0} min</span>
+            </div>
+          );
+        },
+      },
+      {
+        header: () => <div className="text-center">{t('services.addons.status')}</div>,
+        accessorKey: "isActive",
+        enableColumnFilter: false,
+        cell: (cell: any) => {
+          const addOn = cell.row.original;
+          const isActive = cell.getValue();
+          return (
+            <div className="text-center">
+              <div className="form-check form-switch d-inline-block">
+                <Input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id={`addon-status-${addOn.id}`}
+                  checked={isActive}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleStatus(addOn);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        header: t('services.addons.action'),
         cell: (cell: any) => {
           const addOn = cell.row.original;
           return (
@@ -240,12 +370,12 @@ const AddOns = () => {
               <DropdownMenu className="dropdown-menu-end">
                 <DropdownItem onClick={() => handleEdit(addOn)}>
                   <i className="ri-pencil-fill align-bottom me-2 text-muted"></i>
-                  Edit
+                  {t('common.edit')}
                 </DropdownItem>
                 <DropdownItem divider />
-                <DropdownItem onClick={() => onClickDelete(addOn)}>
-                  <i className="ri-delete-bin-fill align-bottom me-2 text-muted"></i>
-                  Delete
+                <DropdownItem onClick={() => toggleStatus(addOn)}>
+                  <i className={`${addOn.isActive ? 'ri-close-circle-line' : 'ri-check-circle-line'} align-bottom me-2 text-muted`}></i>
+                  {addOn.isActive ? t('common.deactivate') : t('common.activate')}
                 </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
@@ -253,10 +383,10 @@ const AddOns = () => {
         },
       },
     ],
-    [i18n.language, addOns]
+    [i18n.language, addOns, t]
   );
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     setAddOns(addOns.filter((addon) => addon.id !== id));
   };
 
@@ -293,18 +423,25 @@ const AddOns = () => {
                   </Row>
                 </CardHeader>
                 <CardBody className="pt-0">
-                  <div>
-                    <TableContainer
-                      columns={columns}
-                      data={addOns || []}
-                      isGlobalFilter={true}
-                      customPageSize={10}
-                      divClass="table-responsive table-card mb-1"
-                      tableClass="align-middle table-nowrap"
-                      theadClass="table-light text-muted"
-                      SearchPlaceholder={t('services.addons.search')}
-                    />
-                  </div>
+                  {loading ? (
+                    <div className="text-center py-5">
+                      <Spinner color="primary" />
+                      <p className="mt-2 text-muted">Loading add-ons...</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <TableContainer
+                        columns={columns}
+                        data={addOns || []}
+                        isGlobalFilter={true}
+                        customPageSize={10}
+                        divClass="table-responsive table-card mb-1"
+                        tableClass="align-middle table-nowrap"
+                        theadClass="table-light text-muted"
+                        SearchPlaceholder={t('services.addons.search')}
+                      />
+                    </div>
+                  )}
                 </CardBody>
               </Card>
             </Col>
@@ -319,50 +456,46 @@ const AddOns = () => {
               {selectedAddOn && (
                 <div>
                   <Row>
-                    <Col md={6}>
+                    <Col md={12}>
                       <div className="mb-3">
-                        <Label className="fw-bold">{t('services.addons.titleEn')}</Label>
-                        <p className="text-muted">{selectedAddOn.titleEn}</p>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="mb-3">
-                        <Label className="fw-bold">{t('services.addons.titleEs')}</Label>
-                        <p className="text-muted">{selectedAddOn.titleEs}</p>
+                        <Label className="fw-bold">{t('services.addons.addon')}</Label>
+                        <p className="text-muted">{selectedAddOn.name}</p>
                       </div>
                     </Col>
                   </Row>
 
                   <Row>
-                    <Col md={6}>
+                    <Col md={12}>
                       <div className="mb-3">
-                        <Label className="fw-bold">{t('services.addons.descriptionEn')}</Label>
-                        <p className="text-muted">{selectedAddOn.descriptionEn}</p>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="mb-3">
-                        <Label className="fw-bold">{t('services.addons.descriptionEs')}</Label>
-                        <p className="text-muted">{selectedAddOn.descriptionEs}</p>
+                        <Label className="fw-bold">{t('services.list.description')}</Label>
+                        <p className="text-muted">{selectedAddOn.description || t('services.addons.none')}</p>
                       </div>
                     </Col>
                   </Row>
 
                   <Row>
-                    <Col md={6}>
+                    <Col md={4}>
                       <div className="mb-3">
-                        <Label className="fw-bold">{t('services.addons.duration.label')}</Label>
+                        <Label className="fw-bold">{t('services.addons.price')}</Label>
                         <div>
-                          <span className="badge bg-info text-white">{selectedAddOn.duration} min</span>
+                          <span className="badge bg-success text-white">${(selectedAddOn.price / 100).toFixed(2)}</span>
                         </div>
                       </div>
                     </Col>
-                    <Col md={6}>
+                    <Col md={4}>
+                      <div className="mb-3">
+                        <Label className="fw-bold">{t('services.addons.additionalTime')}</Label>
+                        <div>
+                          <span className="badge bg-info text-white">{selectedAddOn.additionalTime || 0} min</span>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={4}>
                       <div className="mb-3">
                         <Label className="fw-bold">{t('services.addons.status')}</Label>
                         <div>
-                          <span className={`badge ${selectedAddOn.status ? 'bg-success' : 'bg-danger'}`}>
-                            {selectedAddOn.status ? t('services.addons.active') : t('services.addons.inactive')}
+                          <span className={`badge ${selectedAddOn.isActive ? 'bg-success' : 'bg-danger'}`}>
+                            {selectedAddOn.isActive ? t('services.addons.active') : t('services.addons.inactive')}
                           </span>
                         </div>
                       </div>
@@ -374,11 +507,11 @@ const AddOns = () => {
                       <div className="mb-3">
                         <Label className="fw-bold">{t('services.addons.associatedServices.label')}</Label>
                         <div>
-                          {selectedAddOn.associatedServices && selectedAddOn.associatedServices.length > 0 ? (
+                          {selectedAddOn.services && selectedAddOn.services.length > 0 ? (
                             <div className="d-flex flex-wrap gap-2">
-                              {selectedAddOn.associatedServices.map((service: string, idx: number) => (
+                              {selectedAddOn.services.map((service: any, idx: number) => (
                                 <span key={idx} className="badge bg-primary text-white">
-                                  {service}
+                                  {service.name}
                                 </span>
                               ))}
                             </div>
@@ -422,120 +555,166 @@ const AddOns = () => {
                 <Row>
                   <Col md={6}>
                     <div className="mb-3">
-                      <Label>{t('services.addons.titleEn')}</Label>
+                      <Label>{t('services.addons.titleEn')} <span className="text-danger">*</span></Label>
                       <Input
-                        name="titleEn"
+                        name="titleEN"
                         type="text"
                         placeholder="Enter title in English"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
-                        value={validation.values.titleEn}
+                        value={validation.values.titleEN}
                         invalid={
-                          validation.touched.titleEn &&
-                          validation.errors.titleEn
+                          validation.touched.titleEN &&
+                          validation.errors.titleEN
                             ? true
                             : false
                         }
                       />
-                      {validation.touched.titleEn &&
-                      validation.errors.titleEn ? (
+                      {validation.touched.titleEN &&
+                      validation.errors.titleEN ? (
                         <FormFeedback type="invalid">
-                          {validation.errors.titleEn as string}
+                          {validation.errors.titleEN as string}
                         </FormFeedback>
                       ) : null}
                     </div>
                   </Col>
                   <Col md={6}>
                     <div className="mb-3">
-                      <Label>{t('services.addons.titleEs')}</Label>
+                      <Label>{t('services.addons.titleEs')} <span className="text-danger">*</span></Label>
                       <Input
-                        name="titleEs"
+                        name="titleES"
                         type="text"
                         placeholder="Ingrese título en español"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
-                        value={validation.values.titleEs}
+                        value={validation.values.titleES}
                         invalid={
-                          validation.touched.titleEs &&
-                          validation.errors.titleEs
+                          validation.touched.titleES &&
+                          validation.errors.titleES
                             ? true
                             : false
                         }
                       />
-                      {validation.touched.titleEs &&
-                      validation.errors.titleEs ? (
+                      {validation.touched.titleES &&
+                      validation.errors.titleES ? (
                         <FormFeedback type="invalid">
-                          {validation.errors.titleEs as string}
+                          {validation.errors.titleES as string}
                         </FormFeedback>
                       ) : null}
                     </div>
                   </Col>
+                </Row>
+
+                <Row>
                   <Col md={6}>
                     <div className="mb-3">
-                      <Label>{t('services.addons.descriptionEn')}</Label>
-                      <textarea
-                        name="descriptionEn"
-                        className="form-control"
+                      <Label>{t('services.addons.descriptionEn')} <span className="text-danger">*</span></Label>
+                      <Input
+                        name="descriptionEN"
+                        type="textarea"
                         rows={3}
                         placeholder="Enter description in English"
                         onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
-                        value={validation.values.descriptionEn}
-                      />
-                      {validation.touched.descriptionEn &&
-                      validation.errors.descriptionEn ? (
-                        <FormFeedback type="invalid" className="d-block">
-                          {validation.errors.descriptionEn as string}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <Label>{t('services.addons.descriptionEs')}</Label>
-                      <textarea
-                        name="descriptionEs"
-                        className="form-control"
-                        rows={3}
-                        placeholder="Ingrese descripción en español"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.descriptionEs}
-                      />
-                      {validation.touched.descriptionEs &&
-                      validation.errors.descriptionEs ? (
-                        <FormFeedback type="invalid" className="d-block">
-                          {validation.errors.descriptionEs as string}
-                        </FormFeedback>
-                      ) : null}
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="mb-3">
-                      <Label>{t('services.addons.duration.label')}</Label>
-                      <Input
-                        name="duration"
-                        type="number"
-                        placeholder="Enter duration in minutes"
-                        onChange={validation.handleChange}
-                        onBlur={validation.handleBlur}
-                        value={validation.values.duration}
+                        value={validation.values.descriptionEN}
                         invalid={
-                          validation.touched.duration &&
-                          validation.errors.duration
+                          validation.touched.descriptionEN &&
+                          validation.errors.descriptionEN
                             ? true
                             : false
                         }
                       />
-                      {validation.touched.duration &&
-                      validation.errors.duration ? (
-                        <FormFeedback type="invalid">
-                          {validation.errors.duration as string}
+                      {validation.touched.descriptionEN &&
+                      validation.errors.descriptionEN ? (
+                        <FormFeedback type="invalid" className="d-block">
+                          {validation.errors.descriptionEN as string}
                         </FormFeedback>
                       ) : null}
                     </div>
                   </Col>
                   <Col md={6}>
+                    <div className="mb-3">
+                      <Label>{t('services.addons.descriptionEs')} <span className="text-danger">*</span></Label>
+                      <Input
+                        name="descriptionES"
+                        type="textarea"
+                        rows={3}
+                        placeholder="Ingrese descripción en español"
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.descriptionES}
+                        invalid={
+                          validation.touched.descriptionES &&
+                          validation.errors.descriptionES
+                            ? true
+                            : false
+                        }
+                      />
+                      {validation.touched.descriptionES &&
+                      validation.errors.descriptionES ? (
+                        <FormFeedback type="invalid" className="d-block">
+                          {validation.errors.descriptionES as string}
+                        </FormFeedback>
+                      ) : null}
+                    </div>
+                  </Col>
+                </Row>
+
+                <hr className="my-4" />
+
+                <Row>
+                  <Col md={4}>
+                    <div className="mb-3">
+                      <Label>{t('services.addons.price.label')}</Label>
+                      <Input
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.price}
+                        invalid={
+                          validation.touched.price &&
+                          validation.errors.price
+                            ? true
+                            : false
+                        }
+                      />
+                      {validation.touched.price &&
+                      validation.errors.price ? (
+                        <FormFeedback type="invalid">
+                          {validation.errors.price as string}
+                        </FormFeedback>
+                      ) : null}
+                    </div>
+                  </Col>
+                  <Col md={4}>
+                    <div className="mb-3">
+                      <Label>{t('services.addons.additionalTime.label')}</Label>
+                      <Input
+                        name="additionalTime"
+                        type="number"
+                        placeholder="0"
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.additionalTime}
+                        invalid={
+                          validation.touched.additionalTime &&
+                          validation.errors.additionalTime
+                            ? true
+                            : false
+                        }
+                      />
+                      {validation.touched.additionalTime &&
+                      validation.errors.additionalTime ? (
+                        <FormFeedback type="invalid">
+                          {validation.errors.additionalTime as string}
+                        </FormFeedback>
+                      ) : null}
+                    </div>
+                  </Col>
+                  <Col md={4}>
                     <div className="mb-3">
                       <Label>{t('services.addons.status')}</Label>
                       <div className="form-check form-switch form-switch-lg" style={{ paddingTop: '0.5rem' }}>
@@ -543,41 +722,44 @@ const AddOns = () => {
                           className="form-check-input"
                           type="checkbox"
                           role="switch"
-                          name="status"
-                          checked={validation.values.status}
-                          onChange={(e) => validation.setFieldValue('status', e.target.checked)}
+                          name="isActive"
+                          checked={validation.values.isActive}
+                          onChange={(e) => validation.setFieldValue('isActive', e.target.checked)}
                         />
                         <Label className="form-check-label">
-                          {validation.values.status ? t('services.addons.active') : t('services.addons.inactive')}
+                          {validation.values.isActive ? t('services.addons.active') : t('services.addons.inactive')}
                         </Label>
                       </div>
                     </div>
                   </Col>
                   <Col md={12}>
                     <div className="mb-3">
-                      <Label>Associated Services <span className="text-muted">(Optional)</span></Label>
+                      <Label>{t('services.addons.associatedServices.label')} <span className="text-muted">({t('common.optional')})</span></Label>
                       <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                        Select services that can include this add-on
+                        {t('services.list.addons.hint')}
                       </p>
                       
                       {/* Selected chips */}
-                      {validation.values.associatedServices && validation.values.associatedServices.length > 0 && (
+                      {validation.values.compatibleServiceIds && validation.values.compatibleServiceIds.length > 0 && (
                         <div className="d-flex flex-wrap gap-2 mb-2">
-                          {validation.values.associatedServices.map((service: string) => (
-                            <span key={service} className="badge bg-primary text-white fs-12 d-inline-flex align-items-center">
-                              {service}
-                              <button
-                                type="button"
-                                className="btn-close ms-2"
-                                style={{ fontSize: '0.65rem', padding: '0.25rem' }}
-                                onClick={() => {
-                                  const currentValues = validation.values.associatedServices || [];
-                                  validation.setFieldValue('associatedServices', currentValues.filter((s: string) => s !== service));
-                                }}
-                                aria-label="Remove"
-                              ></button>
-                            </span>
-                          ))}
+                          {validation.values.compatibleServiceIds.map((serviceId: string) => {
+                            const service = services.find(s => s.id === serviceId);
+                            return (
+                              <span key={serviceId} className="badge bg-primary text-white fs-12 d-inline-flex align-items-center">
+                                {service?.name || serviceId}
+                                <button
+                                  type="button"
+                                  className="btn-close ms-2"
+                                  style={{ fontSize: '0.65rem', padding: '0.25rem' }}
+                                  onClick={() => {
+                                    const currentValues = validation.values.compatibleServiceIds || [];
+                                    validation.setFieldValue('compatibleServiceIds', currentValues.filter((id: string) => id !== serviceId));
+                                  }}
+                                  aria-label="Remove"
+                                ></button>
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -585,7 +767,7 @@ const AddOns = () => {
                       <div className="position-relative">
                         <Input
                           type="text"
-                          placeholder="Click to select services..."
+                          placeholder={t('services.list.addons.placeholder')}
                           onClick={() => setShowServicesDropdown(!showServicesDropdown)}
                           readOnly
                           style={{ cursor: 'pointer' }}
@@ -601,19 +783,19 @@ const AddOns = () => {
                               marginTop: '4px'
                             }}
                           >
-                            {["Manicure", "Pedicure", "Gel Nails", "Acrylic Nails"].map(service => {
-                              const isSelected = validation.values.associatedServices?.includes(service) || false;
+                            {services.map(service => {
+                              const isSelected = validation.values.compatibleServiceIds?.includes(service.id) || false;
                               return (
                                 <div
-                                  key={service}
+                                  key={service.id}
                                   className={`p-2 cursor-pointer ${isSelected ? 'bg-light' : ''}`}
                                   style={{ cursor: 'pointer' }}
                                   onClick={() => {
-                                    const currentValues = validation.values.associatedServices || [];
+                                    const currentValues = validation.values.compatibleServiceIds || [];
                                     if (isSelected) {
-                                      validation.setFieldValue('associatedServices', currentValues.filter((s: string) => s !== service));
+                                      validation.setFieldValue('compatibleServiceIds', currentValues.filter((id: string) => id !== service.id));
                                     } else {
-                                      validation.setFieldValue('associatedServices', [...currentValues, service]);
+                                      validation.setFieldValue('compatibleServiceIds', [...currentValues, service.id]);
                                     }
                                   }}
                                 >
@@ -625,7 +807,7 @@ const AddOns = () => {
                                       onChange={() => {}} // Controlled by parent div onClick
                                     />
                                     <Label className="form-check-label" style={{ cursor: 'pointer' }}>
-                                      {service}
+                                      {service.name}
                                     </Label>
                                   </div>
                                 </div>
@@ -639,11 +821,20 @@ const AddOns = () => {
                 </Row>
 
                 <div className="hstack gap-2 justify-content-end">
-                  <Button color="light" onClick={toggle}>
+                  <Button color="light" onClick={toggle} disabled={submitting}>
                     {t('common.close')}
                   </Button>
-                  <Button color="success" type="submit">
-                    {isEdit ? t('common.update') : t('common.add')} {t('services.addons.addon')}
+                  <Button color="success" type="submit" disabled={submitting}>
+                    {submitting ? (
+                      <>
+                        <Spinner size="sm" className="me-2" />
+                        {isEdit ? t('common.updating') : t('common.adding')}...
+                      </>
+                    ) : (
+                      <>
+                        {isEdit ? t('common.update') : t('common.add')} {t('services.addons.addon')}
+                      </>
+                    )}
                   </Button>
                 </div>
               </Form>
