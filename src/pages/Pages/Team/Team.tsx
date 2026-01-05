@@ -2,66 +2,111 @@ import Select from 'react-select';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, CardBody, Col, Container, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, Form, Input, Label, Modal, ModalBody, Offcanvas, OffcanvasBody, Row, UncontrolledDropdown, FormFeedback } from 'reactstrap';
+import { Button, Card, CardBody, Col, Container, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, Form, Input, Label, Modal, ModalBody, Offcanvas, OffcanvasBody, Row, UncontrolledDropdown, FormFeedback, Spinner } from 'reactstrap';
 import BreadCrumb from '../../../Components/Common/BreadCrumb';
 import DeleteModal from "../../../Components/Common/DeleteModal";
-import { ToastContainer } from 'react-toastify';
-
-//User Images
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import avatar2 from '../../../assets/images/users/avatar-2.jpg';
 import userdummyimg from '../../../assets/images/users/user-dummy-img.jpg';
-
-//Small Images
 import smallImage9 from '../../../assets/images/small/img-9.jpg';
-//redux
-import { useSelector, useDispatch } from 'react-redux';
-
-//import action
-import {
-    getTeamData as onGetTeamData,
-    deleteTeamData as onDeleteTeamData,
-    addTeamData as onAddTeamData,
-    updateTeamData as onUpdateTeamData
-} from "../../../slices/thunks";
-
-// Formik
+import { 
+  getStaff, 
+  createStaff, 
+  updateStaff, 
+  deleteStaff,
+  Staff,
+  StaffRole,
+  StaffStatus
+} from '../../../api/staff';
 import * as Yup from "yup";
 import { useFormik } from "formik";
-import { createSelector } from 'reselect';
+
+// Add styles for uniform card height in grid view
+const gridViewStyles = `
+.team-list.grid-view-filter > div {
+    display: flex;
+}
+.team-list.grid-view-filter .team-box {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+.team-list.grid-view-filter .team-box .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.team-list.grid-view-filter .team-row {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.team-list.grid-view-filter .team-stats-wrapper {
+    margin-top: auto;
+}
+`;
+
+// Helper to convert backend Staff to frontend team format
+const mapStaffToTeam = (staff: Staff) => ({
+    id: staff.id,
+    name: staff.fullName,
+    userImage: staff.avatarUrl || null,
+    designation: staff.role,
+    projectCount: staff.pendingBookingsCount || 0,
+    taskCount: staff.completedBookingsCount || 0,
+    specialties: staff.specialties || [],
+    services: staff.services || [],
+    backgroundImg: smallImage9,
+    _staffData: staff
+});
 
 const Team = () => {
     const { t } = useTranslation();
     document.title = `${t('team.page.title')} | Nails & Co Midtown - Admin Panel`;
 
-    const dispatch: any = useDispatch();
-
-    const selectteamData = createSelector(
-        (state: any) => state.Team,
-        (teamData) => teamData.teamData
-    );
-    // Inside your component
-    const teamData = useSelector<any>(selectteamData);
-
-
     const [team, setTeam] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [teamList, setTeamlist] = useState<any>([]);
-    console.log("teamList", teamList)
+    const [allTeamData, setAllTeamData] = useState<any>([]);
+    const [loading, setLoading] = useState<boolean>(false);
 
     //Modal  
     const [teamMem, setTeamMem] = useState<any>('');
-    console.log("teamMem", teamMem)
     const [isEdit, setIsEdit] = useState<boolean>(false);
     const [modal, setModal] = useState<boolean>(false);
 
+    // Inject styles for grid view
     useEffect(() => {
-        dispatch(onGetTeamData());
-    }, [dispatch]);
+        const styleElement = document.createElement('style');
+        styleElement.innerHTML = gridViewStyles;
+        document.head.appendChild(styleElement);
+        
+        return () => {
+            document.head.removeChild(styleElement);
+        };
+    }, []);
+
+    // Fetch staff from backend
+    const fetchStaffData = async () => {
+        try {
+            setLoading(true);
+            const response = await getStaff(1, 10000);
+            const mappedData = response.data.map(mapStaffToTeam);
+            setAllTeamData(mappedData);
+            setTeamlist(mappedData);
+        } catch (error: any) {
+            console.error('Error fetching staff:', error);
+            toast.error('Error al cargar el staff');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setTeam(teamData);
-        setTeamlist(teamData);
-    }, [teamData]);
+        fetchStaffData();
+    }, []);
 
     const toggle = useCallback(() => {
         if (modal) {
@@ -102,10 +147,17 @@ const Team = () => {
         setDeleteModal(true);
     };
 
-    const handleDeleteTeamData = () => {
+    const handleDeleteTeamData = async () => {
         if (team) {
-            dispatch(onDeleteTeamData(team.id));
-            setDeleteModal(false);
+            try {
+                await deleteStaff(team.id);
+                toast.success('Staff eliminado exitosamente');
+                setDeleteModal(false);
+                fetchStaffData();
+            } catch (error: any) {
+                console.error('Error deleting staff:', error);
+                toast.error('Error al eliminar el staff');
+            }
         }
     };
 
@@ -159,7 +211,7 @@ const Team = () => {
             });
         };
 
-        let filterData = filterItems(teamData, inputVal);
+        let filterData = filterItems(allTeamData, inputVal);
         setTeamlist(filterData);
 
         const noResultElement = document.getElementById("noresult");
@@ -209,37 +261,40 @@ const Team = () => {
         validationSchema: Yup.object({
             name: Yup.string().required(t('team.validation.name_required')),
             specialties: Yup.array().min(1, t('team.validation.specialties_required')),
-            projectCount: Yup.number().required(t('team.validation.projects_required')),
-            taskCount: Yup.number().required(t('team.validation.tasks_required')),
         }),
-        onSubmit: (values: any) => {
-            if (isEdit) {
-                const updateTeamData = {
-                    id: teamMem ? teamMem.id : 0,
-                    userImage: values.userImage,
-                    name: values.name,
-                    designation: values.designation,
-                    projectCount: values.projectCount,
-                    taskCount: values.taskCount
-                };
-                // save edit Team data
-                dispatch(onUpdateTeamData(updateTeamData));
+        onSubmit: async (values: any) => {
+            try {
+                setLoading(true);
+                if (isEdit && teamMem) {
+                    const nameParts = values.name.split(' ');
+                    await updateStaff(teamMem.id, {
+                        firstName: nameParts[0] || '',
+                        lastName: nameParts.slice(1).join(' ') || '',
+                        specialties: values.specialties,
+                        avatarUrl: values.userImage || undefined
+                    });
+                    toast.success('Staff actualizado exitosamente');
+                } else {
+                    const nameParts = values.name.split(' ');
+                    await createStaff({
+                        firstName: nameParts[0] || '',
+                        lastName: nameParts.slice(1).join(' ') || 'Staff',
+                        email: `${values.name.toLowerCase().replace(/\s+/g, '.')}@nailsco.com`,
+                        role: StaffRole.TECHNICIAN,
+                        specialties: values.specialties,
+                        avatarUrl: values.userImage || undefined
+                    });
+                    toast.success('Staff creado exitosamente');
+                }
                 validation.resetForm();
-            } else {
-                const newTeamData = {
-                    id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
-                    name: values.name,
-                    userImage: values.userImage,
-                    designation: values.designation,
-                    projectCount: values.projectCount,
-                    taskCount: values.taskCount,
-                    backgroundImg: smallImage9
-                };
-                // save new TeamData
-                dispatch(onAddTeamData(newTeamData));
-                validation.resetForm();
+                toggle();
+                fetchStaffData();
+            } catch (error: any) {
+                console.error('Error saving staff:', error);
+                toast.error(error.response?.data?.message || 'Error al guardar el staff');
+            } finally {
+                setLoading(false);
             }
-            toggle();
         },
     });
 
@@ -270,7 +325,7 @@ const Team = () => {
 
     return (
         <React.Fragment>
-            <ToastContainer closeButton={false} />
+            <ToastContainer closeButton={false} limit={1} />
             <DeleteModal
                 show={deleteModal}
                 onDeleteClick={() => handleDeleteTeamData()}
@@ -289,26 +344,9 @@ const Team = () => {
                                     </div>
                                 </Col>
                                 <Col className="col-sm-auto ms-auto">
-                                    <div className="list-grid-nav hstack gap-1">
-
-                                        <Button color="info" id="grid-view-button" className="btn btn-soft-info nav-link btn-icon fs-14 active filter-button"><i className="ri-grid-fill"></i></Button>
-                                        <Button color="info" id="list-view-button" className="btn btn-soft-info nav-link  btn-icon fs-14 filter-button"><i className="ri-list-unordered"></i></Button>
-                                        <Dropdown
-                                            isOpen={dropdownOpen}
-                                            toggle={toggledropDown}>
-                                            <DropdownToggle type="button" className="btn btn-soft-info btn-icon fs-14">
-                                                <i className="ri-more-2-fill"></i>
-                                            </DropdownToggle>
-                                            <DropdownMenu>
-                                                <li><Link className="dropdown-item" to="#">{t('team.filter.all')}</Link></li>
-                                                <li><Link className="dropdown-item" to="#">{t('team.filter.last_week')}</Link></li>
-                                                <li><Link className="dropdown-item" to="#">{t('team.filter.last_month')}</Link></li>
-                                                <li><Link className="dropdown-item" to="#">{t('team.filter.last_year')}</Link></li>
-                                            </DropdownMenu>
-                                        </Dropdown>
-                                        <Button color="success" onClick={() => handleTeamClicks()}>
-                                            <i className="ri-add-fill me-1 align-bottom"></i> {t('team.add_staff')}</Button>
-                                    </div>
+                                    <Button color="success" onClick={() => handleTeamClicks()}>
+                                        <i className="ri-add-fill me-1 align-bottom"></i> {t('team.add_staff')}
+                                    </Button>
                                 </Col>
                             </Row>
                         </CardBody>
@@ -316,8 +354,14 @@ const Team = () => {
 
                     <Row>
                         <Col lg={12}>
+                            {loading ? (
+                                <div className="text-center py-5">
+                                    <Spinner color="primary" />
+                                    <p className="mt-3">Cargando staff...</p>
+                                </div>
+                            ) : (
                             <div id="teamlist">
-                                <Row className="team-list grid-view-filter">
+                                <Row className="team-list grid-view-filter row-cols-xxl-4 row-cols-lg-3 row-cols-md-2 row-cols-1">
                                     {(teamList || []).map((item: any, key: any) => (
                                         <Col key={key}>
                                             <Card className="team-box">
@@ -341,7 +385,7 @@ const Team = () => {
                                                                 </DropdownMenu>
                                                             </UncontrolledDropdown>
                                                         </Col>
-                                                        <Col lg={4} className="col">
+                                                        <Col lg={12} className="col mb-3">
                                                             <div className="team-profile-img">
 
                                                                 <div className="avatar-lg img-thumbnail rounded-circle flex-shrink-0">
@@ -355,47 +399,55 @@ const Team = () => {
                                                                 </div>
                                                                 <div className="team-content">
                                                                     <Link to="#" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}><h5 className="fs-16 mb-1">{item.name}</h5></Link>
-                                                                    {/* Render specialties as chips; fall back to designation if specialties missing */}
-                                                                    <div className="mt-1">
-                                                                        {Array.isArray(item.specialties) && item.specialties.length ? (
-                                                                            (item.specialties || []).map((spec: string, i: number) => (
-                                                                                <span key={i} className="badge bg-secondary-subtle text-secondary me-1">{spec}</span>
-                                                                            ))
+                                                                    {/* Render services as chips */}
+                                                                    <div className="mt-1" style={{ 
+                                                                        minHeight: '56px',
+                                                                        display: 'flex',
+                                                                        flexWrap: 'wrap',
+                                                                        gap: '4px',
+                                                                        alignContent: 'flex-start'
+                                                                    }}>
+                                                                        {Array.isArray(item.services) && item.services.length ? (
+                                                                            <>
+                                                                                {item.services.slice(0, 3).map((service: any, i: number) => (
+                                                                                    <span key={i} className="badge bg-primary-subtle text-primary" style={{ fontSize: '0.75rem' }}>{service.name}</span>
+                                                                                ))}
+                                                                                {item.services.length > 3 && (
+                                                                                    <span className="badge bg-secondary-subtle text-secondary" style={{ fontSize: '0.75rem' }}>+{item.services.length - 3} más</span>
+                                                                                )}
+                                                                            </>
                                                                         ) : (
-                                                                            <span className="badge bg-light text-muted">{item.designation}</span>
+                                                                            <span className="badge bg-light text-muted">Sin servicios</span>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </Col>
-                                                        <Col lg={4} className="col">
-                                                            <Row className="text-muted text-center">
-                                                                <Col xs={6} className="border-end border-end-dashed">
-                                                                    <h5 className="mb-1">{item.projectCount}</h5>
-                                                                    <p className="text-muted mb-0">{t('team.form.projects_label')}</p>
-                                                                </Col>
-                                                                <Col xs={6}>
-                                                                    <h5 className="mb-1">{item.taskCount}</h5>
-                                                                    <p className="text-muted mb-0">{t('team.form.tasks_label')}</p>
-                                                                </Col>
-                                                            </Row>
-                                                        </Col>
-                                                        <Col lg={2} className="col">
-                                                            <div className="text-end">
-                                                                <Link to="/pages-profile" className="btn btn-light view-btn">{t('team.card.view_profile')}</Link>
-                                                            </div>
-                                                        </Col>
+                                                        
+                                                        <div className="team-stats-wrapper">
+                                                            <Col lg={12} className="col">
+                                                                <Row className="text-muted text-center mb-3">
+                                                                    <Col xs={6} className="border-end border-end-dashed">
+                                                                        <h5 className="mb-1">{item.projectCount}</h5>
+                                                                        <p className="text-muted mb-0">Pending</p>
+                                                                    </Col>
+                                                                    <Col xs={6}>
+                                                                        <h5 className="mb-1">{item.taskCount}</h5>
+                                                                        <p className="text-muted mb-0">Completed</p>
+                                                                    </Col>
+                                                                </Row>
+                                                            </Col>
+                                                            <Col lg={12} className="col">
+                                                                <div className="text-center">
+                                                                    <Link to="/pages-profile" className="btn btn-light view-btn w-100">{t('team.card.view_profile')}</Link>
+                                                                </div>
+                                                            </Col>
+                                                        </div>
                                                     </Row>
                                                 </CardBody>
                                             </Card>
                                         </Col>
                                     ))}
-
-                                    <Col lg={12}>
-                                            <div className="text-center mb-3">
-                                            <Link to="#" className="text-success"><i className="mdi mdi-loading mdi-spin fs-20 align-middle me-2"></i> {t('team.load_more')} </Link>
-                                        </div>
-                                    </Col>
                                 </Row>
 
                                 <div className="modal fade" id="addmembers" tabIndex={1} aria-hidden="true">
@@ -630,14 +682,14 @@ const Team = () => {
                                         <Row className="g-0 text-center">
                                             <Col xs={6}>
                                                 <div className="p-3 border border-dashed border-start-0">
-                                                    <h5 className="mb-1 profile-project">{sideBar.projectCount || "124"}</h5>
-                                                    <p className="text-muted mb-0">{t('team.form.projects_label')}</p>
+                                                    <h5 className="mb-1 profile-project">{sideBar.projectCount || "0"}</h5>
+                                                    <p className="text-muted mb-0">Pending</p>
                                                 </div>
                                             </Col>
                                             <Col xs={6}>
                                                 <div className="p-3 border border-dashed border-start-0">
-                                                    <h5 className="mb-1 profile-task">{sideBar.taskCount || "81"}</h5>
-                                                    <p className="text-muted mb-0">{t('team.form.tasks_label')}</p>
+                                                    <h5 className="mb-1 profile-task">{sideBar.taskCount || "0"}</h5>
+                                                    <p className="text-muted mb-0">Completed</p>
                                                 </div>
                                             </Col>
                                         </Row>
@@ -656,6 +708,37 @@ const Team = () => {
                                                 <h6 className="mb-0">Carson City - USA</h6>
                                             </div>
                                         </div>
+                                        {sideBar.services && sideBar.services.length > 0 && (
+                                            <div className="p-3 border-top">
+                                                <h5 className="fs-15 mb-3">Servicios que Brinda</h5>
+                                                <div className="table-responsive">
+                                                    <table className="table table-sm table-borderless mb-0">
+                                                        <tbody>
+                                                            {sideBar.services.map((service: any, idx: number) => (
+                                                                <tr key={idx}>
+                                                                    <td className="py-2">
+                                                                        <div className="d-flex align-items-center">
+                                                                            <div className="flex-shrink-0 avatar-xs me-2">
+                                                                                <div className="avatar-title bg-primary-subtle text-primary rounded fs-16">
+                                                                                    <i className="ri-scissors-cut-line"></i>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="flex-grow-1">
+                                                                                <h6 className="mb-0 fs-14">{service.name}</h6>
+                                                                                <p className="text-muted mb-0 fs-12">{service.duration} min</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="text-end py-2">
+                                                                        <span className="fw-medium">${(service.price / 100).toFixed(2)}</span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="p-3 border-top">
                                             <h5 className="fs-15 mb-4">{t('team.file.title')}</h5>
                                             <div className="d-flex mb-3">
@@ -722,6 +805,7 @@ const Team = () => {
                                     </div>
                                 </Offcanvas>
                             </div>
+                            )}
                                 <div className="py-4 mt-4 text-center" id="noresult" style={{ display: "none" }}>
                                 <i className="ri-search-line display-5 text-success"></i>
                                 <h5 className="mt-4">{t('team.no_results')}</h5>

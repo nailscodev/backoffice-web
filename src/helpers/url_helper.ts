@@ -29,6 +29,9 @@ export const ADDONS = "/api/v1/addons";
 //CATEGORIES
 export const CATEGORIES = "/api/v1/categories";
 
+//STAFF
+export const STAFF = "/api/v1/staff";
+
 //==============================================
 // TEMPLATE LEGACY ENDPOINTS (Original del template)
 //==============================================
