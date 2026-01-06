@@ -364,10 +364,23 @@ const ServicesList = () => {
                   <i className="ri-pencil-fill align-bottom me-2 text-muted"></i>
                   {t('common.edit')}
                 </DropdownItem>
-                <DropdownItem divider />
-                <DropdownItem onClick={() => onClickDelete(service)}>
-                  <i className="ri-delete-bin-fill align-bottom me-2 text-muted"></i>
-                  {t('common.delete')}
+                <DropdownItem 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleStatus(service);
+                  }}
+                >
+                  {service.isActive ? (
+                    <>
+                      <i className="ri-close-circle-line align-bottom me-2 text-muted"></i>
+                      {t('team.dropdown.deactivate')}
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-checkbox-circle-line align-bottom me-2 text-muted"></i>
+                      {t('team.dropdown.activate')}
+                    </>
+                  )}
                 </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
