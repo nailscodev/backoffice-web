@@ -5,17 +5,17 @@ const api = new APIClient();
 
 // Enums matching backend
 export enum StaffRole {
-  OWNER = 'owner',
-  MANAGER = 'manager',
-  TECHNICIAN = 'technician',
-  RECEPTIONIST = 'receptionist',
+  OWNER = 'OWNER',
+  MANAGER = 'MANAGER',
+  TECHNICIAN = 'TECHNICIAN',
+  RECEPTIONIST = 'RECEPTIONIST',
 }
 
 export enum StaffStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  ON_LEAVE = 'on_leave',
-  TERMINATED = 'terminated',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  ON_VACATION = 'ON_VACATION',
+  SICK_LEAVE = 'SICK_LEAVE',
 }
 
 // Interfaces matching backend DTOs
@@ -213,5 +213,21 @@ export const removeServicesFromStaff = async (
  */
 export const getStaffServices = async (staffId: string): Promise<any[]> => {
   const response = await api.get(`${url.STAFF}/${staffId}/services`, null);
+  return response.data;
+};
+
+/**
+ * Activate a staff member
+ */
+export const activateStaff = async (id: string): Promise<Staff> => {
+  const response = await api.patch(`${url.STAFF}/${id}/activate`, {});
+  return response.data;
+};
+
+/**
+ * Deactivate a staff member
+ */
+export const deactivateStaff = async (id: string): Promise<Staff> => {
+  const response = await api.patch(`${url.STAFF}/${id}/deactivate`, {});
   return response.data;
 };

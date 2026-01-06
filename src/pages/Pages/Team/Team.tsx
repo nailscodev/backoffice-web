@@ -15,14 +15,17 @@ import {
   createStaff, 
   updateStaff, 
   deleteStaff,
+  activateStaff,
+  deactivateStaff,
   Staff,
   StaffRole,
   StaffStatus
 } from '../../../api/staff';
+import { getServices, Service } from '../../../api/services';
 import * as Yup from "yup";
 import { useFormik } from "formik";
 
-// Add styles for uniform card height in grid view
+// Add styles for uniform card height in grid view and react-select badges
 const gridViewStyles = `
 .team-list.grid-view-filter > div {
     display: flex;
@@ -46,6 +49,37 @@ const gridViewStyles = `
 .team-list.grid-view-filter .team-stats-wrapper {
     margin-top: auto;
 }
+
+/* React-select multivalue badges styling */
+.react-select__multi-value {
+    background-color: var(--vz-primary-bg-subtle) !important;
+    border-radius: 0.25rem !important;
+    padding: 0.25rem 0.5rem !important;
+    margin: 2px !important;
+}
+.react-select__multi-value__label {
+    color: var(--vz-primary) !important;
+    font-size: 0.75rem !important;
+    padding: 0 !important;
+    padding-left: 0 !important;
+}
+.react-select__multi-value__remove {
+    color: var(--vz-primary) !important;
+    cursor: pointer !important;
+    padding-left: 4px !important;
+}
+.react-select__multi-value__remove:hover {
+    background-color: transparent !important;
+    color: var(--vz-danger) !important;
+}
+
+/* Inactive staff styling */
+.team-box.inactive {
+    opacity: 0.6;
+}
+.team-box.inactive .card-body {
+    background-color: rgba(0, 0, 0, 0.02);
+}
 `;
 
 // Helper to convert backend Staff to frontend team format
@@ -58,19 +92,24 @@ const mapStaffToTeam = (staff: Staff) => ({
     taskCount: staff.completedBookingsCount || 0,
     specialties: staff.specialties || [],
     services: staff.services || [],
+    status: staff.status,
     backgroundImg: smallImage9,
     _staffData: staff
 });
 
 const Team = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     document.title = `${t('team.page.title')} | Nails & Co Midtown - Admin Panel`;
+
+    // Get current language for API calls
+    const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
 
     const [team, setTeam] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [teamList, setTeamlist] = useState<any>([]);
     const [allTeamData, setAllTeamData] = useState<any>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [availableServices, setAvailableServices] = useState<Service[]>([]);
 
     //Modal  
     const [teamMem, setTeamMem] = useState<any>('');
@@ -106,39 +145,50 @@ const Team = () => {
 
     useEffect(() => {
         fetchStaffData();
-    }, []);
+        fetchServices();
+    }, [currentLang]);
+
+    const fetchServices = async () => {
+        try {
+            const response = await getServices(1, 1000, undefined, undefined, undefined, currentLang);
+            setAvailableServices(response || []);
+        } catch (error) {
+            console.error('Error fetching services:', error);
+            toast.error('Error al cargar los servicios');
+        }
+    };
 
     const toggle = useCallback(() => {
         if (modal) {
             setModal(false);
             setTeamMem(null);
+            setIsEdit(false);
         } else {
             setModal(true);
         }
     }, [modal]);
 
+    // Close modal and reset form
+    const handleCloseModal = () => {
+        setModal(false);
+        setTeamMem(null);
+        setIsEdit(false);
+        validation.resetForm();
+    };
+
     // Update To do
     const handleTeamClick = useCallback((arg: any) => {
         const teamMem: any = arg;
-        setTeamMem({
-            id: teamMem.id,
-            name: teamMem.name,
-            userImage: teamMem.userImage,
-            designation: teamMem.designation,
-            projectCount: teamMem.projectCount,
-            taskCount: teamMem.taskCount,
-        });
-
+        setTeamMem(teamMem);
         setIsEdit(true);
         toggle();
     }, [toggle]);
 
     // Add To do
     const handleTeamClicks = () => {
-        setTeamMem("");
-        setModal(!modal);
+        setTeamMem(null);
         setIsEdit(false);
-        toggle();
+        setModal(true);
     };
 
     // delete
@@ -158,6 +208,23 @@ const Team = () => {
                 console.error('Error deleting staff:', error);
                 toast.error('Error al eliminar el staff');
             }
+        }
+    };
+
+    // Activate/Deactivate staff
+    const handleToggleStaffStatus = async (staffId: string, currentStatus: string) => {
+        try {
+            if (currentStatus === 'ACTIVE') {
+                await deactivateStaff(staffId);
+                toast.success('Staff desactivado exitosamente');
+            } else {
+                await activateStaff(staffId);
+                toast.success('Staff activado exitosamente');
+            }
+            fetchStaffData();
+        } catch (error: any) {
+            console.error('Error toggling staff status:', error);
+            toast.error('Error al cambiar el estado del staff');
         }
     };
 
@@ -252,42 +319,48 @@ const Team = () => {
         enableReinitialize: true,
 
         initialValues: {
-            name: (teamMem && teamMem.name) || '',
+            firstName: (teamMem && teamMem._staffData?.firstName) || '',
+            lastName: (teamMem && teamMem._staffData?.lastName) || '',
+            email: (teamMem && teamMem._staffData?.email) || '',
+            phone: (teamMem && teamMem._staffData?.phone) || '',
             userImage: (teamMem && teamMem.userImage) || '',
-            specialties: (teamMem && teamMem.specialties) || [],
-            projectCount: (teamMem && teamMem.projectCount) || '',
-            taskCount: (teamMem && teamMem.taskCount) || '',
+            serviceIds: (teamMem && teamMem.services) ? teamMem.services.map((s: any) => s.id) : [],
+            workingDays: (teamMem && teamMem._staffData?.workingDays) || [],
+            // commissionPercentage: (teamMem && teamMem._staffData?.commissionPercentage) || '',
+            // hourlyRate: (teamMem && teamMem._staffData?.hourlyRate) || '',
         },
         validationSchema: Yup.object({
-            name: Yup.string().required(t('team.validation.name_required')),
-            specialties: Yup.array().min(1, t('team.validation.specialties_required')),
+            firstName: Yup.string().required(t('team.validation.first_name_required')),
+            lastName: Yup.string().required(t('team.validation.last_name_required')),
+            email: Yup.string().email(t('team.validation.email_invalid')).required(t('team.validation.email_required')),
+            phone: Yup.string(),
+            serviceIds: Yup.array().min(1, t('team.validation.services_required')),
+            workingDays: Yup.array().min(1, t('team.validation.working_days_required')),
         }),
         onSubmit: async (values: any) => {
             try {
                 setLoading(true);
+                const staffData: any = {
+                    firstName: values.firstName,
+                    lastName: values.lastName,
+                    email: values.email,
+                    phone: values.phone || undefined,
+                    role: StaffRole.TECHNICIAN,
+                    serviceIds: values.serviceIds,
+                    workingDays: values.workingDays.length > 0 ? values.workingDays : undefined,
+                    // commissionPercentage: values.commissionPercentage ? parseFloat(values.commissionPercentage) : undefined,
+                    // hourlyRate: values.hourlyRate ? parseFloat(values.hourlyRate) : undefined,
+                    avatarUrl: values.userImage || undefined
+                };
+
                 if (isEdit && teamMem) {
-                    const nameParts = values.name.split(' ');
-                    await updateStaff(teamMem.id, {
-                        firstName: nameParts[0] || '',
-                        lastName: nameParts.slice(1).join(' ') || '',
-                        specialties: values.specialties,
-                        avatarUrl: values.userImage || undefined
-                    });
+                    await updateStaff(teamMem.id, staffData);
                     toast.success('Staff actualizado exitosamente');
                 } else {
-                    const nameParts = values.name.split(' ');
-                    await createStaff({
-                        firstName: nameParts[0] || '',
-                        lastName: nameParts.slice(1).join(' ') || 'Staff',
-                        email: `${values.name.toLowerCase().replace(/\s+/g, '.')}@nailsco.com`,
-                        role: StaffRole.TECHNICIAN,
-                        specialties: values.specialties,
-                        avatarUrl: values.userImage || undefined
-                    });
+                    await createStaff(staffData);
                     toast.success('Staff creado exitosamente');
                 }
-                validation.resetForm();
-                toggle();
+                handleCloseModal();
                 fetchStaffData();
             } catch (error: any) {
                 console.error('Error saving staff:', error);
@@ -363,8 +436,8 @@ const Team = () => {
                             <div id="teamlist">
                                 <Row className="team-list grid-view-filter row-cols-xxl-4 row-cols-lg-3 row-cols-md-2 row-cols-1">
                                     {(teamList || []).map((item: any, key: any) => (
-                                        <Col key={key}>
-                                            <Card className="team-box">
+                                        <Col key={key} className="mb-3">
+                                            <Card className={`team-box ${item.status !== 'ACTIVE' ? 'inactive' : ''}`}>
                                                 <div className="team-cover">
                                                     <img src={item.backgroundImg} alt="" className="img-fluid" />
                                                 </div>
@@ -379,8 +452,24 @@ const Team = () => {
                                                                     <DropdownItem className="dropdown-item edit-list" href="#addmemberModal" onClick={() => handleTeamClick(item)}>
                                                                         <i className="ri-pencil-line me-2 align-bottom text-muted"></i>{t('team.dropdown.edit')}
                                                                     </DropdownItem>
-                                                                    <DropdownItem className="dropdown-item remove-list" href="#removeMemberModal" onClick={() => onClickData(item)}>
-                                                                        <i className="ri-delete-bin-5-line me-2 align-bottom text-muted"></i>{t('team.dropdown.remove')}
+                                                                    <DropdownItem 
+                                                                        className="dropdown-item" 
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            handleToggleStaffStatus(item.id, item.status);
+                                                                        }}
+                                                                    >
+                                                                        {item.status === 'ACTIVE' ? (
+                                                                            <>
+                                                                                <i className="ri-close-circle-line me-2 align-bottom text-muted"></i>
+                                                                                {t('team.dropdown.deactivate')}
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <i className="ri-checkbox-circle-line me-2 align-bottom text-muted"></i>
+                                                                                {t('team.dropdown.activate')}
+                                                                            </>
+                                                                        )}
                                                                     </DropdownItem>
                                                                 </DropdownMenu>
                                                             </UncontrolledDropdown>
@@ -398,7 +487,16 @@ const Team = () => {
                                                                         </div>}
                                                                 </div>
                                                                 <div className="team-content">
-                                                                    <Link to="#" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}><h5 className="fs-16 mb-1">{item.name}</h5></Link>
+                                                                    <Link to="#" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}>
+                                                                        <h5 className="fs-16 mb-1">
+                                                                            {item.name}
+                                                                            {item.status !== 'ACTIVE' && (
+                                                                                <span className="badge bg-warning-subtle text-warning ms-2" style={{ fontSize: '0.7rem' }}>
+                                                                                    {item.status}
+                                                                                </span>
+                                                                            )}
+                                                                        </h5>
+                                                                    </Link>
                                                                     {/* Render services as chips */}
                                                                     <div className="mt-1" style={{ 
                                                                         minHeight: '56px',
@@ -439,7 +537,7 @@ const Team = () => {
                                                             </Col>
                                                             <Col lg={12} className="col">
                                                                 <div className="text-center">
-                                                                    <Link to="/pages-profile" className="btn btn-light view-btn w-100">{t('team.card.view_profile')}</Link>
+                                                                    <button onClick={() => handleTeamClick(item)} className="btn btn-light view-btn w-100">{t('team.card.view_profile')}</button>
                                                                 </div>
                                                             </Col>
                                                         </div>
@@ -452,7 +550,7 @@ const Team = () => {
 
                                 <div className="modal fade" id="addmembers" tabIndex={1} aria-hidden="true">
                                     <div className="modal-dialog modal-dialog-centered">
-                                        <Modal isOpen={modal} toggle={toggle} centered>
+                                        <Modal isOpen={modal} toggle={handleCloseModal} centered>
                                             <ModalBody>
                                                 <Form onSubmit={(e) => {
                                                     e.preventDefault();
@@ -463,7 +561,7 @@ const Team = () => {
                                                         <Col lg={12}>
 
                                                             <input type="hidden" id="memberid-input" className="form-control" defaultValue="" />
-                                                            <div className="px-1 pt-1">
+                                                            {/* <div className="px-1 pt-1">
                                                                 <div className="modal-team-cover position-relative mb-0 mt-n4 mx-n4 rounded-top overflow-hidden">
                                                                     <img src={smallImage9} alt="" id="cover-img" className="img-fluid" />
 
@@ -512,62 +610,158 @@ const Team = () => {
                                                                         </div>
                                                                     </div>
                                                                 </div>
+                                                            </div> */}
+
+                                                            <div className="mb-4">
+                                                                <h5 className="modal-title" id="createMemberLabel">{!isEdit ? t('team.modal.add_title') : t('team.modal.edit_title')}</h5>
                                                             </div>
 
-                                                            <div className="mb-3">
-                                                                <Label htmlFor="teammembersName" className="form-label">{t('team.form.name')}</Label>
-                                                                <Input type="text" className="form-control" id="teammembersName" placeholder={t('team.form.name_placeholder')}
-                                                                    name='name'
-                                                                    validate={{
-                                                                        required: { value: true },
-                                                                    }}
-                                                                    onChange={validation.handleChange}
-                                                                    onBlur={validation.handleBlur}
-                                                                    value={validation.values.name || ""}
-                                                                    invalid={
-                                                                        validation.touched.name && validation.errors.name ? true : false
-                                                                    }
-                                                                />
-                                                                {validation.touched.name && validation.errors.name ? (
-                                                                    <FormFeedback type="invalid">{validation.errors.name}</FormFeedback>
-                                                                ) : null}
-                                                            </div>
+                                                            <Row>
+                                                                <Col lg={6}>
+                                                                    <div className="mb-3">
+                                                                        <Label htmlFor="firstName" className="form-label">{t('team.form.first_name')} *</Label>
+                                                                        <Input type="text" className="form-control" id="firstName" placeholder={t('team.form.first_name_placeholder')}
+                                                                            name='firstName'
+                                                                            onChange={validation.handleChange}
+                                                                            onBlur={validation.handleBlur}
+                                                                            value={validation.values.firstName || ""}
+                                                                            invalid={validation.touched.firstName && validation.errors.firstName ? true : false}
+                                                                        />
+                                                                        {validation.touched.firstName && validation.errors.firstName ? (
+                                                                            <FormFeedback type="invalid">{validation.errors.firstName}</FormFeedback>
+                                                                        ) : null}
+                                                                    </div>
+                                                                </Col>
+                                                                <Col lg={6}>
+                                                                    <div className="mb-3">
+                                                                        <Label htmlFor="lastName" className="form-label">{t('team.form.last_name')} *</Label>
+                                                                        <Input type="text" className="form-control" id="lastName" placeholder={t('team.form.last_name_placeholder')}
+                                                                            name='lastName'
+                                                                            onChange={validation.handleChange}
+                                                                            onBlur={validation.handleBlur}
+                                                                            value={validation.values.lastName || ""}
+                                                                            invalid={validation.touched.lastName && validation.errors.lastName ? true : false}
+                                                                        />
+                                                                        {validation.touched.lastName && validation.errors.lastName ? (
+                                                                            <FormFeedback type="invalid">{validation.errors.lastName}</FormFeedback>
+                                                                        ) : null}
+                                                                    </div>
+                                                                </Col>
+                                                            </Row>
+
+                                                            <Row>
+                                                                <Col lg={6}>
+                                                                    <div className="mb-3">
+                                                                        <Label htmlFor="email" className="form-label">{t('team.form.email')} *</Label>
+                                                                        <Input type="email" className="form-control" id="email" placeholder={t('team.form.email_placeholder')}
+                                                                            name='email'
+                                                                            onChange={validation.handleChange}
+                                                                            onBlur={validation.handleBlur}
+                                                                            value={validation.values.email || ""}
+                                                                            invalid={validation.touched.email && validation.errors.email ? true : false}
+                                                                        />
+                                                                        {validation.touched.email && validation.errors.email ? (
+                                                                            <FormFeedback type="invalid">{validation.errors.email}</FormFeedback>
+                                                                        ) : null}
+                                                                    </div>
+                                                                </Col>
+                                                                <Col lg={6}>
+                                                                    <div className="mb-3">
+                                                                        <Label htmlFor="phone" className="form-label">{t('team.form.phone')}</Label>
+                                                                        <Input type="text" className="form-control" id="phone" placeholder={t('team.form.phone_placeholder')}
+                                                                            name='phone'
+                                                                            onChange={validation.handleChange}
+                                                                            onBlur={validation.handleBlur}
+                                                                            value={validation.values.phone || ""}
+                                                                        />
+                                                                    </div>
+                                                                </Col>
+                                                            </Row>
                                                         </Col>
                                                         <Col lg={12}>
                                                             <div className="mb-3">
-                                                                <Label htmlFor="specialties" className="form-label">{t('team.form.specialties')}</Label>
+                                                                <Label htmlFor="serviceIds" className="form-label">{t('team.form.services')} *</Label>
                                                                 <Select
-                                                                    id="specialties"
-                                                                    name="specialties"
+                                                                    id="serviceIds"
+                                                                    name="serviceIds"
                                                                     isMulti
+                                                                    closeMenuOnSelect={false}
                                                                     classNamePrefix="react-select"
-                                                                    options={[
-                                                                        { value: 'Manicure', label: 'Manicure' },
-                                                                        { value: 'Pedicure', label: 'Pedicure' },
-                                                                        { value: 'Nail Art', label: 'Nail Art' },
-                                                                        { value: 'Gel Nails', label: 'Gel Nails' },
-                                                                        { value: 'Acrylics', label: 'Acrylics' },
-                                                                        { value: 'Nail Extensions', label: 'Nail Extensions' },
-                                                                        { value: 'Decorative Art', label: 'Decorative Art' },
-                                                                        { value: 'Shellac', label: 'Shellac' },
-                                                                        { value: 'Polish Change', label: 'Polish Change' },
-                                                                        { value: 'Foot Care', label: 'Foot Care' },
-                                                                    ]}
-                                                                    value={
-                                                                        (validation.values.specialties || []).map((v: string) => ({ value: v, label: v }))
-                                                                    }
-                                                                    onChange={(selected: { value: string; label: string; }[] | null) => {
-                                                                        const values = selected ? selected.map(opt => opt.value) : [];
-                                                                        validation.setFieldValue('specialties', values);
+                                                                    options={(availableServices || []).map(s => ({ value: s.id, label: s.name }))}
+                                                                    value={(availableServices || [])
+                                                                        .filter(s => (validation.values.serviceIds || []).includes(s.id))
+                                                                        .map(s => ({ value: s.id, label: s.name }))}
+                                                                    onChange={(selected: any) => {
+                                                                        const values = selected ? selected.map((opt: any) => opt.value) : [];
+                                                                        validation.setFieldValue('serviceIds', values);
                                                                     }}
                                                                     onBlur={validation.handleBlur}
-                                                                    isClearable
-                                                                    placeholder={t('team.form.specialties_placeholder') || 'Selecciona especialidades'}
+                                                                    placeholder={t('team.form.services_placeholder')}
                                                                 />
-                                                                {validation.touched.specialties && validation.errors.specialties ? (
-                                                                    <div className="invalid-feedback d-block">{validation.errors.specialties}</div>
+                                                                {validation.touched.serviceIds && validation.errors.serviceIds ? (
+                                                                    <div className="invalid-feedback d-block">{validation.errors.serviceIds}</div>
                                                                 ) : null}
                                                             </div>
+
+                                                            <div className="mb-3">
+                                                                <Label htmlFor="workingDays" className="form-label">{t('team.form.working_days')} *</Label>
+                                                                <Select
+                                                                    id="workingDays"
+                                                                    name="workingDays"
+                                                                    isMulti
+                                                                    closeMenuOnSelect={false}
+                                                                    classNamePrefix="react-select"
+                                                                    options={[
+                                                                        { value: 'Monday', label: t('team.days.monday') },
+                                                                        { value: 'Tuesday', label: t('team.days.tuesday') },
+                                                                        { value: 'Wednesday', label: t('team.days.wednesday') },
+                                                                        { value: 'Thursday', label: t('team.days.thursday') },
+                                                                        { value: 'Friday', label: t('team.days.friday') },
+                                                                        { value: 'Saturday', label: t('team.days.saturday') },
+                                                                        { value: 'Sunday', label: t('team.days.sunday') },
+                                                                    ]}
+                                                                    value={(validation.values.workingDays || []).map((v: string) => ({ 
+                                                                        value: v, 
+                                                                        label: t(`team.days.${v.toLowerCase()}`)
+                                                                    }))}
+                                                                    onChange={(selected: any) => {
+                                                                        const values = selected ? selected.map((opt: any) => opt.value) : [];
+                                                                        validation.setFieldValue('workingDays', values);
+                                                                    }}
+                                                                    onBlur={validation.handleBlur}
+                                                                    placeholder={t('team.form.working_days_placeholder')}
+                                                                />
+                                                                {validation.touched.workingDays && validation.errors.workingDays ? (
+                                                                    <div className="invalid-feedback d-block">{validation.errors.workingDays}</div>
+                                                                ) : null}
+                                                            </div>
+
+                                                            {/* <Row>
+                                                                <Col lg={6}>
+                                                                    <div className="mb-3">
+                                                                        <Label htmlFor="commissionPercentage" className="form-label">Comisión (%)</Label>
+                                                                        <Input type="number" step="0.01" className="form-control" id="commissionPercentage"
+                                                                            name='commissionPercentage'
+                                                                            onChange={validation.handleChange}
+                                                                            onBlur={validation.handleBlur}
+                                                                            value={validation.values.commissionPercentage || ""}
+                                                                            placeholder="15.5"
+                                                                        />
+                                                                    </div>
+                                                                </Col>
+                                                                <Col lg={6}>
+                                                                    <div className="mb-3">
+                                                                        <Label htmlFor="hourlyRate" className="form-label">Tarifa por Hora ($)</Label>
+                                                                        <Input type="number" step="0.01" className="form-control" id="hourlyRate"
+                                                                            name='hourlyRate'
+                                                                            onChange={validation.handleChange}
+                                                                            onBlur={validation.handleBlur}
+                                                                            value={validation.values.hourlyRate || ""}
+                                                                            placeholder="25.00"
+                                                                        />
+                                                                    </div>
+                                                                </Col>
+                                                            </Row> */}
                                                         </Col>
                                                         {/* <Col lg={6}>
                                                             <div className="mb-3">
@@ -609,7 +803,7 @@ const Team = () => {
                                                         </Col> */}
                                                         <Col lg={12}>
                                                             <div className="hstack gap-2 justify-content-end">
-                                                                <button type="button" className="btn btn-light" onClick={() => setModal(false)}>{t('team.form.close')}</button>
+                                                                <button type="button" className="btn btn-light" onClick={handleCloseModal}>{t('team.form.close')}</button>
                                                                 <button type="submit" className="btn btn-success" id="addNewMember">{!isEdit ? t('team.form.add_member') : t('team.form.save')}</button>
                                                             </div>
                                                         </Col>
