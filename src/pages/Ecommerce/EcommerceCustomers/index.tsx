@@ -12,11 +12,10 @@ import {
   ModalHeader,
   Label,
   Input,
-  FormFeedback
+  FormFeedback,
+  Spinner
 } from "reactstrap";
 import { Link } from "react-router-dom";
-import Flatpickr from "react-flatpickr";
-import { isEmpty } from "lodash";
 import moment from "moment";
 import { useTranslation } from 'react-i18next';
 
@@ -24,171 +23,138 @@ import { useTranslation } from 'react-i18next';
 import * as Yup from "yup";
 import { useFormik } from "formik";
 
-
 //Import Breadcrumb
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import DeleteModal from "../../../Components/Common/DeleteModal";
-
-import {
-  getCustomers as onGetCustomers,
-  addNewCustomer as onAddNewCustomer,
-  updateCustomer as onUpdateCustomer,
-  deleteCustomer as onDeleteCustomer,
-} from "../../../slices/thunks";
-
-//redux
-import { useSelector, useDispatch } from "react-redux";
 import TableContainer from "../../../Components/Common/TableContainer";
 
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Loader from "../../../Components/Common/Loader";
 
-// Export Modal
-import ExportCSVModal from "../../../Components/Common/ExportCSVModal";
-import { createSelector } from "reselect";
+// API
+import {
+  getCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  Customer,
+} from "../../../api/customers";
 
 const EcommerceCustomers = () => {
-  const dispatch: any = useDispatch();
   const { t } = useTranslation();
 
-  const selectLayoutState = (state: any) => state.Ecommerce;
-  const ecomCustomerProperties = createSelector(
-    selectLayoutState,
-    (ecom) => ({
-      customers: ecom.customers,
-      isCustomerSuccess: ecom.isCustomerSuccess,
-      error: ecom.error,
-    })
-  );
-  // Inside your component
-  const {
-    customers, isCustomerSuccess, error
-  } = useSelector(ecomCustomerProperties);
-
-
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [isEdit, setIsEdit] = useState<boolean>(false);
-  const [customer, setCustomer] = useState<any>([]);
+  const [customer, setCustomer] = useState<Customer | null>(null);
 
   // Delete customer
   const [deleteModal, setDeleteModal] = useState<boolean>(false);
   const [deleteModalMulti, setDeleteModalMulti] = useState<boolean>(false);
   const [modal, setModal] = useState<boolean>(false);
 
+  // Fetch customers from backend
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const data = await getCustomers();
+      setCustomers(data);
+    } catch (error: any) {
+      console.error('Error fetching customers:', error);
+      toast.error('Error al cargar los clientes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
   const toggle = useCallback(() => {
     if (modal) {
       setModal(false);
       setCustomer(null);
+      validation.resetForm();
     } else {
       setModal(true);
-      // setDate(dateFormat());
     }
   }, [modal]);
 
   // Delete Data
-  const onClickDelete = (customer: any) => {
-    setCustomer(customer);
+  const onClickDelete = (customerData: Customer) => {
+    setCustomer(customerData);
     setDeleteModal(true);
   };
 
   // validation
   const validation: any = useFormik({
-    // enableReinitialize : use this flag when initial values needs to be changed
     enableReinitialize: true,
 
     initialValues: {
-      customer: (customer && customer.customer) || '',
+      firstName: (customer && customer.firstName) || '',
+      lastName: (customer && customer.lastName) || '',
       email: (customer && customer.email) || '',
       phone: (customer && customer.phone) || '',
-      date: (customer && customer.date) || '',
+      notes: (customer && customer.notes) || '',
     },
     validationSchema: Yup.object({
-      customer: Yup.string().required(t('customers.validation.name_required')),
-      email: Yup.string().required(t('customers.validation.email_required')),
+      firstName: Yup.string().required(t('customers.validation.name_required')),
+      lastName: Yup.string().required(t('customers.validation.name_required')),
+      email: Yup.string().email('Email inválido').required(t('customers.validation.email_required')),
       phone: Yup.string().required(t('customers.validation.phone_required')),
-      date: Yup.string().required(t('customers.validation.date_required')),
     }),
-    onSubmit: (values) => {
-      if (isEdit) {
-        const updateCustomer = {
-          id: customer ? customer.id : 0,
-          customer: values.customer,
-          email: values.email,
-          phone: values.phone,
-          date: values.date,
-        };
-        // update customer
-        dispatch(onUpdateCustomer(updateCustomer));
-        validation.resetForm();
-      } else {
-        const newCustomer = {
-          id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
-          customer: values["customer"],
-          email: values["email"],
-          phone: values["phone"],
-          date: values["date"],
-        };
-        // save new customer
-        dispatch(onAddNewCustomer(newCustomer));
-        validation.resetForm();
+    onSubmit: async (values) => {
+      try {
+        if (isEdit && customer) {
+          await updateCustomer(customer.id, {
+            firstName: values.firstName,
+            lastName: values.lastName,
+            email: values.email,
+            phone: values.phone,
+            notes: values.notes,
+          });
+          toast.success('Cliente actualizado exitosamente');
+        } else {
+          await createCustomer({
+            firstName: values.firstName,
+            lastName: values.lastName,
+            email: values.email,
+            phone: values.phone,
+            notes: values.notes,
+          });
+          toast.success('Cliente creado exitosamente');
+        }
+        toggle();
+        fetchCustomers();
+      } catch (error: any) {
+        console.error('Error saving customer:', error);
+        toast.error(error.response?.data?.message || 'Error al guardar el cliente');
       }
-      toggle();
     },
   });
 
   // Delete Data
-  const handleDeleteCustomer = () => {
+  const handleDeleteCustomer = async () => {
     if (customer) {
-      dispatch(onDeleteCustomer(customer.id));
-      setDeleteModal(false);
+      try {
+        await deleteCustomer(customer.id);
+        setDeleteModal(false);
+        toast.success('Cliente eliminado exitosamente');
+        fetchCustomers();
+      } catch (error: any) {
+        console.error('Error deleting customer:', error);
+        toast.error('Error al eliminar el cliente');
+      }
     }
   };
 
   // Update Data
-  const handleCustomerClick = useCallback((arg: any) => {
-    const customer = arg;
-
-    setCustomer({
-      id: customer.id,
-      customer: customer.customer,
-      email: customer.email,
-      phone: customer.phone,
-      date: customer.date,
-    });
-
+  const handleCustomerClick = useCallback((customerData: Customer) => {
+    setCustomer(customerData);
     setIsEdit(true);
     toggle();
   }, [toggle]);
-
-
-  useEffect(() => {
-    if (customers && !customers.length) {
-      dispatch(onGetCustomers());
-    }
-  }, [dispatch, customers]);
-
-
-  useEffect(() => {
-    setCustomer(customers);
-  }, [customers]);
-
-  useEffect(() => {
-    if (!isEmpty(customers)) {
-      setCustomer(customers);
-      setIsEdit(false);
-    }
-  }, [customers]);
-
-  // Node API 
-  // useEffect(() => {
-  //   if (isCustomerCreated) {
-  //     setCustomer(null);
-  //     dispatch(onGetCustomers());
-  //   }
-  // }, [
-  //   dispatch,
-  //   isCustomerCreated,
-  // ]);
 
   const handleValidDate = (date: any) => {
     const date1 = moment(new Date(date)).format("DD MMM Y");
@@ -216,14 +182,20 @@ const EcommerceCustomers = () => {
   const [selectedCheckBoxDelete, setSelectedCheckBoxDelete] = useState<any>([]);
   const [isMultiDeleteButton, setIsMultiDeleteButton] = useState<boolean>(false);
 
-  const deleteMultiple = () => {
+  const deleteMultiple = async () => {
     const checkall: any = document.getElementById("checkBoxAll");
-    selectedCheckBoxDelete.forEach((element: any) => {
-      dispatch(onDeleteCustomer(element.value));
-      setTimeout(() => { toast.clearWaitingQueue(); }, 3000);
-    });
-    setIsMultiDeleteButton(false);
-    checkall.checked = false;
+    try {
+      for (const element of selectedCheckBoxDelete) {
+        await deleteCustomer(element.value);
+      }
+      setIsMultiDeleteButton(false);
+      checkall.checked = false;
+      toast.success('Clientes eliminados exitosamente');
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deleting customers:', error);
+      toast.error('Error al eliminar clientes');
+    }
   };
 
   const deleteCheckbox = () => {
@@ -247,8 +219,12 @@ const EcommerceCustomers = () => {
       },
       {
         header: t('customers.table.customer'),
-        accessorKey: "customer",
+        accessorKey: "firstName",
         enableColumnFilter: false,
+        cell: (cell: any) => {
+          const customer = cell.row.original;
+          return `${customer.firstName} ${customer.lastName}`;
+        },
       },
       {
         header: t('customers.table.email'),
@@ -262,7 +238,7 @@ const EcommerceCustomers = () => {
       },
       {
         header: t('customers.table.last_reservation'),
-        accessorKey: "date",
+        accessorKey: "updatedAt",
         enableColumnFilter: false,
         cell: (cell: any) => (
           <>
@@ -294,15 +270,6 @@ const EcommerceCustomers = () => {
                   <i className="ri-pencil-fill fs-16"></i>
                 </Link>
               </li>
-              <li className="list-inline-item" title="Remove">
-                <Link
-                  to="#"
-                  className="text-danger d-inline-block remove-item-btn"
-                  onClick={() => { const customerData = cellProps.row.original; onClickDelete(customerData); }}
-                >
-                  <i className="ri-delete-bin-5-fill fs-16"></i>
-                </Link>
-              </li>
             </ul>
           );
         },
@@ -315,14 +282,22 @@ const EcommerceCustomers = () => {
   const [isExportCSV, setIsExportCSV] = useState<boolean>(false);
 
   document.title = "Customers | Nails & Co Midtown - Admin Panel";
+
+  if (loading) {
+    return (
+      <div className="page-content">
+        <Container fluid>
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+            <Spinner color="primary" />
+          </div>
+        </Container>
+      </div>
+    );
+  }
+
   return (
     <React.Fragment>
       <div className="page-content">
-        <ExportCSVModal
-          show={isExportCSV}
-          onCloseClick={() => setIsExportCSV(false)}
-          data={customers}
-        />
         <DeleteModal
           show={deleteModal}
           onDeleteClick={handleDeleteCustomer}
@@ -353,36 +328,26 @@ const EcommerceCustomers = () => {
                         {isMultiDeleteButton && <button className="btn btn-soft-danger me-1"
                           onClick={() => setDeleteModalMulti(true)}
                         ><i className="ri-delete-bin-2-line"></i></button>}
-                        <button
-                          type="button"
-                          className="btn btn-success add-btn me-1"
-                          id="create-btn"
-                          onClick={() => { setIsEdit(false); toggle(); }}
-                        >
-                          <i className="ri-add-line align-bottom me-1"></i> {t('customers.add_customer')}
-                        </button>{" "}
-                        <button type="button" className="btn btn-secondary" onClick={() => setIsExportCSV(true)}>
-                          <i className="ri-file-download-line align-bottom me-1"></i>{" "}
-                          {t('customers.export')}
-                        </button>
                       </div>
                     </div>
                   </Row>
                 </CardHeader>
                 <div className="card-body pt-0">
                   <div>
-                    {isCustomerSuccess && customers.length ? (
+                    {customers && customers.length > 0 ? (
                       <TableContainer
                         columns={columns}
                         data={(customers || [])}
                         isGlobalFilter={true}
                         customPageSize={10}
-                        isCustomerFilter={true}
                         theadClass="table-light text-muted"
                         SearchPlaceholder={t('customers.search_placeholder')}
                       />
-                    ) : (<Loader error={error} />)
-                    }
+                    ) : (
+                      <div className="text-center py-5">
+                        <p className="text-muted">No hay clientes registrados</p>
+                      </div>
+                    )}
                   </div>
 
                   <Modal id="showModal" isOpen={modal} toggle={toggle} centered>
@@ -416,29 +381,51 @@ const EcommerceCustomers = () => {
 
                         <div className="mb-3">
                           <Label
-                            htmlFor="customername-field"
+                            htmlFor="firstname-field"
                             className="form-label"
                           >
-                            {t('customers.form.customer_name')}
+                            {t('customers.form.first_name')}
                           </Label>
                           <Input
-                            name="customer"
-                            id="customername-field"
+                            name="firstName"
+                            id="firstname-field"
                             className="form-control"
-                            placeholder={t('customers.form.enter_name')}
+                            placeholder={t('customers.form.enter_first_name')}
                             type="text"
-                            validate={{
-                              required: { value: true },
-                            }}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
-                            value={validation.values.customer || ""}
+                            value={validation.values.firstName || ""}
                             invalid={
-                              validation.touched.customer && validation.errors.customer ? true : false
+                              validation.touched.firstName && validation.errors.firstName ? true : false
                             }
                           />
-                          {validation.touched.customer && validation.errors.customer ? (
-                            <FormFeedback type="invalid">{validation.errors.customer}</FormFeedback>
+                          {validation.touched.firstName && validation.errors.firstName ? (
+                            <FormFeedback type="invalid">{validation.errors.firstName}</FormFeedback>
+                          ) : null}
+                        </div>
+
+                        <div className="mb-3">
+                          <Label
+                            htmlFor="lastname-field"
+                            className="form-label"
+                          >
+                            {t('customers.form.last_name')}
+                          </Label>
+                          <Input
+                            name="lastName"
+                            id="lastname-field"
+                            className="form-control"
+                            placeholder={t('customers.form.enter_last_name')}
+                            type="text"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.lastName || ""}
+                            invalid={
+                              validation.touched.lastName && validation.errors.lastName ? true : false
+                            }
+                          />
+                          {validation.touched.lastName && validation.errors.lastName ? (
+                            <FormFeedback type="invalid">{validation.errors.lastName}</FormFeedback>
                           ) : null}
                         </div>
 
@@ -487,27 +474,19 @@ const EcommerceCustomers = () => {
                         </div>
 
                         <div className="mb-3">
-                          <Label htmlFor="date-field" className="form-label">
-                            {t('customers.form.last_reservation')}
+                          <Label htmlFor="notes-field" className="form-label">
+                            {t('customers.form.notes')}
                           </Label>
-
-                          <Flatpickr
-                            name="date"
-                            id="date-field"
-                            className="form-control"
-                            placeholder={t('customers.form.select_date')}
-                            options={{
-                              altInput: true,
-                              altFormat: "d M, Y",
-                              dateFormat: "d M, Y",
-                            }}
-
-                            onChange={(date: any) => validation.setFieldValue("date", moment(date[0]).format("DD MMMM ,YYYY"))}
-                            value={validation.values.date || ''}
+                          <Input
+                            name="notes"
+                            type="textarea"
+                            id="notes-field"
+                            rows={3}
+                            placeholder={t('customers.form.enter_notes')}
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.notes || ""}
                           />
-                          {validation.errors.date && validation.touched.date ? (
-                            <FormFeedback type="invalid" className='d-block'>{validation.errors.date}</FormFeedback>
-                          ) : null}
                         </div>
                       </ModalBody>
                       <ModalFooter>

@@ -91,6 +91,7 @@ export const GET_CUSTOMERS = "/apps/customer";
 export const ADD_NEW_CUSTOMER = "/apps/customer";
 export const UPDATE_CUSTOMER = "/apps/customer";
 export const DELETE_CUSTOMER = "/apps/customer";
+export const CUSTOMERS = "/api/v1/customers";
 
 // Sellers
 export const GET_SELLERS = "/sellers";
