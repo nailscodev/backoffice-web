@@ -17,12 +17,11 @@ import {
   Input,
   FormFeedback
 } from "reactstrap";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import classnames from "classnames";
 import Flatpickr from "react-flatpickr";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
-import DeleteModal from "../../../Components/Common/DeleteModal";
 import ReservationModal from "../../../Components/Common/ReservationModal";
 import { isEmpty } from "lodash";
 
@@ -41,7 +40,6 @@ import {
   getOrders as onGetOrders,
   addNewOrder as onAddNewOrder,
   updateOrder as onUpdateOrder,
-  deleteOrder as onDeleteOrder,
 } from "../../../slices/thunks";
 
 import Loader from "../../../Components/Common/Loader";
@@ -56,6 +54,7 @@ import { useTranslation } from 'react-i18next';
 
 const EcommerceOrders = () => {
   const { t } = useTranslation();
+  const location = useLocation();
 
   const [modal, setModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("1");
@@ -63,6 +62,29 @@ const EcommerceOrders = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [totalRecords, setTotalRecords] = useState<number>(0);
+  const [customerFilter, setCustomerFilter] = useState<string>("");
+  const [staffFilter, setStaffFilter] = useState<string>("");
+  
+  // Extraer customer ID y nombre de la URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const customerId = params.get('customer');
+    const customerName = params.get('name');
+    const staffId = params.get('staff');
+    const staffName = params.get('name');
+    
+    if (customerId) {
+      setCustomerFilter(customerId);
+    }
+    
+    if (staffId) {
+      setStaffFilter(staffId);
+    }
+    
+    if (customerName || staffName) {
+      setSearchTerm(decodeURIComponent(customerName || staffName || ''));
+    }
+  }, [location.search]);
   
   // Estados para ReservationModal
   const [reservationModal, setReservationModal] = useState<boolean>(false);
@@ -130,21 +152,6 @@ const EcommerceOrders = () => {
   ];
 
   const [isEdit, setIsEdit] = useState<boolean>(false);
-
-  const [deleteModal, setDeleteModal] = useState<boolean>(false);
-  const [deleteModalMulti, setDeleteModalMulti] = useState<boolean>(false);
-
-  const onClickDelete = (order: any) => {
-    setOrder(order);
-    setDeleteModal(true);
-  };
-
-  const handleDeleteOrder = () => {
-    if (order) {
-      dispatch(onDeleteOrder(order.id));
-      setDeleteModal(false);
-    }
-  };
 
   useEffect(() => {
     setOrderList(orders);
@@ -341,6 +348,16 @@ const EcommerceOrders = () => {
         limit: pageSize
       };
       
+      // Add customer filter if exists
+      if (customerFilter) {
+        filters.customerId = customerFilter;
+      }
+      
+      // Add staff filter if exists
+      if (staffFilter) {
+        filters.staffId = staffFilter;
+      }
+      
       // Add search term if exists
       if (searchTerm) {
         filters.search = searchTerm;
@@ -363,7 +380,7 @@ const EcommerceOrders = () => {
     }, 500); // 500ms debounce
 
     return () => clearTimeout(delaySearch);
-  }, [searchTerm, activeTab, currentPage, pageSize, dispatch]);
+  }, [searchTerm, activeTab, currentPage, pageSize, customerFilter, staffFilter, dispatch]);
 
   useEffect(() => {
     setOrder(orders);
@@ -432,28 +449,7 @@ const EcommerceOrders = () => {
         ele.checked = false;
       });
     }
-    deleteCheckbox();
   }, []);
-
-  // Delete Multiple
-  const [selectedCheckBoxDelete, setSelectedCheckBoxDelete] = useState<any>([]);
-  const [isMultiDeleteButton, setIsMultiDeleteButton] = useState<boolean>(false);
-
-  const deleteMultiple = () => {
-    const checkall: any = document.getElementById("checkBoxAll");
-    selectedCheckBoxDelete.forEach((element: any) => {
-      dispatch(onDeleteOrder(element.value));
-      setTimeout(() => { toast.clearWaitingQueue(); }, 3000);
-    });
-    setIsMultiDeleteButton(false);
-    checkall.checked = false;
-  };
-
-  const deleteCheckbox = () => {
-    const ele = document.querySelectorAll(".orderCheckBox:checked");
-    ele.length > 0 ? setIsMultiDeleteButton(true) : setIsMultiDeleteButton(false);
-    setSelectedCheckBoxDelete(ele);
-  };
 
 
   // Column
@@ -462,7 +458,7 @@ const EcommerceOrders = () => {
       {
         header: <input type="checkbox" id="checkBoxAll" className="form-check-input" onClick={() => checkedAll()} />,
         cell: (cell: any) => {
-          return <input type="checkbox" className="orderCheckBox form-check-input" value={cell.getValue()} onChange={() => deleteCheckbox()} />;
+          return <input type="checkbox" className="orderCheckBox form-check-input" value={cell.getValue()} />;
         },
         id: '#',
         accessorKey: 'id',
@@ -499,20 +495,12 @@ const EcommerceOrders = () => {
         enableColumnFilter: false,
       },
       {
-        header: t("reservations.table.payment_method"),
-        accessorKey: "payment",
+        header: t("reservations.table.staff"),
+        accessorKey: "staffName",
         enableColumnFilter: false,
         cell: (cell: any) => {
-          const paymentValue = cell.getValue();
-          if (!paymentValue || paymentValue === "Pending") {
-            return <span className="text-muted">-</span>;
-          }
-          if (paymentValue === "Bank" || paymentValue === "Banco" || paymentValue === "CARD") {
-            return t('reservations.payment.bank');
-          } else if (paymentValue === "Cash" || paymentValue === "Efectivo" || paymentValue === "CASH") {
-            return t('reservations.payment.cash');
-          }
-          return paymentValue;
+          const staffName = cell.getValue();
+          return staffName || <span className="text-muted">-</span>;
         },
       },
       {
@@ -566,18 +554,6 @@ const EcommerceOrders = () => {
                   }}
                 >
                   <i className="ri-pencil-fill fs-16"></i>
-                </Link>
-              </li>
-              <li className="list-inline-item">
-                <Link
-                  to="#"
-                  className="text-danger d-inline-block remove-item-btn"
-                  onClick={() => {
-                    const orderData = cellProps.row.original;
-                    onClickDelete(orderData);
-                  }}
-                >
-                  <i className="ri-delete-bin-5-fill fs-16"></i>
                 </Link>
               </li>
             </ul>
@@ -683,19 +659,6 @@ const EcommerceOrders = () => {
         onCloseClick={() => setIsExportCSV(false)}
         data={orders}
       />
-      <DeleteModal
-        show={deleteModal}
-        onDeleteClick={handleDeleteOrder}
-        onCloseClick={() => setDeleteModal(false)}
-      />
-      <DeleteModal
-        show={deleteModalMulti}
-        onDeleteClick={() => {
-          deleteMultiple();
-          setDeleteModalMulti(false);
-        }}
-        onCloseClick={() => setDeleteModalMulti(false)}
-      />
       <Container fluid>
         <BreadCrumb title={t("reservations.title")} pageTitle={t("reservations.breadcrumb")} />
         <Row>
@@ -724,11 +687,6 @@ const EcommerceOrders = () => {
                         <i className="ri-file-download-line align-bottom me-1"></i>{" "}
                         {t("reservations.export")}
                       </button> */}
-                      {" "}
-                      {isMultiDeleteButton && <button className="btn btn-soft-danger"
-                        onClick={() => setDeleteModalMulti(true)}
-                      ><i
-                        className="ri-delete-bin-2-line"></i></button>}
                     </div>
                   </div>
                 </Row>

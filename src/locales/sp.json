@@ -105,6 +105,7 @@
     "team.form.add_member": "Agregar Staff",
     "team.form.save": "Guardar",
     "team.card.view_profile": "Ver perfil",
+    "team.card.view_reservations": "Ver Reservas",
     "team.load_more": "Cargar más",
     "team.no_results": "¡Lo siento! No se encontraron resultados",
     "team.validation.name_required": "Por favor ingrese el nombre",
@@ -699,6 +700,7 @@
     "customers.table.phone": "Teléfono",
     "customers.table.last_reservation": "Última Reserva",
     "customers.table.action": "Acción",
+    "customers.table.view_reservations": "Ver Reservas",
     
     "customers.form.customer_name": "Nombre del Cliente",
     "customers.form.first_name": "Nombre",
@@ -737,11 +739,14 @@
     "reservations.tabs.pending": "Pendientes",
     "reservations.tabs.cancelled": "Cancelados",
 
+    "reservations.filter.showing_customer_bookings": "Mostrando reservas de un cliente específico. Haz clic en X para ver todas las reservas.",
+
     "reservations.table.reservation_id": "ID de Reserva",
     "reservations.table.customer": "Cliente",
     "reservations.table.services": "Servicios",
     "reservations.table.reservation_date": "Fecha de Reserva",
     "reservations.table.amount": "Monto",
+    "reservations.table.staff": "Personal",
     "reservations.table.payment_method": "Método de Pago",
     "reservations.table.status": "Estado",
     "reservations.table.action": "Acción",

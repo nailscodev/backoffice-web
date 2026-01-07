@@ -251,13 +251,13 @@ const EcommerceCustomers = () => {
         cell: (cellProps: any) => {
           return (
             <ul className="list-inline hstack gap-2 mb-0">
-              <li className="list-inline-item" title="Ver Reservas">
+              <li className="list-inline-item" title={t('customers.table.view_reservations')}>
                 <Link
-                  to={`/apps-ecommerce-orders?customer=${cellProps.row.original.id}`}
+                  to={`/apps-ecommerce-orders?customer=${cellProps.row.original.id}&name=${encodeURIComponent(`${cellProps.row.original.firstName} ${cellProps.row.original.lastName || ''}`.trim())}`}
                   className="btn btn-sm btn-soft-info"
                 >
                   <i className="ri-calendar-check-line me-1 align-bottom"></i>
-                  Ver Reservas
+                  {t('customers.table.view_reservations')}
                 </Link>
               </li>
               <li className="list-inline-item edit" title="Edit">

@@ -449,6 +449,9 @@ const Team = () => {
                                                                     <i className="ri-more-fill fs-17"></i>
                                                                 </DropdownToggle>
                                                                 <DropdownMenu>
+                                                                    <DropdownItem className="dropdown-item" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}>
+                                                                        <i className="ri-user-line me-2 align-bottom text-muted"></i>{t('team.card.view_profile')}
+                                                                    </DropdownItem>
                                                                     <DropdownItem className="dropdown-item edit-list" href="#addmemberModal" onClick={() => handleTeamClick(item)}>
                                                                         <i className="ri-pencil-line me-2 align-bottom text-muted"></i>{t('team.dropdown.edit')}
                                                                     </DropdownItem>
@@ -537,7 +540,13 @@ const Team = () => {
                                                             </Col>
                                                             <Col lg={12} className="col">
                                                                 <div className="text-center">
-                                                                    <button onClick={() => handleTeamClick(item)} className="btn btn-light view-btn w-100">{t('team.card.view_profile')}</button>
+                                                                    <Link 
+                                                                        to={`/apps-ecommerce-orders?staff=${item.id}&name=${encodeURIComponent(item.name)}`} 
+                                                                        className="btn btn-light view-btn w-100"
+                                                                    >
+                                                                        <i className="ri-calendar-check-line me-1 align-bottom"></i>
+                                                                        {t('team.card.view_reservations')}
+                                                                    </Link>
                                                                 </div>
                                                             </Col>
                                                         </div>
