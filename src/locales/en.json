@@ -737,6 +737,8 @@
     "reservations.edit_reservation": "Edit Reservation",
     "reservations.export": "Export",
     "reservations.search_placeholder": "Search for reservation ID, customer, status...",
+    "reservations.no_data": "No reservations found",
+    "reservations.no_data_description": "There are no reservations to display. Try adjusting your filters or create a new reservation.",
 
     "reservations.tabs.all": "All Reservations",
     "reservations.tabs.completed": "Completed",
@@ -812,7 +814,7 @@
     "calendar.upcoming_description": "Don't miss scheduled reservations",
     "calendar.welcome_title": "Welcome to your Calendar!",
     "calendar.welcome_description": "Reservations that are booked will appear here. Click on a reservation to see details and manage the appointment.",
-    "calendar.drag_description": "Drag and drop your reservation or click on the calendar",
+    "calendar.drag_description": "Available Services",
     "calendar.edit_reservation": "Edit Reservation",
     "calendar.add_reservation": "Add Reservation",
     "calendar.delete": "Delete",

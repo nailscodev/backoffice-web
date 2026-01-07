@@ -5,6 +5,14 @@ export const initialState: any = {
   orders: [],
   sellers: [],
   customers: [],
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  },
   error: {},
 };
 
@@ -50,7 +58,8 @@ const EcommerceSlice = createSlice({
     });
 
     builder.addCase(getOrders.fulfilled, (state: any, action: any) => {
-      state.orders = action.payload;
+      state.orders = action.payload.orders || action.payload;
+      state.pagination = action.payload.pagination || state.pagination;
       state.isOrderCreated = false;
       state.isOrderSuccess = true;
     });
@@ -84,7 +93,7 @@ const EcommerceSlice = createSlice({
 
     builder.addCase(deleteOrder.fulfilled, (state: any, action: any) => {
       state.orders = state.orders.filter(
-        (order: any) => order.id.toString() !== action.payload.order.toString()
+        (order: any) => order.id.toString() !== action.payload.toString()
       );
     });
 

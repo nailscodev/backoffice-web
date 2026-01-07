@@ -729,6 +729,8 @@
     "reservations.edit_reservation": "Editar Reserva",
     "reservations.export": "Exportar",
     "reservations.search_placeholder": "Buscar por ID de reserva, cliente, estado...",
+    "reservations.no_data": "No se encontraron reservas",
+    "reservations.no_data_description": "No hay reservas para mostrar. Intenta ajustar tus filtros o crea una nueva reserva.",
 
     "reservations.tabs.all": "Todas las reservas",
     "reservations.tabs.completed": "Completados",
@@ -804,7 +806,7 @@
     "calendar.upcoming_description": "No te pierdas las reservas programadas",
     "calendar.welcome_title": "¡Bienvenido a tu Calendario!",
     "calendar.welcome_description": "Las reservas que se agenden aparecerán aquí. Haz clic en una reserva para ver los detalles y gestionar la cita.",
-    "calendar.drag_description": "Arrastra y suelta tu reserva o haz clic en el calendario",
+    "calendar.drag_description": "Servicios Disponibles",
     "calendar.edit_reservation": "Editar Reserva",
     "calendar.add_reservation": "Agregar Reserva",
     "calendar.delete": "Eliminar",

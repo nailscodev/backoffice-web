@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
@@ -59,6 +59,8 @@ const Calender = () => {
   const [deleteEvent, setDeleteEvent] = useState<string>('');
   const [eventName, setEventName] = useState<string>("");
   const [preselectedCategory, setPreselectedCategory] = useState<string>("");
+  const lastDateRange = useRef<string>("");
+  const loadingEvents = useRef<boolean>(false);
 
   const selectLayoutState = (state: any) => state.Calendar;
   const calendarDataProperties = createSelector(
@@ -66,35 +68,47 @@ const Calender = () => {
     (state: any) => ({
       events: state.events,
       categories: state.categories,
+      upcommingevents: state.upcommingevents,
       isEventUpdated: state.isEventUpdated,
     })
   );
   // Inside your component
   const {
-    events, categories, isEventUpdated
+    events, categories, upcommingevents, isEventUpdated
   } = useSelector(calendarDataProperties);
 
   useEffect(() => {
-    dispatch(onGetEvents());
+    // Cargar categorías solo una vez
     dispatch(onGetCategories());
-    dispatch(onGetUpCommingEvent());
-    
-    // Inicializar Draggable para el contenedor oculto
-    const externalEvents = document.getElementById("external-events");
-    if (externalEvents) {
-      new Draggable(externalEvents, {
-        itemSelector: ".external-event",
-      });
+  }, [dispatch]);
+  
+  useEffect(() => {
+    // Cargar upcoming events cuando las categorías estén disponibles
+    if (categories && categories.length > 0) {
+      dispatch(onGetUpCommingEvent());
     }
-    
-    // Inicializar Draggable para las categorías visibles en la card
-    const visibleCategories = document.getElementById("visible-categories");
-    if (visibleCategories) {
-      new Draggable(visibleCategories, {
-        itemSelector: ".external-event",
-      });
+  }, [dispatch, categories.length]);
+  
+  useEffect(() => {
+    // Inicializar Draggable cuando las categorías estén disponibles
+    if (categories && categories.length > 0) {
+      // Inicializar Draggable para el contenedor oculto
+      const externalEvents = document.getElementById("external-events");
+      if (externalEvents) {
+        new Draggable(externalEvents, {
+          itemSelector: ".external-event",
+        });
+      }
+      
+      // Inicializar Draggable para las categorías visibles en la card
+      const visibleCategories = document.getElementById("visible-categories");
+      if (visibleCategories) {
+        new Draggable(visibleCategories, {
+          itemSelector: ".external-event",
+        });
+      }
     }
-  }, [dispatch, categories]);
+  }, [categories]);
 
   useEffect(() => {
     if (isEventUpdated) {
@@ -205,7 +219,10 @@ const Calender = () => {
    * On delete event
    */
   const handleDeleteEvent = () => {
-    dispatch(onDeleteEvent(deleteEvent));
+    dispatch(onDeleteEvent(deleteEvent)).then(() => {
+      // Recargar upcoming events después de eliminar
+      dispatch(onGetUpCommingEvent());
+    });
     setDeleteModal(false);
   };
 
@@ -278,7 +295,10 @@ const Calender = () => {
           staff: values.staff,
         };
         // update event
-        dispatch(onUpdateEvent(updateEvent));
+        dispatch(onUpdateEvent(updateEvent)).then(() => {
+          // Recargar upcoming events después de actualizar
+          dispatch(onGetUpCommingEvent());
+        });
         validation.resetForm();
       } else {
         const newEvent = {
@@ -294,7 +314,10 @@ const Calender = () => {
           staff: values["staff"],
         };
         // save new event
-        dispatch(onAddNewEvent(newEvent));
+        dispatch(onAddNewEvent(newEvent)).then(() => {
+          // Recargar upcoming events después de crear
+          dispatch(onGetUpCommingEvent());
+        });
         validation.resetForm();
       }
 
@@ -331,6 +354,29 @@ const Calender = () => {
       .getElementById("event-description-tag")?.classList.replace("d-block", "d-none");
 
     setIsEditButton(true);
+  };
+
+  /**
+   * Handle calendar dates change (when user changes view or navigates)
+   */
+  const handleDatesSet = (dateInfo: any) => {
+    // Formatear fechas para el backend (YYYY-MM-DD)
+    const startDate = dateInfo.start.toISOString().split('T')[0];
+    const endDate = dateInfo.end.toISOString().split('T')[0];
+    const dateRangeKey = `${startDate}-${endDate}`;
+    
+    // Solo cargar si el rango es diferente al último Y no estamos cargando actualmente
+    if (lastDateRange.current !== dateRangeKey && !loadingEvents.current) {
+      lastDateRange.current = dateRangeKey;
+      loadingEvents.current = true;
+      
+      dispatch(onGetEvents({ startDate, endDate })).finally(() => {
+        // Resetear el flag después de un pequeño delay para evitar llamadas duplicadas
+        setTimeout(() => {
+          loadingEvents.current = false;
+        }, 500);
+      });
+    }
   };
 
   /**
@@ -410,33 +456,13 @@ const Calender = () => {
                   <h5 className="card-title mb-3">{t('calendar.drag_description')}</h5>
                   
                   <div id="visible-categories" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-                      <div
-                        className="external-event fc-event px-3 py-2 rounded mb-2 d-flex align-items-center"
-                        style={{ 
-                          cursor: 'pointer',
-                          backgroundColor: '#e9d5ff',
-                          color: '#6b21a8'
-                        }}
-                        onClick={() => {
-                          setPreselectedCategory("");
-                          toggle();
-                        }}
-                      >
-                        <i className="mdi mdi-checkbox-blank-circle font-size-11 me-2" />
-                        <span>Create</span>
-                      </div>
                       {categories &&
                         categories.map((category: any) => {
-                          // Colores pastel suaves para cada categoría
-                          const pastelColors: any = {
-                            'success': { bg: '#d1fae5', text: '#065f46' }, // Verde menta pastel
-                            'info': { bg: '#cffafe', text: '#155e75' },    // Cyan pastel
-                            'warning': { bg: '#fef3c7', text: '#92400e' }, // Amarillo pastel
-                            'danger': { bg: '#fee2e2', text: '#991b1b' },  // Rosa pastel
-                            'primary': { bg: '#e9d5ff', text: '#6b21a8' }, // Lavanda pastel
-                            'dark': { bg: '#fce7f3', text: '#9f1239' }      // Rosa claro pastel
+                          // Usar los colores que vienen de la API
+                          const colors = { 
+                            bg: category.bg || '#e9d5ff', 
+                            text: category.text || '#6b21a8' 
                           };
-                          const colors = pastelColors[category.type] || { bg: '#ddd6fe', text: '#5b21b6' };
                           
                           return (
                             <div
@@ -446,7 +472,8 @@ const Calender = () => {
                               style={{
                                 backgroundColor: colors.bg,
                                 color: colors.text,
-                                border: `1px solid ${colors.text}20`
+                                border: `1px solid ${colors.text}20`,
+                                cursor: 'grab'
                               }}
                               onDrag={(event: any) => {
                                 onDrag(event);
@@ -503,17 +530,14 @@ const Calender = () => {
                         editable={true}
                         droppable={true}
                         selectable={true}
-                        selectConstraint={{
-                          start: new Date(),
-                        }}
-                        validRange={{
-                          start: new Date(),
-                        }}
+                        validRange={undefined}
                         dateClick={handleDateClick}
                         eventClick={handleEventClick}
                         drop={onDrop}
+                        datesSet={handleDatesSet}
                         allDaySlot={false}
                         expandRows={true}
+                        nowIndicator={true}
                       />
                     </CardBody>
                   </Card>
@@ -531,8 +555,8 @@ const Calender = () => {
                   style={{ height: "400px" }}
                 >
                   <div id="upcoming-event-list">
-                    {events &&
-                      (events || []).map((event: any, key: any) => (
+                    {upcommingevents &&
+                      (upcommingevents || []).map((event: any, key: any) => (
                         <React.Fragment key={key}>
                           <UpcommingEvents event={event} />
                         </React.Fragment>

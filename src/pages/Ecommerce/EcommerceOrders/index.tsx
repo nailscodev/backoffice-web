@@ -59,6 +59,10 @@ const EcommerceOrders = () => {
 
   const [modal, setModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("1");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   
   // Estados para ReservationModal
   const [reservationModal, setReservationModal] = useState<boolean>(false);
@@ -72,13 +76,14 @@ const EcommerceOrders = () => {
     selectLayoutState,
     (ecom) => ({
       orders: ecom.orders,
+      pagination: ecom.pagination,
       isOrderSuccess: ecom.isOrderSuccess,
       error: ecom.error,
     })
   );
   // Inside your component
   const {
-    orders, isOrderSuccess, error
+    orders, pagination, isOrderSuccess, error
   } = useSelector(selectLayoutProperties);
   const [orderList, setOrderList] = useState<any>([]);
   const [order, setOrder] = useState<any>([]);
@@ -149,14 +154,25 @@ const EcommerceOrders = () => {
     if (!isEmpty(orders)) setOrderList(orders);
   }, [orders]);
 
+  // Update pagination info from backend
+  useEffect(() => {
+    if (pagination) {
+      setTotalRecords(pagination.total);
+      setCurrentPage(pagination.page);
+      setPageSize(pagination.limit);
+    }
+  }, [pagination]);
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   const toggleTab = (tab: any, type: any) => {
     if (activeTab !== tab) {
       setActiveTab(tab);
-      let filteredOrders = orders;
-      if (type !== "all") {
-        filteredOrders = orders.filter((order: any) => order.status === type);
-      }
-      setOrderList(filteredOrders);
+      setCurrentPage(1); // Reset to first page when changing tabs
+      // The useEffect will handle the fetch with debounce
     }
   };
 
@@ -313,9 +329,41 @@ const EcommerceOrders = () => {
 
   useEffect(() => {
     if (orders && !orders.length) {
-      dispatch(onGetOrders());
+      dispatch(onGetOrders({}));
     }
-  }, [dispatch, orders]);
+  }, [dispatch]);
+
+  // Debounce search effect
+  useEffect(() => {
+    const delaySearch = setTimeout(() => {
+      const filters: any = {
+        page: currentPage,
+        limit: pageSize
+      };
+      
+      // Add search term if exists
+      if (searchTerm) {
+        filters.search = searchTerm;
+      }
+      
+      // Add status filter based on active tab
+      if (activeTab !== "1") {
+        const statusMap: any = {
+          '2': 'completed',
+          '3': 'pending',
+          '4': 'cancelled'
+        };
+        if (statusMap[activeTab]) {
+          filters.status = statusMap[activeTab];
+        }
+      }
+      
+      // Dispatch the search
+      dispatch(onGetOrders(filters));
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(delaySearch);
+  }, [searchTerm, activeTab, currentPage, pageSize, dispatch]);
 
   useEffect(() => {
     setOrder(orders);
@@ -422,14 +470,6 @@ const EcommerceOrders = () => {
         enableSorting: false,
       },
       {
-        header: t("reservations.table.reservation_id"),
-        accessorKey: "orderId",
-        enableColumnFilter: false,
-        cell: (cell: any) => {
-          return <Link to="/apps-ecommerce-order-details" className="fw-medium link-primary">{cell.getValue()}</Link>;
-        },
-      },
-      {
         header: t("reservations.table.customer"),
         accessorKey: "customer",
         enableColumnFilter: false,
@@ -443,12 +483,15 @@ const EcommerceOrders = () => {
         header: t("reservations.table.reservation_date"),
         accessorKey: "orderDate",
         enableColumnFilter: false,
-        cell: (cell: any) => (
-          <>
-            {handleValidDate(cell.getValue())},
-            <small className="text-muted"> {handleValidTime(cell.getValue())}</small>
-          </>
-        ),
+        cell: (cell: any) => {
+          const row = cell.row.original;
+          return (
+            <>
+              {handleValidDate(cell.getValue())},
+              <small className="text-muted"> {handleValidTime(row)}</small>
+            </>
+          );
+        },
       },
       {
         header: t("reservations.table.amount"),
@@ -461,9 +504,12 @@ const EcommerceOrders = () => {
         enableColumnFilter: false,
         cell: (cell: any) => {
           const paymentValue = cell.getValue();
-          if (paymentValue === "Bank" || paymentValue === "Banco") {
+          if (!paymentValue || paymentValue === "Pending") {
+            return <span className="text-muted">-</span>;
+          }
+          if (paymentValue === "Bank" || paymentValue === "Banco" || paymentValue === "CARD") {
             return t('reservations.payment.bank');
-          } else if (paymentValue === "Cash" || paymentValue === "Efectivo") {
+          } else if (paymentValue === "Cash" || paymentValue === "Efectivo" || paymentValue === "CASH") {
             return t('reservations.payment.cash');
           }
           return paymentValue;
@@ -474,17 +520,23 @@ const EcommerceOrders = () => {
         accessorKey: 'status',
         enableColumnFilter: false,
         cell: (cell: any) => {
-          switch (cell.getValue()) {
-            case "Pendiente":
-            case "Pending":
+          const status = cell.getValue()?.toLowerCase();
+          switch (status) {
+            case "pendiente":
+            case "pending":
               return <span className="badge text-uppercase bg-warning-subtle text-warning"> {t('reservations.status.pending')} </span>;
-            case "Cancelado":
-            case "Cancelled":
+            case "cancelado":
+            case "cancelled":
               return <span className="badge text-uppercase bg-danger-subtle text-danger"> {t('reservations.status.cancelled')} </span>;
-            case "Completado":
-            case "Completed":
-            case "Delivered":
+            case "completado":
+            case "completed":
+            case "delivered":
               return <span className="badge text-uppercase bg-success-subtle text-success"> {t('reservations.status.completed')} </span>;
+            case "confirmed":
+            case "confirmado":
+              return <span className="badge text-uppercase bg-info-subtle text-info"> {status} </span>;
+            case "no_show":
+              return <span className="badge text-uppercase bg-secondary-subtle text-secondary"> No Show </span>;
             default:
               return <span className="badge text-uppercase bg-warning-subtle text-warning"> {cell.getValue()} </span>;
           }
@@ -537,23 +589,87 @@ const EcommerceOrders = () => {
   );
 
   const handleValidDate = (date: any) => {
-    const date1 = moment(new Date(date)).format("DD MMM Y");
-    return date1;
+    // Date comes as "2025-12-29" from backend
+    if (!date) return '';
+    return moment(date).format("DD MMM YYYY");
   };
 
-  const handleValidTime = (time: any) => {
-    const time1 = new Date(time);
-    const getHour = time1.getUTCHours();
-    const getMin = time1.getUTCMinutes();
-    const getTime = `${getHour}:${getMin}`;
-    var meridiem = "";
-    if (getHour >= 12) {
-      meridiem = "PM";
-    } else {
-      meridiem = "AM";
+  const handleValidTime = (row: any) => {
+    // startTime comes as "13:00:00" from backend
+    const timeValue = row?.startTime;
+    
+    if (!timeValue) return '';
+    
+    try {
+      // Parse HH:MM:SS format
+      const [hours24, minutes] = timeValue.split(':');
+      const hour24 = parseInt(hours24);
+      const min = parseInt(minutes);
+      
+      const hours = hour24 % 12 || 12;
+      const minutesStr = min < 10 ? `0${min}` : min;
+      const meridiem = hour24 >= 12 ? "PM" : "AM";
+      
+      return `${hours}:${minutesStr} ${meridiem}`;
+    } catch (error) {
+      console.error('Error parsing time:', error);
+      return '';
     }
-    const updateTime = moment(getTime, 'hh:mm').format('hh:mm') + " " + meridiem;
-    return updateTime;
+  };
+
+  // Calculate which page numbers to show in pagination
+  // Always shows exactly 7 page numbers (or total pages if less than 7)
+  const getPageNumbers = () => {
+    const totalPages = pagination?.totalPages || 0;
+    const current = currentPage;
+    const maxVisible = 7; // Always show 7 page numbers
+    const rangeWithDots: (number | string)[] = [];
+
+    if (totalPages <= maxVisible) {
+      // If total pages is 7 or less, show all pages
+      for (let i = 1; i <= totalPages; i++) {
+        rangeWithDots.push(i);
+      }
+      return rangeWithDots;
+    }
+
+    // Calculate the start and end of the visible range
+    let startPage = Math.max(1, current - 3);
+    let endPage = Math.min(totalPages, current + 3);
+
+    // Adjust if we're near the beginning
+    if (current <= 4) {
+      startPage = 1;
+      endPage = maxVisible;
+    }
+    // Adjust if we're near the end
+    else if (current >= totalPages - 3) {
+      startPage = totalPages - maxVisible + 1;
+      endPage = totalPages;
+    }
+
+    // Add first page and dots if needed
+    if (startPage > 1) {
+      rangeWithDots.push(1);
+      if (startPage > 2) {
+        rangeWithDots.push('...');
+      }
+    }
+
+    // Add the main range
+    for (let i = startPage; i <= endPage; i++) {
+      rangeWithDots.push(i);
+    }
+
+    // Add dots and last page if needed
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        rangeWithDots.push('...');
+      }
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
   };
 
   // Export Modal
@@ -604,10 +720,10 @@ const EcommerceOrders = () => {
                       >
                         <i className="ri-add-line align-bottom me-1"></i> {t("reservations.create_reservation")}
                       </button>{" "}
-                      <button type="button" className="btn btn-info" onClick={() => setIsExportCSV(true)}>
+                      {/* <button type="button" className="btn btn-info" onClick={() => setIsExportCSV(true)}>
                         <i className="ri-file-download-line align-bottom me-1"></i>{" "}
                         {t("reservations.export")}
-                      </button>
+                      </button> */}
                       {" "}
                       {isMultiDeleteButton && <button className="btn btn-soft-danger"
                         onClick={() => setDeleteModalMulti(true)}
@@ -678,20 +794,90 @@ const EcommerceOrders = () => {
                     </NavItem>
                   </Nav>
 
+                  <div className="mb-3 mt-3">
+                    <div className="search-box">
+                      <input
+                        type="text"
+                        className="form-control search"
+                        placeholder={t('reservations.search_placeholder')}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      <i className="ri-search-line search-icon"></i>
+                    </div>
+                  </div>
+
                   {isOrderSuccess && orderList.length ? (
-                    <TableContainer
-                      columns={columns}
-                      data={(orderList || [])}
-                      isGlobalFilter={true}
-                      customPageSize={8}
-                      divClass="table-responsive table-card mb-1 mt-0"
-                      tableClass="align-middle table-nowrap"
-                      theadClass="table-light text-muted text-uppercase"
-                      isOrderFilter={true}
-                      SearchPlaceholder={t('reservations.search_placeholder')}
-                    />
-                  ) : (<Loader error={error} />)
-                  }
+                    <>
+                      <TableContainer
+                        columns={columns}
+                        data={(orderList || [])}
+                        isGlobalFilter={false}
+                        customPageSize={pageSize}
+                        divClass="table-responsive table-card mb-1 mt-0"
+                        tableClass="align-middle table-nowrap"
+                        theadClass="table-light text-muted text-uppercase"
+                        isOrderFilter={false}
+                        isPagination={false}
+                      />
+                      
+                      {/* Custom server-side pagination */}
+                      <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
+                        <div className="col-sm">
+                          <div className="text-muted">
+                            Showing <span className="fw-semibold">{orderList.length}</span> of <span className="fw-semibold">{totalRecords}</span> results
+                          </div>
+                        </div>
+                        <div className="col-sm-auto">
+                          <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
+                            <li className={`page-item ${!pagination?.hasPrevPage ? 'disabled' : ''}`}>
+                              <button 
+                                className="page-link" 
+                                onClick={() => setCurrentPage(currentPage - 1)}
+                                disabled={!pagination?.hasPrevPage}
+                              >
+                                Previous
+                              </button>
+                            </li>
+                            {getPageNumbers().map((pageNum, idx) => {
+                              if (pageNum === '...') {
+                                return (
+                                  <li key={`dots-${idx}`} className="page-item disabled">
+                                    <span className="page-link">...</span>
+                                  </li>
+                                );
+                              }
+                              return (
+                                <li key={pageNum} className={`page-item ${currentPage === pageNum ? 'active' : ''}`}>
+                                  <button 
+                                    className="page-link" 
+                                    onClick={() => setCurrentPage(pageNum as number)}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                            <li className={`page-item ${!pagination?.hasNextPage ? 'disabled' : ''}`}>
+                              <button 
+                                className="page-link" 
+                                onClick={() => setCurrentPage(currentPage + 1)}
+                                disabled={!pagination?.hasNextPage}
+                              >
+                                Next
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      </Row>
+                    </>
+                  ) : isOrderSuccess && !orderList.length ? (
+                    <div className="py-4 text-center">
+                      <p className="text-muted">{t("reservations.no_data")}</p>
+                    </div>
+                  ) : (
+                    <Loader error={error} />
+                  )}
                 </div>
                 <Modal id="showModal" isOpen={modal} toggle={toggle} centered>
                   <ModalHeader className="bg-light p-3" toggle={toggle}>

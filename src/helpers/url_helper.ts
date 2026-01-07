@@ -11,6 +11,11 @@ export const USERS = "/api/v1/users";
 
 //BOOKINGS
 export const BOOKINGS = "/api/v1/bookings";
+export const GET_BOOKINGS = "/api/v1/bookings";
+export const GET_BOOKINGS_LIST = "/api/v1/bookings/list";
+export const ADD_NEW_BOOKING = "/api/v1/bookings";
+export const UPDATE_BOOKING = "/api/v1/bookings";
+export const DELETE_BOOKING = "/api/v1/bookings";
 export const INVOICES = "/api/v1/bookings/invoices";
 export const MANUAL_ADJUSTMENTS = "/api/v1/bookings/manual-adjustments";
 export const DASHBOARD_STATS = "/api/v1/bookings/dashboard/stats";

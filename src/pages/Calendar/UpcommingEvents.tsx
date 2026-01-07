@@ -46,7 +46,9 @@ function UpcommingEvents(props: any) {
     return [day + " " + month, year].join(",");
   };
 
-  const category = props.event.className.split("-");
+  // Extraer el color del evento
+  const eventColor = props.event.backgroundColor || props.event.borderColor || '#e9d5ff';
+  const textColor = props.event.textColor || '#6b21a8';
 
   var endUpdatedDay: any = "";
   if (props.event.end) {
@@ -105,14 +107,21 @@ function UpcommingEvents(props: any) {
         <div className="d-flex mb-3">
           <div className="flex-grow-1">
             <i
-              className={"mdi mdi-checkbox-blank-circle me-2 text-" + category[1]}
+              className="mdi mdi-checkbox-blank-circle me-2"
+              style={{ color: textColor }}
             ></i>
             <span className="fw-medium">
               {startDate} {end_dt}
             </span>
           </div>
           <div className="flex-shrink-0">
-            <small className={`badge bg-primary-subtle text-primary ms-auto`}>
+            <small 
+              className="badge ms-auto"
+              style={{ 
+                backgroundColor: eventColor, 
+                color: textColor 
+              }}
+            >
               {e_time_s} {e_time_e}
             </small>
           </div>
