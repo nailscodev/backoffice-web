@@ -232,6 +232,7 @@ const Navdata = () => {
             },
             stateVariables: isConfiguracion,
             subItems: [
+                { id: "booking-settings", label: t('menu.admin.settings.booking_settings'), link: "/config/reservas", parentId: "admin-config" },
                 { id: "usuarios-roles", label: t('menu.admin.settings.users_roles'), link: "/config/usuarios", parentId: "admin-config" },
                 { id: "idioma", label: t('menu.admin.settings.language'), link: "/config/idioma", parentId: "admin-config" },
             ],

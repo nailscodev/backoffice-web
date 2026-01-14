@@ -96,3 +96,51 @@ export const deleteBooking = async (id: string) => {
   const response = await api.delete(`${url.DELETE_BOOKING}/${id}`);
   return response.data || response;
 };
+
+/**
+ * Get available time slots for backoffice (optimized endpoint)
+ */
+export const getBackofficeAvailability = async (
+  services: Array<{
+    serviceId: string;
+    duration: number;
+    bufferTime: number;
+    staffId?: string;
+    addons?: Array<{ id: string; duration: number }>;
+  }>,
+  removals: Array<{ id: string; duration: number }>,
+  date: string,
+  isVIPCombo: boolean,
+  timezoneOffset?: number
+) => {
+  const response = await api.create(`${url.GET_BOOKINGS}/backoffice-availability`, {
+    services,
+    removals,
+    date,
+    isVIPCombo,
+    timezoneOffset, // Send timezone offset so backend can convert to UTC
+  });
+  return response.data || response;
+};
+
+/**
+ * Get available time slots for multiple services (legacy)
+ * @deprecated Use getBackofficeAvailability instead
+ */
+export const getMultiServiceSlots = async (
+  servicesWithAddons: Array<{
+    id: string;
+    duration: number;
+    bufferTime: number;
+    addons: Array<{ id: string; duration: number }>;
+  }>,
+  date: string,
+  selectedTechnicianId?: string
+) => {
+  const response = await api.create(`${url.GET_BOOKINGS}/multi-service-slots`, {
+    servicesWithAddons,
+    date,
+    selectedTechnicianId,
+  });
+  return response.data || response;
+};

@@ -73,6 +73,7 @@ import ServicesList from "../pages/Services/ServicesList/index";
 import AddOns from "../pages/Services/AddOns/index";
 
 // Settings Pages
+import BookingSettings from "../pages/Settings/BookingSettings";
 import UserManagement from "../pages/Settings/Users/index";
 import LanguageManagement from "../pages/Settings/Language/index";
 
@@ -292,6 +293,7 @@ const authProtectedRoutes = [
   { path: "/servicios/addons", component: <AddOns /> },
 
   // Settings
+  { path: "/config/reservas", component: <BookingSettings /> },
   { path: "/config/usuarios", component: <UserManagement /> },
   { path: "/config/idioma", component: <LanguageManagement /> },
 

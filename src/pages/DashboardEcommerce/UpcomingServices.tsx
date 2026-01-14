@@ -10,6 +10,7 @@ interface UpcomingBooking {
     serviceName: string;
     staffName: string;
     appointmentDate: string;
+    startTime: string;
     status: string;
     totalAmount: number;
 }
@@ -43,9 +44,21 @@ const UpcomingServices = () => {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    const formatTime = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const formatTime = (timeString: string) => {
+        // timeString viene del backend en UTC (HH:mm:ss)
+        // Lo interpretamos como UTC y convertimos a hora local del navegador
+        if (!timeString) return '';
+        
+        // Crear una fecha ficticia en UTC con la hora del backend
+        const [hours, minutes, seconds = '0'] = timeString.split(':');
+        const utcDate = new Date(Date.UTC(2000, 0, 1, parseInt(hours), parseInt(minutes), parseInt(seconds)));
+        
+        // Formatear en hora local
+        return utcDate.toLocaleTimeString('es-AR', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+        });
     };
 
     const getRowBackgroundColor = (status: string) => {
@@ -82,7 +95,7 @@ const UpcomingServices = () => {
                     `"${booking.customerName}"`,
                     `"${booking.serviceName}"`,
                     `"${formatDate(booking.appointmentDate)}"`,
-                    `"${formatTime(booking.appointmentDate)}"`,
+                    `"${formatTime(booking.startTime)}"`,
                     `"${booking.staffName}"`,
                     `"${booking.status}"`
                 ].join(',');
@@ -160,7 +173,7 @@ const UpcomingServices = () => {
                                                     <span className="fw-medium">{formatDate(booking.appointmentDate)}</span>
                                                 </td>
                                                 <td>
-                                                    <span className="text-success">{formatTime(booking.appointmentDate)}</span>
+                                                    <span className="text-success">{formatTime(booking.startTime)}</span>
                                                 </td>
                                                 <td className="text-truncate" style={{maxWidth: '150px'}}>
                                                     {booking.staffName}

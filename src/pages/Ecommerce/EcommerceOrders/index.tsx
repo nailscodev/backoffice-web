@@ -23,6 +23,7 @@ import Flatpickr from "react-flatpickr";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
 import ReservationModal from "../../../Components/Common/ReservationModal";
+import CreateBookingModal from "../../../Components/Common/CreateBookingModal";
 import { isEmpty } from "lodash";
 
 // Export Modal
@@ -91,6 +92,9 @@ const EcommerceOrders = () => {
   const [reservationEvent, setReservationEvent] = useState<any>({});
   const [isEditReservation, setIsEditReservation] = useState<boolean>(false);
   const [eventName, setEventName] = useState<string>("");
+  
+  // Estado para CreateBookingModal (nuevo sistema)
+  const [createBookingModal, setCreateBookingModal] = useState<boolean>(false);
 
   const dispatch: any = useDispatch();
   const selectLayoutState = (state: any) => state.Ecommerce;
@@ -571,22 +575,25 @@ const EcommerceOrders = () => {
   };
 
   const handleValidTime = (row: any) => {
-    // startTime comes as "13:00:00" from backend
+    // startTime comes as "13:00:00" from backend IN UTC
+    // We need to interpret it as UTC and convert to local time
     const timeValue = row?.startTime;
     
     if (!timeValue) return '';
     
     try {
-      // Parse HH:MM:SS format
-      const [hours24, minutes] = timeValue.split(':');
-      const hour24 = parseInt(hours24);
-      const min = parseInt(minutes);
+      // Parse HH:MM:SS format and interpret as UTC
+      const [hours, minutes, seconds = '0'] = timeValue.split(':');
       
-      const hours = hour24 % 12 || 12;
-      const minutesStr = min < 10 ? `0${min}` : min;
-      const meridiem = hour24 >= 12 ? "PM" : "AM";
+      // Create a date in UTC with the time from backend
+      const utcDate = new Date(Date.UTC(2000, 0, 1, parseInt(hours), parseInt(minutes), parseInt(seconds)));
       
-      return `${hours}:${minutesStr} ${meridiem}`;
+      // Convert to local time and format
+      return utcDate.toLocaleTimeString('es-AR', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
     } catch (error) {
       console.error('Error parsing time:', error);
       return '';
@@ -675,11 +682,7 @@ const EcommerceOrders = () => {
                         type="button"
                         className="btn btn-success add-btn"
                         id="create-btn"
-                        onClick={() => { 
-                          setIsEditReservation(false); 
-                          setReservationEvent({});
-                          toggleReservationModal(); 
-                        }}
+                        onClick={() => setCreateBookingModal(true)}
                       >
                         <i className="ri-add-line align-bottom me-1"></i> {t("reservations.create_reservation")}
                       </button>{" "}
@@ -1085,6 +1088,23 @@ const EcommerceOrders = () => {
                   event={reservationEvent}
                   validation={reservationValidation}
                   submitOtherEvent={submitOtherEvent}
+                />
+                
+                {/* Nuevo modal de creación de bookings con lógica completa */}
+                <CreateBookingModal
+                  isOpen={createBookingModal}
+                  toggle={() => setCreateBookingModal(false)}
+                  onBookingCreated={() => {
+                    // Recargar bookings después de crear
+                    const filters: any = {
+                      page: currentPage,
+                      limit: pageSize
+                    };
+                    if (customerFilter) filters.customerId = customerFilter;
+                    if (staffFilter) filters.staffId = staffFilter;
+                    if (searchTerm) filters.search = searchTerm;
+                    dispatch(onGetOrders(filters));
+                  }}
                 />
                 
                 <ToastContainer closeButton={false} limit={1} />

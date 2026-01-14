@@ -183,3 +183,29 @@ export const getServiceCategories = async (): Promise<any[]> => {
   const response = await api.get(`${url.SERVICES}/categories/list`, null);
   return response.data;
 };
+
+/**
+ * Get incompatible categories for given category IDs
+ * @param categoryIds Array of category UUIDs
+ */
+export const getIncompatibleCategories = async (categoryIds: string[]): Promise<string[]> => {
+  if (!categoryIds || categoryIds.length === 0) {
+    return [];
+  }
+  const categoryIdsParam = categoryIds.join(',');
+  const response = await api.get(`${url.SERVICES}/categories/incompatibilities?categoryIds=${categoryIdsParam}`, null);
+  return response.data || [];
+};
+
+/**
+ * Get removal add-ons for specific services
+ * @param serviceIds Array of service UUIDs
+ */
+export const getRemovalAddonsByServices = async (serviceIds: string[]): Promise<any> => {
+  if (!serviceIds || serviceIds.length === 0) {
+    return [];
+  }
+  const serviceIdsParam = serviceIds.join(',');
+  const response = await api.get(`${url.SERVICES}/removal-addons/by-services?serviceIds=${serviceIdsParam}`, null);
+  return response;
+};

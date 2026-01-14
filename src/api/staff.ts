@@ -150,6 +150,15 @@ export const getAvailableStaff = async (serviceIds?: string[]): Promise<Staff[]>
 };
 
 /**
+ * Get all staff members as a simple list (no pagination)
+ * Useful for dropdowns and selects
+ */
+export const getStaffList = async (): Promise<Staff[]> => {
+  const response = await api.get(`${url.STAFF}?page=1&limit=100&isActive=true`, null);
+  return response.data?.data || response.data || [];
+};
+
+/**
  * Get a specific staff member by ID
  */
 export const getStaffById = async (id: string): Promise<Staff> => {
