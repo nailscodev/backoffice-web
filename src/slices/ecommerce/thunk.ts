@@ -110,14 +110,14 @@ export const deleteProducts = createAsyncThunk("ecommerce/deleteProducts", async
 
 export const updateOrder = createAsyncThunk("ecommerce/updateOrder", async (order:any) => {
   try {
-    // For now, keep using mock until we integrate full booking update
-    const response = updateOrderApi(order);
-    const data = await response;
+    // Use real backend API for booking update
+    const { id, ...updateFields } = order;
+    const response = await updateBookingApi(id, updateFields);
     toast.success("Reservation Updated Successfully", { autoClose: 3000 });
-    return data;
+    return response;
   } catch (error) {
     toast.error("Reservation Update Failed", { autoClose: 3000 });
-    return error;
+    throw error;
   }
 });
 

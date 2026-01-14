@@ -112,6 +112,7 @@ interface TableContainerProps {
   handleCompanyClick?: any;
   handleContactClick?: any;
   handleTicketClick?: any;
+  onRowClick?: (row: any) => void;
   isPagination?: boolean;
   // Invoice-specific external controls (optional)
   invoiceDateRange?: any;
@@ -149,6 +150,7 @@ const TableContainer = ({
   invoiceService,
   setInvoiceService,
   onReloadData,
+  onRowClick,
 
 }: TableContainerProps) => {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -322,7 +324,11 @@ const TableContainer = ({
           <tbody>
             {getRowModel().rows.map((row: any) => {
               return (
-                <tr key={row.id}>
+                <tr 
+                  key={row.id}
+                  onClick={() => onRowClick && onRowClick(row.original)}
+                  style={onRowClick ? { cursor: 'pointer' } : {}}
+                >
                   {row.getVisibleCells().map((cell: any) => {
                     return (
                       <td key={cell.id}>

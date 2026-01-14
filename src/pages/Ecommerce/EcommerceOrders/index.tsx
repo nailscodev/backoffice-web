@@ -49,6 +49,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { createSelector } from "reselect";
 import moment from "moment";
 import { servicesByCategory, staffMembers } from "../../../common/data/calender";
+import { getBookingById } from "../../../api/bookings";
+import { getAddOn } from "../../../api/addons";
 
 // i18n
 import { useTranslation } from 'react-i18next';
@@ -112,7 +114,7 @@ const EcommerceOrders = () => {
     orders, pagination, isOrderSuccess, error
   } = useSelector(selectLayoutProperties);
   const [orderList, setOrderList] = useState<any>([]);
-  const [order, setOrder] = useState<any>([]);
+  const [order, setOrder] = useState<any>(null);
 
   const orderstatus = [
     {
@@ -193,39 +195,49 @@ const EcommerceOrders = () => {
     enableReinitialize: true,
 
     initialValues: {
-      orderId: (order && order.orderId) || '',
-      customer: (order && order.customer) || '',
-      product: (order && order.product) || '',
-      orderDate: (order && order.orderDate) || '',
-      amount: (order && order.amount) || '',
-      payment: (order && order.payment) || '',
-      status: (order && order.status) || '',
+      orderId: order?.orderId || '',
+      customer: order?.customer || '',
+      customerEmail: order?.customerEmail || '',
+      customerPhone: order?.customerPhone || '',
+      product: order?.product || '',
+      categoryName: order?.categoryName || '',
+      staffName: order?.staffName || '',
+      orderDate: order?.orderDate || '',
+      ordertime: order?.ordertime || '',
+      amount: order?.amount || 0,
+      payment: order?.payment || '',
+      status: order?.status || '',
+      notes: order?.notes || '',
+      web: order?.web || false,
     },
     validationSchema: Yup.object({
-      orderId: Yup.string().required(t("reservations.validation.id_required")),
-      customer: Yup.string().required(t("reservations.validation.customer_required")),
-      product: Yup.string().required(t("reservations.validation.services_required")),
-      orderDate: Yup.string().required(t("reservations.validation.date_required")),
-      amount: Yup.string().required(t("reservations.validation.amount_required")),
-      payment: Yup.string().required(t("reservations.validation.payment_required")),
-      status: Yup.string().required(t("reservations.validation.status_required"))
+      status: Yup.string().required(t("reservations.validation.status_required")),
+      payment: Yup.string().required(t("reservations.validation.payment_required"))
     }),
-    onSubmit: (values) => {
-      if (isEdit) {
-        const updateOrder = {
-          id: order ? order.id : 0,
-          orderId: values.orderId,
-          customer: values.customer,
-          product: values.product,
-          orderDate: values.orderDate,
-          amount: values.amount,
-          payment: values.payment,
-          status: values.status
+    onSubmit: async (values) => {
+      if (isEdit && order) {
+        // Only send fields that are updatable by backend
+        const updatePayload = {
+          status: values.status,
+          paymentMethod: values.payment ? values.payment.toUpperCase() : undefined,
         };
-        // update order
-        dispatch(onUpdateOrder(updateOrder));
+        try {
+          await dispatch(onUpdateOrder({ id: order.id, ...updatePayload }));
+          // Refresh bookings after update
+          const filters = {
+            page: currentPage,
+            limit: pageSize,
+            ...(customerFilter ? { customerId: customerFilter } : {}),
+            ...(staffFilter ? { staffId: staffFilter } : {}),
+            ...(searchTerm ? { search: searchTerm } : {}),
+          };
+          dispatch(onGetOrders(filters));
+        } catch (err) {
+          // Error handled by thunk toast
+        }
         validation.resetForm();
       } else {
+        // Creation logic (not used for edit modal)
         const newOrder = {
           id: (Math.floor(Math.random() * (30 - 20)) + 20).toString(),
           orderId: values["orderId"],
@@ -236,13 +248,20 @@ const EcommerceOrders = () => {
           payment: values["payment"],
           status: values["status"]
         };
-        // save new order
         dispatch(onAddNewOrder(newOrder));
         validation.resetForm();
       }
       toggle();
     },
   });
+
+  // Debug: Log when order changes
+  useEffect(() => {
+    if (order) {
+      console.log('🔄 Order state updated:', order);
+      console.log('📝 Validation values:', validation.values);
+    }
+  }, [order]);
 
   // Validation para ReservationModal
   const reservationValidation: any = useFormik({
@@ -421,54 +440,76 @@ const EcommerceOrders = () => {
     setIsEditReservation(true);
   };
 
-  const handleOrderClick = useCallback((arg: any) => {
-    const order = arg;
-    setOrder({
-      id: order.id,
-      orderId: order.orderId,
-      customer: order.customer,
-      product: order.product,
-      orderDate: order.orderDate,
-      ordertime: order.ordertime,
-      amount: order.amount,
-      payment: order.payment,
-      status: order.status
-    });
-
-    setIsEdit(true);
-    toggle();
-  }, [toggle]);
-
-
-  // Checked All
-  const checkedAll = useCallback(() => {
-    const checkall: any = document.getElementById("checkBoxAll");
-    const ele = document.querySelectorAll(".orderCheckBox");
-    if (checkall.checked) {
-      ele.forEach((ele: any) => {
-        ele.checked = true;
-      });
-    } else {
-      ele.forEach((ele: any) => {
-        ele.checked = false;
-      });
+  const handleOrderClick = useCallback(async (arg: any) => {
+    const booking = arg;
+    console.log('📋 Booking data from list:', booking);
+    
+    try {
+      // 1. Fetch full booking details by ID
+      console.log('🔍 Fetching booking details for ID:', booking.id);
+      const bookingDetails = await getBookingById(booking.id);
+      console.log('📦 Full booking details:', bookingDetails);
+      
+      // 2. Fetch addon details if addOnIds exist
+      let addons = [];
+      if (bookingDetails.addOnIds && bookingDetails.addOnIds.length > 0) {
+        console.log('🔍 Fetching addons:', bookingDetails.addOnIds);
+        const addonPromises = bookingDetails.addOnIds.map((addonId: string) => 
+          getAddOn(addonId).catch(err => {
+            console.error(`Failed to fetch addon ${addonId}:`, err);
+            return null;
+          })
+        );
+        const addonResults = await Promise.all(addonPromises);
+        addons = addonResults.filter(addon => addon !== null);
+        console.log('✅ Addons fetched:', addons);
+      }
+      
+      // Extract numeric amount from string like "$5500.00"
+      let numericAmount = 0;
+      if (typeof booking.amount === 'string') {
+        numericAmount = parseFloat(booking.amount.replace(/[$,]/g, '')) * 100; // Convert to cents
+      } else if (typeof booking.amount === 'number') {
+        numericAmount = booking.amount;
+      }
+      
+      // Convert UTC times to local timezone
+      const startTime = booking.startTime ? moment.utc(booking.startTime, 'HH:mm:ss').local().format('HH:mm:ss') : '';
+      const endTime = booking.endTime ? moment.utc(booking.endTime, 'HH:mm:ss').local().format('HH:mm:ss') : '';
+      
+      const orderData = {
+        id: booking.id,
+        orderId: booking.id,
+        customer: booking.customer || booking.customerName || '',
+        customerEmail: booking.customerEmail || '',
+        customerPhone: booking.customerPhone || '',
+        product: booking.product || booking.serviceName || '',
+        categoryName: booking.categoryName || '',
+        staffName: booking.staffName || '',
+        orderDate: booking.orderDate || booking.appointmentDate || '',
+        ordertime: `${startTime} - ${endTime}`,
+        amount: numericAmount,
+        payment: (booking.payment === 'Pending' ? 'pending' : booking.payment) || booking.paymentMethod || 'pending',
+        status: (booking.status || 'pending').toLowerCase(),
+        notes: booking.notes || '',
+        web: booking.web || false,
+        addons: addons // Include fetched addons
+      };
+      
+      console.log('📦 Order data to set:', orderData);
+      setOrder(orderData);
+      setIsEdit(true);
+      toggle();
+    } catch (error) {
+      console.error('❌ Error fetching booking details:', error);
+      toast.error(t('reservations.error_loading_details'));
     }
-  }, []);
+  }, [toggle, t]);
 
 
   // Column
   const columns = useMemo(
     () => [
-      {
-        header: <input type="checkbox" id="checkBoxAll" className="form-check-input" onClick={() => checkedAll()} />,
-        cell: (cell: any) => {
-          return <input type="checkbox" className="orderCheckBox form-check-input" value={cell.getValue()} />;
-        },
-        id: '#',
-        accessorKey: 'id',
-        enableColumnFilter: false,
-        enableSorting: false,
-      },
       {
         header: t("reservations.table.customer"),
         accessorKey: "customer",
@@ -540,14 +581,6 @@ const EcommerceOrders = () => {
         cell: (cellProps: any) => {
           return (
             <ul className="list-inline hstack gap-2 mb-0">
-              <li className="list-inline-item">
-                <Link
-                  to="/apps-ecommerce-order-details"
-                  className="text-primary d-inline-block"
-                >
-                  <i className="ri-eye-fill fs-16"></i>
-                </Link>
-              </li>
               <li className="list-inline-item edit">
                 <Link
                   to="#"
@@ -565,7 +598,7 @@ const EcommerceOrders = () => {
         },
       },
     ],
-    [handleOrderClick, checkedAll, t]
+    [handleOrderClick, t]
   );
 
   const handleValidDate = (date: any) => {
@@ -780,6 +813,7 @@ const EcommerceOrders = () => {
                         theadClass="table-light text-muted text-uppercase"
                         isOrderFilter={false}
                         isPagination={false}
+                        onRowClick={handleOrderClick}
                       />
                       
                       {/* Custom server-side pagination */}
@@ -840,9 +874,9 @@ const EcommerceOrders = () => {
                     <Loader error={error} />
                   )}
                 </div>
-                <Modal id="showModal" isOpen={modal} toggle={toggle} centered>
+                <Modal id="showModal" isOpen={modal} toggle={toggle} centered size="lg">
                   <ModalHeader className="bg-light p-3" toggle={toggle}>
-                    {!!isEdit ? t("reservations.edit_reservation") : t("reservations.create_reservation")}
+                    {t("reservations.view_reservation")}
                   </ModalHeader>
                   <Form className="tablelist-form" onSubmit={(e: any) => {
                     e.preventDefault();
@@ -850,212 +884,180 @@ const EcommerceOrders = () => {
                     return false;
                   }}>
                     <ModalBody>
-                      <input type="hidden" id="id-field" />
-
-                      <div className="mb-3">
-                        <Label
-                          htmlFor="id-field"
-                          className="form-label"
-                        >
-                          {t("reservations.form.reservation_id")}
-                        </Label>
-                        <Input
-                          name="orderId"
-                          id="id-field"
-                          className="form-control"
-                          placeholder={t("reservations.form.enter_id")}
-                          type="text"
-                          validate={{
-                            required: { value: true },
-                          }}
-                          onChange={validation.handleChange}
-                          onBlur={validation.handleBlur}
-                          value={validation.values.orderId || ""}
-                          invalid={
-                            validation.touched.orderId && validation.errors.orderId ? true : false
-                          }
-                        />
-                        {validation.touched.orderId && validation.errors.orderId ? (
-                          <FormFeedback type="invalid">{validation.errors.orderId}</FormFeedback>
-                        ) : null}
-
+                      <div className="row mb-3">
+                        <div className="col-md-6">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.customer_name")}
+                          </Label>
+                          <div className="text-muted">
+                            {validation.values.customer || "N/A"}
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.phone")}
+                          </Label>
+                          <div className="text-muted">
+                            {validation.values.customerPhone || "N/A"}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="mb-3">
-                        <Label
-                          htmlFor="customername-field"
-                          className="form-label"
-                        >
-                          {t("reservations.form.customer_name")}
+                        <Label className="form-label fw-semibold">
+                          {t("reservations.form.email")}
                         </Label>
-                        <Input
-                          name="customer"
-                          id="customername-field"
-                          className="form-control"
-                          placeholder={t("reservations.form.enter_name")}
-                          type="text"
-                          validate={{
-                            required: { value: true },
-                          }}
-                          onChange={validation.handleChange}
-                          onBlur={validation.handleBlur}
-                          value={validation.values.customer || ""}
-                          invalid={
-                            validation.touched.customer && validation.errors.customer ? true : false
-                          }
-                        />
-                        {validation.touched.customer && validation.errors.customer ? (
-                          <FormFeedback type="invalid">{validation.errors.customer}</FormFeedback>
-                        ) : null}
-
+                        <div className="text-muted">
+                          {validation.values.customerEmail || "N/A"}
+                        </div>
                       </div>
 
                       <div className="mb-3">
-                        <Label
-                          htmlFor="productname-field"
-                          className="form-label"
-                        >
+                        <Label className="form-label fw-semibold">
                           {t("reservations.form.services")}
                         </Label>
-
-                        <Input
-                          name="product"
-                          type="select"
-                          className="form-select"
-                          onChange={validation.handleChange}
-                          onBlur={validation.handleBlur}
-                          value={validation.values.product || ""}
-                          invalid={
-                            validation.touched.product && validation.errors.product ? true : false
-                          }
-                        >
-                          {productname.map((item, key) => (
-                            <React.Fragment key={key}>
-                              {item.options.map((item, key) => (<option value={item.value} key={key}>{item.label}</option>))}
-                            </React.Fragment>
-                          ))}
-                        </Input>
-                        {validation.touched.product && validation.errors.product ? (
-                          <FormFeedback type="invalid">{validation.errors.product}</FormFeedback>
-                        ) : null}
+                        <div className="text-muted">
+                          {validation.values.product || "N/A"}
+                        </div>
+                        
+                        {/* Show addons if they exist */}
+                        {order && order.addons && order.addons.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-muted small fw-semibold">Add-ons:</span>
+                            <ul className="list-unstyled ms-3 mb-0">
+                              {order.addons.map((addon: any) => (
+                                <li key={addon.id} className="text-muted small">
+                                  • {addon.name} 
+                                  {addon.price > 0 && (
+                                    <span className="text-success"> (+${(addon.price / 100).toFixed(2)})</span>
+                                  )}
+                                  {addon.additionalTime > 0 && (
+                                    <span className="text-info"> (+{addon.additionalTime} min)</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mb-3">
-                        <Label htmlFor="date-field" className="form-label">
-                          {t("reservations.form.reservation_date")}
+                        <Label className="form-label fw-semibold">
+                          {t("reservations.form.staff")}
                         </Label>
-
-                        <Flatpickr
-                          name="orderDate"
-                          className="form-control"
-                          id="datepicker-publish-input"
-                          placeholder={t("reservations.form.select_date")}
-                          options={{
-                            enableTime: true,
-                            altInput: true,
-                            altFormat: "d M, Y, G:i K",
-                            dateFormat: "d M, Y, G:i K",
-                          }}
-                          onChange={(orderDate: any) => validation.setFieldValue("orderDate", moment(orderDate[0]).format("DD MMMM ,YYYY"))}
-                          value={validation.values.orderDate || ''}
-                        />
-                        {validation.errors.orderDate && validation.touched.orderDate ? (
-                          <FormFeedback type="invalid" className='d-block'>{validation.errors.orderDate}</FormFeedback>
-                        ) : null}
+                        <div className="text-muted">
+                          {validation.values.staffName || "N/A"}
+                        </div>
                       </div>
 
-                      <div className="row gy-4 mb-3">
+                      <div className="row mb-3">
                         <div className="col-md-6">
-                          <div>
-                            <Label
-                              htmlFor="amount-field"
-                              className="form-label"
-                            >
-                              {t("reservations.form.amount")}
-                            </Label>
-                            <Input
-                              name="amount"
-                              type="text"
-                              placeholder={t("reservations.form.enter_amount")}
-                              onChange={validation.handleChange}
-                              onBlur={validation.handleBlur}
-                              value={validation.values.amount || ""}
-                              invalid={
-                                validation.touched.amount && validation.errors.amount ? true : false
-                              }
-                            />
-                            {validation.touched.amount && validation.errors.amount ? (
-                              <FormFeedback type="invalid">{validation.errors.amount}</FormFeedback>
-                            ) : null}
-
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.reservation_date")}
+                          </Label>
+                          <div className="text-muted">
+                            {validation.values.orderDate || "N/A"}
                           </div>
                         </div>
                         <div className="col-md-6">
-                          <div>
-                            <Label
-                              htmlFor="payment-field"
-                              className="form-label"
-                            >
-                              {t("reservations.form.payment_method")}
-                            </Label>
-
-                            <Input
-                              name="payment"
-                              type="select"
-                              className="form-select"
-                              onChange={validation.handleChange}
-                              onBlur={validation.handleBlur}
-                              value={
-                                validation.values.payment || ""
-                              }
-                              invalid={
-                                validation.touched.payment && validation.errors.payment ? true : false
-                              }
-                            >
-                              {orderpayement.map((item, key) => (
-                                <React.Fragment key={key}>
-                                  {item.options.map((item, key) => (<option value={item.value} key={key}>{item.label}</option>))}
-                                </React.Fragment>
-                              ))}
-                            </Input>
-                            {validation.touched.payment && validation.errors.payment ? (
-                              <FormFeedback type="invalid">{validation.errors.payment}</FormFeedback>
-                            ) : null}
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.time")}
+                          </Label>
+                          <div className="text-muted">
+                            {validation.values.ordertime || "N/A"}
                           </div>
                         </div>
                       </div>
 
-                      <div>
-                        <Label
-                          htmlFor="delivered-status"
-                          className="form-label"
-                        >
-                          {t("reservations.form.status")}
-                        </Label>
-
-                        <Input
-                          name="status"
-                          type="select"
-                          className="form-select"
-                          onChange={validation.handleChange}
-                          onBlur={validation.handleBlur}
-                          value={
-                            validation.values.status || ""
-                          }
-                          invalid={
-                            validation.touched.status && validation.errors.status ? true : false
-                          }
-                        >
-                          {orderstatus.map((item, key) => (
-                            <React.Fragment key={key}>
-                              {item.options.map((item, key) => (<option value={item.value} key={key}>{item.label}</option>))}
-                            </React.Fragment>
-                          ))}
-                        </Input>
-                        {validation.touched.status && validation.errors.status ? (
-                          <FormFeedback type="invalid">{validation.errors.status}</FormFeedback>
-                        ) : null}
+                      <div className="row mb-3">
+                        <div className="col-md-6">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.amount")}
+                          </Label>
+                          <div className="text-muted">
+                            ${((validation.values.amount || 0) / 100).toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.source")}
+                          </Label>
+                          <div className="text-muted">
+                            {validation.values.web ? t("reservations.source.web") : t("reservations.source.backoffice")}
+                          </div>
+                        </div>
                       </div>
+
+                      <div className="row mb-3">
+                        <div className="col-md-6">
+                          <Label
+                            htmlFor="payment-field"
+                            className="form-label fw-semibold"
+                          >
+                            {t("reservations.form.payment_method")}
+                          </Label>
+                          <Input
+                            name="payment"
+                            id="payment-field"
+                            className="form-select"
+                            type="select"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.payment || ""}
+                            invalid={
+                              validation.touched.payment && validation.errors.payment ? true : false
+                            }
+                          >
+                            <option value="">{t("reservations.form.select_payment")}</option>
+                            <option value="cash">{t("reservations.payment.cash")}</option>
+                            <option value="card">{t("reservations.payment.card")}</option>
+                            <option value="pending">{t("reservations.payment.pending")}</option>
+                          </Input>
+                          {validation.touched.payment && validation.errors.payment ? (
+                            <FormFeedback type="invalid">{validation.errors.payment}</FormFeedback>
+                          ) : null}
+                        </div>
+                        <div className="col-md-6">
+                          <Label
+                            htmlFor="status-field"
+                            className="form-label fw-semibold"
+                          >
+                            {t("reservations.form.status")}
+                          </Label>
+                          <Input
+                            name="status"
+                            type="select"
+                            className="form-select"
+                            id="status-field"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.status || ""}
+                            invalid={
+                              validation.touched.status && validation.errors.status ? true : false
+                            }
+                          >
+                            <option value="">{t("reservations.form.select_status")}</option>
+                            <option value="pending">{t("reservations.status.pending")}</option>
+                            <option value="confirmed">{t("reservations.status.confirmed")}</option>
+                            <option value="completed">{t("reservations.status.completed")}</option>
+                            <option value="cancelled">{t("reservations.status.cancelled")}</option>
+                          </Input>
+                          {validation.touched.status && validation.errors.status ? (
+                            <FormFeedback type="invalid">{validation.errors.status}</FormFeedback>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {validation.values.notes && (
+                        <div className="mb-3">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.notes")}
+                          </Label>
+                          <div className="text-muted">
+                            {validation.values.notes}
+                          </div>
+                        </div>
+                      )}
                     </ModalBody>
                     <div className="modal-footer">
                       <div className="hstack gap-2 justify-content-end">
@@ -1066,19 +1068,17 @@ const EcommerceOrders = () => {
                             setModal(false);
                           }}
                         >
-                          {t("reservations.form.close")}
+                          {t("common.close")}
                         </button>
-
                         <button type="submit" className="btn btn-success">
-                          {!!isEdit
-                            ? t("reservations.form.update")
-                            : t("reservations.form.add_reservation")}
+                          {t("common.save_changes")}
                         </button>
                       </div>
                     </div>
                   </Form>
                 </Modal>
-                
+
+                {/* ReservationModal for legacy calendar view */}
                 <ReservationModal
                   modal={reservationModal}
                   toggle={toggleReservationModal}
