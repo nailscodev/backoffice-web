@@ -50,56 +50,23 @@ function UpcommingEvents(props: any) {
   const eventColor = props.event.backgroundColor || props.event.borderColor || '#e9d5ff';
   const textColor = props.event.textColor || '#6b21a8';
 
-  var endUpdatedDay: any = "";
-  if (props.event.end) {
-    endUpdatedDay = new Date(props.event.end);
-    var updatedDay = endUpdatedDay.setDate(endUpdatedDay.getDate() - 1);
 
+  // Mostrar solo la fecha y hora de inicio
+  let startDateTime = null;
+  if (props.event.start && props.event.start !== "Invalid Date") {
+    const dateObj = new Date(props.event.start); // Esto ya es local
+    const dateStr = dateObj.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    const hour = dateObj.getHours();
+    const minute = dateObj.getMinutes();
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    const minuteStr = minute < 10 ? `0${minute}` : minute;
+    startDateTime = `${dateStr}, ${hour12}:${minuteStr} ${ampm}`;
   }
-  var e_dt = updatedDay ? updatedDay : undefined;
-  if (e_dt === "Invalid Date" || e_dt === undefined) {
-    e_dt = null;
-  } else {
-    const newDate = new Date(e_dt).toLocaleDateString('en', { year: 'numeric', month: 'numeric', day: 'numeric' });
-    e_dt = new Date(newDate)
-      .toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-      .split(" ")
-      .join(" ");
-  }
-
-  const st_date = props.event.start ? str_dt(props.event.start) : null;
-  const ed_date = updatedDay ? str_dt(updatedDay) : null;
-  if (st_date === ed_date) {
-    e_dt = null;
-  }
-  var startDate = props.event.start;
-  if (startDate === "Invalid Date" || startDate === undefined) {
-    startDate = null;
-  } else {
-    const newDate = new Date(startDate).toLocaleDateString('en', { year: 'numeric', month: 'numeric', day: 'numeric' });
-    startDate = new Date(newDate)
-      .toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-      .split(" ")
-      .join(" ");
-  }
-
-  var end_dt = e_dt ? " to " + e_dt : "";
-  var e_time_s = tConvert(getTime(props.event.start));
-  var e_time_e = tConvert(getTime(updatedDay));
-
-  if (e_time_s === e_time_e) {
-    e_time_s = "Full day event";
-    e_time_e = '';
-  }
-  e_time_e = e_time_e ? " to " + e_time_e : "";
 
   return (
     <Card className="mb-3">
@@ -111,7 +78,7 @@ function UpcommingEvents(props: any) {
               style={{ color: textColor }}
             ></i>
             <span className="fw-medium">
-              {startDate} {end_dt}
+              {startDateTime}
             </span>
           </div>
           <div className="flex-shrink-0">
@@ -122,7 +89,7 @@ function UpcommingEvents(props: any) {
                 color: textColor 
               }}
             >
-              {e_time_s} {e_time_e}
+              {props.event.extendedProps?.service || ""}
             </small>
           </div>
         </div>

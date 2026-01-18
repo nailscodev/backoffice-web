@@ -28,9 +28,14 @@ const UpcomingServices = () => {
         setLoading(true);
         try {
             const response = await getUpcomingBookings(10);
-            
             if (response && response.data && response.data.data) {
-                setBookings(response.data.data);
+                // Ordenar por appointmentDate ascendente (más próximo primero)
+                const sorted = response.data.data.slice().sort((a: UpcomingBooking, b: UpcomingBooking) => {
+                    const dateA = new Date(a.appointmentDate).getTime();
+                    const dateB = new Date(b.appointmentDate).getTime();
+                    return dateA - dateB;
+                });
+                setBookings(sorted);
             }
         } catch (error) {
             console.error('Error fetching upcoming bookings:', error);
@@ -44,21 +49,15 @@ const UpcomingServices = () => {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    const formatTime = (timeString: string) => {
-        // timeString viene del backend en UTC (HH:mm:ss)
-        // Lo interpretamos como UTC y convertimos a hora local del navegador
-        if (!timeString) return '';
-        
-        // Crear una fecha ficticia en UTC con la hora del backend
-        const [hours, minutes, seconds = '0'] = timeString.split(':');
-        const utcDate = new Date(Date.UTC(2000, 0, 1, parseInt(hours), parseInt(minutes), parseInt(seconds)));
-        
-        // Formatear en hora local
-        return utcDate.toLocaleTimeString('es-AR', { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
-        });
+    // Combina appointmentDate y startTime como UTC y lo convierte a local
+    const formatDateTimeLocal = (dateString: string, timeString: string) => {
+        if (!dateString || !timeString) return '';
+        // Construir string ISO UTC
+        const isoUTC = `${dateString}T${timeString}Z`;
+        const date = new Date(isoUTC); // Date interpreta y muestra en local automáticamente
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeStr = date.toLocaleTimeString('es-AR', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return `${dateStr} ${timeStr}`;
     };
 
     const getRowBackgroundColor = (status: string) => {
@@ -82,8 +81,7 @@ const UpcomingServices = () => {
         const headers = [
             t('dashboard.upcoming_services.customer'),
             t('dashboard.upcoming_services.service'),
-            t('dashboard.upcoming_services.date'),
-            t('dashboard.upcoming_services.time'),
+            t('dashboard.upcoming_services.date_time'),
             t('dashboard.upcoming_services.staff'),
             t('dashboard.upcoming_services.status')
         ];
@@ -94,8 +92,7 @@ const UpcomingServices = () => {
                 return [
                     `"${booking.customerName}"`,
                     `"${booking.serviceName}"`,
-                    `"${formatDate(booking.appointmentDate)}"`,
-                    `"${formatTime(booking.startTime)}"`,
+                    `"${formatDateTimeLocal(booking.appointmentDate, booking.startTime)}"`,
                     `"${booking.staffName}"`,
                     `"${booking.status}"`
                 ].join(',');
@@ -136,7 +133,6 @@ const UpcomingServices = () => {
                             </button>
                         </div>
                     </CardHeader>
-
                     <CardBody>
                         {loading ? (
                             <div className="text-center py-4">
@@ -169,11 +165,8 @@ const UpcomingServices = () => {
                                                 <td className="text-truncate" style={{maxWidth: '180px'}}>
                                                     {booking.serviceName}
                                                 </td>
-                                                <td>
-                                                    <span className="fw-medium">{formatDate(booking.appointmentDate)}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="text-success">{formatTime(booking.startTime)}</span>
+                                                <td colSpan={2}>
+                                                    <span className="fw-medium text-success">{formatDateTimeLocal(booking.appointmentDate, booking.startTime)}</span>
                                                 </td>
                                                 <td className="text-truncate" style={{maxWidth: '150px'}}>
                                                     {booking.staffName}

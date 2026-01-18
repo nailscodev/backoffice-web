@@ -145,7 +145,11 @@ const Navdata = () => {
                     id: "vista-calendario", 
                     label: t('menu.admin.reservations.calendar_view'), 
                     link: "/apps-calendar", 
-                    parentId: "admin-reservas" 
+                    parentId: "admin-reservas",
+                    icon: "ri-time-line",
+                    disabled: true,
+                    badgeName: "Coming Soon",
+                    badgeColor: "info"
                 },
             ],
         },

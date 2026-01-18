@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
+import WorkInProgressOverlay from '../../common/WorkInProgressOverlay';
 
 //Import Icons
 import FeatherIcon from "feather-icons-react";
@@ -441,6 +442,7 @@ const Calender = () => {
 
   return (
     <React.Fragment>
+      <WorkInProgressOverlay/>
       <DeleteModal
         show={deleteModal}
         onDeleteClick={handleDeleteEvent}

@@ -31,9 +31,8 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (dateRange
     // Transformar los bookings al formato de FullCalendar
     const events = response.data.map((booking: any) => {
       // Combinar fecha y hora de inicio
-      const startDateTime = new Date(`${booking.appointmentDate}T${booking.startTime}`);
-      // Combinar fecha y hora de fin
-      const endDateTime = new Date(`${booking.appointmentDate}T${booking.endTime}`);
+        const start = booking.appointmentDate && booking.startTime ? `${booking.appointmentDate}T${booking.startTime}Z` : null;
+        const end = booking.appointmentDate && booking.endTime ? `${booking.appointmentDate}T${booking.endTime}Z` : null;
       
       // Buscar la categoría correspondiente para obtener sus colores
       const category = categories.find((cat: any) => cat.id === booking.categoryId);
@@ -71,8 +70,8 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (dateRange
       return {
         id: booking.id,
         title: booking.customerName,
-        start: startDateTime,
-        end: endDateTime,
+          start,
+          end,
         backgroundColor: backgroundColor,
         borderColor: borderColor,
         textColor: textColor,
@@ -192,7 +191,6 @@ export const getUpCommingEvent = createAsyncThunk("calendar/getUpCommingEvent", 
     const upcomingEvents = response.data.map((booking: any) => {
       // Buscar la categoría correspondiente
       const category = categories.find((cat: any) => cat.id === booking.categoryId);
-      
       // Determinar colores
       let backgroundColor, borderColor, textColor;
       if (category) {
@@ -200,24 +198,25 @@ export const getUpCommingEvent = createAsyncThunk("calendar/getUpCommingEvent", 
         borderColor = category.text;
         textColor = category.text;
       } else {
-        // Colores por defecto basados en estado
         const statusColors: any = {
           PENDING: { bg: '#fef3c7', border: '#92400e', text: '#92400e' },
           CONFIRMED: { bg: '#d1fae5', border: '#065f46', text: '#065f46' },
           CANCELLED: { bg: '#fee2e2', border: '#991b1b', text: '#991b1b' },
           COMPLETED: { bg: '#e9d5ff', border: '#6b21a8', text: '#6b21a8' }
         };
-        const colors = statusColors[booking.status] || statusColors.PENDING;
+        const colors = statusColors[booking.status?.toUpperCase?.()] || statusColors.PENDING;
         backgroundColor = colors.bg;
         borderColor = colors.border;
         textColor = colors.text;
       }
-      
+      // Combinar fecha y hora para obtener un string ISO válido en UTC
+      let start = booking.appointmentDate && booking.startTime ? `${booking.appointmentDate}T${booking.startTime}Z` : null;
+      let end = booking.appointmentDate && booking.endTime ? `${booking.appointmentDate}T${booking.endTime}Z` : null;
       return {
         id: booking.id,
         title: booking.customerName,
-        start: booking.startTime,
-        end: booking.endTime,
+        start,
+        end,
         backgroundColor,
         borderColor,
         textColor,
