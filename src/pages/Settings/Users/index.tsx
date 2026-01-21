@@ -27,38 +27,50 @@ import { useFormik } from "formik";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import DeleteModal from "../../../Components/Common/DeleteModal";
 import TableContainer from "../../../Components/Common/TableContainer";
+import RoleAssignment from '../../../Components/Roles/RoleAssignment';
+import RoleScreenAssignment from '../../../Components/Roles/RoleScreenAssignment';
 
+
+import { APIClient } from '../../../helpers/api_helper';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+const api = new APIClient();
 
 const UserManagement = () => {
   const { t } = useTranslation();
 
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([
-    // Datos de ejemplo - TODO: Conectar con API
-    {
-      id: 1,
-      first_name: "Admin",
-      last_name: "User",
-      email: "admin@nailsco.com",
-      role: "admin",
-      status: "active"
-    },
-    {
-      id: 2,
-      first_name: "Manager",
-      last_name: "Smith",
-      email: "manager@nailsco.com",
-      role: "manager",
-      status: "active"
+  const [users, setUsers] = useState<any[]>([]);
+  // Cargar usuarios al montar el componente
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get('/api/v1/users', { limit: 100 });
+      // Si la respuesta es paginada, los usuarios están en res.data
+      if (res && Array.isArray(res.data)) {
+        setUsers(res.data);
+      } else if (res && res.data && Array.isArray(res.data.data)) {
+        setUsers(res.data.data);
+      } else if (Array.isArray(res)) {
+        setUsers(res);
+      } else {
+        setUsers([]);
+      }
+    } catch (err) {
+      toast.error('Error al cargar usuarios');
     }
-  ]);
+  };
 
   // Delete user
   const [deleteModal, setDeleteModal] = useState<boolean>(false);
   const [modal, setModal] = useState<boolean>(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showScreenModal, setShowScreenModal] = useState(false);
 
   const toggle = useCallback(() => {
     if (modal) {
@@ -69,10 +81,21 @@ const UserManagement = () => {
     }
   }, [modal]);
 
-  // Delete Data
-  const onClickDelete = (user: any) => {
-    setUser(user);
-    setDeleteModal(true);
+  // Activar/Inactivar usuario
+  const handleToggleActive = async (user: any) => {
+    if (!user || !user.id) return;
+    try {
+      if (user.isActive) {
+        await api.patch(`/api/v1/users/${user.id}/deactivate`, {});
+        toast.success('Usuario inactivado');
+      } else {
+        await api.patch(`/api/v1/users/${user.id}/activate`, {});
+        toast.success('Usuario activado');
+      }
+      fetchUsers();
+    } catch (err) {
+      toast.error('Error al actualizar estado');
+    }
   };
 
   // validation
@@ -85,7 +108,12 @@ const UserManagement = () => {
       email: (user && user.email) || '',
       password: '',
       role: (user && user.role) || 'staff',
-      status: (user && user.status) || 'active',
+      status:
+        user && typeof user.isActive === 'boolean'
+          ? user.isActive
+            ? 'active'
+            : 'inactive'
+          : 'active',
     },
     validationSchema: Yup.object({
       first_name: Yup.string().required(t('settings.users.form.first_name') + ' is required'),
@@ -95,43 +123,35 @@ const UserManagement = () => {
       role: Yup.string().required(t('settings.users.form.role') + ' is required'),
       status: Yup.string().required(t('settings.users.form.status') + ' is required'),
     }),
-    onSubmit: (values) => {
-      if (isEdit) {
-        const updateUser = {
-          id: user ? user.id : 0,
-          first_name: values.first_name,
-          last_name: values.last_name,
-          email: values.email,
-          role: values.role,
-          status: values.status,
-        };
-        // Update user in the list
-        setUsers(users.map(u => u.id === updateUser.id ? updateUser : u));
-        toast.success(t('User updated successfully'), { autoClose: 3000 });
-      } else {
-        const newUser = {
-          id: Math.max(...users.map(u => u.id), 0) + 1,
-          first_name: values.first_name,
-          last_name: values.last_name,
-          email: values.email,
-          role: values.role,
-          status: values.status,
-        };
-        // Add new user to the list
-        setUsers([...users, newUser]);
-        toast.success(t('User created successfully'), { autoClose: 3000 });
+    onSubmit: async (values) => {
+      try {
+        if (isEdit && user?.id) {
+          await api.patch(`/api/v1/users/${user.id}`, values);
+          toast.success(t('User updated successfully'), { autoClose: 3000 });
+        } else {
+          await api.create('/api/v1/users', values);
+          toast.success(t('User created successfully'), { autoClose: 3000 });
+        }
+        fetchUsers();
+        validation.resetForm();
+        toggle();
+      } catch (err) {
+        toast.error('Error al guardar usuario');
       }
-      validation.resetForm();
-      toggle();
     },
   });
 
   // Delete Data
-  const handleDeleteUser = () => {
-    if (user) {
-      setUsers(users.filter(u => u.id !== user.id));
+  const handleDeleteUser = async () => {
+    if (user && user.id) {
+      try {
+        await api.delete(`/api/v1/users/${user.id}`);
+        toast.success(t('User deleted successfully'), { autoClose: 3000 });
+        fetchUsers();
+      } catch (err) {
+        toast.error('Error al eliminar usuario');
+      }
       setDeleteModal(false);
-      toast.success(t('User deleted successfully'), { autoClose: 3000 });
     }
   };
 
@@ -160,29 +180,21 @@ const UserManagement = () => {
   };
 
   // Columns
+  const handleAssignRoles = (user: any) => {
+    setUser(user);
+    setShowRoleModal(true);
+  };
+
+  const handleAssignScreens = () => {
+    setShowScreenModal(true);
+  };
+
   const columns = useMemo(
     () => [
       {
         header: t('settings.users.table.name'),
         accessorKey: "name",
         enableColumnFilter: false,
-        cell: (cell: any) => {
-          return (
-            <div className="d-flex align-items-center">
-              <div className="flex-shrink-0">
-                <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" 
-                     style={{ width: '32px', height: '32px', fontSize: '14px' }}>
-                  {cell.row.original.first_name.charAt(0)}{cell.row.original.last_name.charAt(0)}
-                </div>
-              </div>
-              <div className="flex-grow-1 ms-2">
-                <h5 className="fs-14 mb-0">
-                  <Link to="#" className="text-dark">{cell.row.original.first_name} {cell.row.original.last_name}</Link>
-                </h5>
-              </div>
-            </div>
-          );
-        },
       },
       {
         header: t('settings.users.table.email'),
@@ -195,17 +207,16 @@ const UserManagement = () => {
         enableColumnFilter: false,
         cell: (cell: any) => {
           const roleKey = `settings.users.role.${cell.getValue()}`;
-          return <span className="badge badge-soft-primary">{t(roleKey)}</span>;
+          return t(roleKey);
         },
       },
       {
         header: t('settings.users.table.status'),
-        accessorKey: "status",
+        accessorKey: "isActive",
         enableColumnFilter: false,
         cell: (cell: any) => {
           const statusKey = `settings.users.status.${cell.getValue()}`;
-          const badgeClass = cell.getValue() === "active" ? "badge-soft-success" : "badge-soft-danger";
-          return <span className={`badge ${badgeClass}`}>{t(statusKey)}</span>;
+          return t(statusKey);
         },
       },
       {
@@ -225,17 +236,19 @@ const UserManagement = () => {
                   <i className="ri-pencil-fill fs-16"></i>
                 </Link>
               </li>
-              <li className="list-inline-item" title="Remove">
+              <li className="list-inline-item" title={cellProps.row.original.isActive ? "Inactivar" : "Activar"}>
                 <Link
                   to="#"
-                  className="text-danger d-inline-block remove-item-btn"
-                  onClick={() => {
-                    const userData = cellProps.row.original;
-                    onClickDelete(userData);
-                  }}
+                  className={cellProps.row.original.isActive ? "text-warning d-inline-block" : "text-success d-inline-block"}
+                  onClick={() => handleToggleActive(cellProps.row.original)}
                 >
-                  <i className="ri-delete-bin-fill fs-16"></i>
+                  <i className={cellProps.row.original.isActive ? "ri-lock-line fs-16" : "ri-lock-unlock-line fs-16"}></i>
                 </Link>
+              </li>
+              <li className="list-inline-item" title="Roles">
+                <Button size="sm" color="info" onClick={() => handleAssignRoles(cellProps.row.original)}>
+                  Roles
+                </Button>
               </li>
             </ul>
           );
@@ -252,6 +265,11 @@ const UserManagement = () => {
           <BreadCrumb title={t('settings.users.title')} pageTitle={t('menu.admin.settings.title')} />
           <Row>
             <Col lg={12}>
+              <div className="mb-3 d-flex justify-content-end">
+                <Button color="primary" onClick={handleAssignScreens}>
+                  Asignar pantallas a roles
+                </Button>
+              </div>
               <Card id="customerList">
                 <CardHeader className="border-0 mb-3">
                   <Row className="g-4 align-items-center">
@@ -398,21 +416,36 @@ const UserManagement = () => {
 
                         <div className="mb-3">
                           <Label htmlFor="role-field" className="form-label">{t('settings.users.form.role')}</Label>
-                          <Input
-                            name="role"
-                            type="select"
-                            className="form-select"
-                            id="role-field"
-                            onChange={validation.handleChange}
-                            onBlur={validation.handleBlur}
-                            value={validation.values.role || ""}
-                          >
-                            <option value="admin">{t('settings.users.role.admin')}</option>
-                            <option value="manager">{t('settings.users.role.manager')}</option>
-                            <option value="staff">{t('settings.users.role.staff')}</option>
-                          </Input>
+                          <div className="dropdown">
+                            <button className="btn btn-outline-primary dropdown-toggle w-100 text-start" type="button" id="roleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                              {validation.values.role === 'admin' && <><i className="ri-shield-user-line me-2"></i>Admin</>}
+                              {validation.values.role === 'owner' && <><i className="ri-star-line me-2"></i>Owner</>}
+                              {validation.values.role === 'staff' && <><i className="ri-user-3-line me-2"></i>Staff</>}
+                              {!validation.values.role && <span className="text-muted">Seleccionar rol</span>}
+                            </button>
+                            <ul className="dropdown-menu w-100" aria-labelledby="roleDropdown">
+                              <li>
+                                <button type="button" className="dropdown-item d-flex align-items-center" onClick={() => validation.setFieldValue('role', 'admin')}>
+                                  <i className="ri-shield-user-line me-2 text-primary"></i>Admin
+                                  <span className="ms-auto badge bg-light text-dark">Acceso total</span>
+                                </button>
+                              </li>
+                              <li>
+                                <button type="button" className="dropdown-item d-flex align-items-center" onClick={() => validation.setFieldValue('role', 'owner')}>
+                                  <i className="ri-star-line me-2 text-warning"></i>Owner
+                                  <span className="ms-auto badge bg-light text-dark">Propietario</span>
+                                </button>
+                              </li>
+                              <li>
+                                <button type="button" className="dropdown-item d-flex align-items-center" onClick={() => validation.setFieldValue('role', 'staff')}>
+                                  <i className="ri-user-3-line me-2 text-info"></i>Staff
+                                  <span className="ms-auto badge bg-light text-dark">Solo agenda</span>
+                                </button>
+                              </li>
+                            </ul>
+                          </div>
                           {validation.touched.role && validation.errors.role ? (
-                            <FormFeedback type="invalid">{validation.errors.role}</FormFeedback>
+                            <FormFeedback type="invalid" className="d-block">{validation.errors.role}</FormFeedback>
                           ) : null}
                         </div>
 
@@ -427,8 +460,8 @@ const UserManagement = () => {
                             onBlur={validation.handleBlur}
                             value={validation.values.status || ""}
                           >
-                            <option value="active">{t('settings.users.status.active')}</option>
-                            <option value="inactive">{t('settings.users.status.inactive')}</option>
+                            <option value="active">{t('settings.users.status.true')}</option>
+                            <option value="inactive">{t('settings.users.status.false')}</option>
                           </Input>
                           {validation.touched.status && validation.errors.status ? (
                             <FormFeedback type="invalid">{validation.errors.status}</FormFeedback>
@@ -456,6 +489,14 @@ const UserManagement = () => {
                   </Modal>
 
                   <ToastContainer closeButton={false} limit={1} />
+                  {/* Modal para asignar roles a usuario */}
+                  <Modal isOpen={showRoleModal} toggle={() => setShowRoleModal(false)}>
+                    <RoleAssignment user={user} onClose={() => setShowRoleModal(false)} />
+                  </Modal>
+                  {/* Modal para asignar pantallas a roles */}
+                  <Modal isOpen={showScreenModal} toggle={() => setShowScreenModal(false)} size="lg">
+                    <RoleScreenAssignment />
+                  </Modal>
                 </div>
               </Card>
             </Col>

@@ -236,7 +236,6 @@ const Navdata = () => {
             },
             stateVariables: isConfiguracion,
             subItems: [
-                { id: "booking-settings", label: t('menu.admin.settings.booking_settings'), link: "/config/reservas", parentId: "admin-config" },
                 { id: "usuarios-roles", label: t('menu.admin.settings.users_roles'), link: "/config/usuarios", parentId: "admin-config" },
                 { id: "idioma", label: t('menu.admin.settings.language'), link: "/config/idioma", parentId: "admin-config" },
             ],
@@ -245,4 +244,37 @@ const Navdata = () => {
 
     return <React.Fragment>{menuItems}</React.Fragment>;
 };
+
+// Exporta el array de pantallas fuera del componente para evitar el error de scope
+// Si necesitas el array de pantallas para asignación de roles, exporta solo la estructura, sin hooks
+const menuData = [
+    { label: 'menu.admin.header', isHeader: true },
+    { id: "admin-dashboard", label: 'menu.admin.dashboard', icon: "ri-dashboard-2-line", link: "/dashboard" },
+    { id: "admin-ingresos", label: 'menu.admin.revenue.title', icon: "ri-wallet-3-line", link: "/ingresos", subItems: [
+        { id: "ingresos-diarios", label: 'menu.admin.revenue.daily_revenue', link: "/apps-invoices-list", parentId: "admin-ingresos", childItems: [
+            { id: 1, label: 'menu.admin.revenue.completed_shifts_list', link: "/apps-invoices-list", parentId: "ingresos-diarios" }
+        ] },
+        { id: "ajustes-manuales", label: 'menu.admin.revenue.manual_adjustments', link: "/apps-invoices-create", parentId: "admin-ingresos", childItems: [
+            { id: 1, label: 'menu.admin.revenue.external_transactions', link: "/apps-invoices-create", parentId: "ajustes-manuales" }
+        ] }
+    ] },
+    { id: "admin-reservas", label: 'menu.admin.reservations.title', icon: "ri-calendar-line", link: "/reservas", subItems: [
+        { id: "historial-reservas", label: 'menu.admin.reservations.list', link: "/apps-ecommerce-orders", parentId: "admin-reservas" },
+        { id: "vista-calendario", label: 'menu.admin.reservations.calendar_view', link: "/apps-calendar", parentId: "admin-reservas", icon: "ri-time-line", disabled: true, badgeName: "Coming Soon", badgeColor: "info" }
+    ] },
+    { id: "admin-servicios", label: 'menu.admin.services.title', icon: "ri-scissors-line", link: "/#", subItems: [
+        { id: "categories", label: 'menu.admin.services.categories', link: "/servicios/categories", parentId: "admin-servicios" },
+        { id: "servicios-list", label: 'menu.admin.services.list', link: "/servicios", parentId: "admin-servicios" },
+        { id: "addons", label: 'menu.admin.services.addons', link: "/servicios/addons", parentId: "admin-servicios" }
+    ] },
+    { id: "admin-staff", label: 'menu.admin.staff.title', icon: "ri-user-3-line", link: "/pages-team" },
+    { id: "admin-clientes", label: 'menu.admin.customers.title', icon: "ri-group-line", link: "/apps-ecommerce-customers" },
+    { id: "admin-reportes", label: 'menu.admin.reports.title', icon: "ri-time-line", link: "/#", disabled: true, badgeName: "Coming Soon", badgeColor: "info" },
+    { id: "admin-config", label: 'menu.admin.settings.title', icon: "ri-settings-2-line", link: "/config", subItems: [
+        { id: "usuarios-roles", label: 'menu.admin.settings.users_roles', link: "/config/usuarios", parentId: "admin-config" },
+        { id: "idioma", label: 'menu.admin.settings.language', link: "/config/idioma", parentId: "admin-config" }
+    ] }
+];
+
 export default Navdata;
+export { menuData };
