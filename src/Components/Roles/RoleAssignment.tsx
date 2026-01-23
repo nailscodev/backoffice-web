@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Button, FormGroup, Label, Input } from 'reactstrap';
 import { useTranslation } from 'react-i18next';
+import { APIClient } from '../../helpers/api_helper';
+import { toast } from 'react-toastify';
 
-const RoleAssignment = ({ user, onClose }: any) => {
+const api = new APIClient();
+
+const RoleAssignment = ({ user, onClose, onRoleUpdated }: any) => {
   const { t } = useTranslation();
   const [roles, setRoles] = useState<string[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(
-    user?.roles && Array.isArray(user.roles)
-      ? user.roles
-      : user?.role
-        ? [user.role]
-        : []
+  const [selectedRole, setSelectedRole] = useState<string>(
+    user?.role || (user?.roles && Array.isArray(user.roles) && user.roles.length > 0 ? user.roles[0] : '')
   );
 
   useEffect(() => {
@@ -19,16 +19,22 @@ const RoleAssignment = ({ user, onClose }: any) => {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (e.target.checked) {
-      setSelectedRoles([...selectedRoles, value]);
-    } else {
-      setSelectedRoles(selectedRoles.filter((role) => role !== value));
-    }
+    setSelectedRole(e.target.value);
   };
 
-  const handleSave = () => {
-    // TODO: save roles for user via API
+  const handleSave = async () => {
+    if (!user?.id || !selectedRole) {
+      onClose();
+      return;
+    }
+    try {
+      await api.patch(`/api/v1/users/${user.id}`, { role: selectedRole });
+      toast.success(t('settings.users.toast.role_updated'), { autoClose: 3000 });
+      if (onRoleUpdated) onRoleUpdated(selectedRole);
+    } catch (err) {
+      toast.error(t('settings.users.toast.role_update_error'), { autoClose: 4000 });
+      console.error('Failed to update role', err);
+    }
     onClose();
   };
 
@@ -39,10 +45,11 @@ const RoleAssignment = ({ user, onClose }: any) => {
         {roles.map((role) => (
           <div key={role} className="form-check mb-3 d-flex align-items-center ps-2">
             <Input
-              type="checkbox"
+              type="radio"
+              name="role"
               id={`role-${role}`}
               value={role}
-              checked={selectedRoles.includes(role)}
+              checked={selectedRole === role}
               onChange={handleChange}
               className="form-check-input me-2"
               style={{ width: 20, height: 20 }}

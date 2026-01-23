@@ -43,6 +43,10 @@ const UserManagement = () => {
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+
+  // Search state for table
+  const [search, setSearch] = useState('');
+
   // Cargar usuarios al montar el componente
   useEffect(() => {
     fetchUsers();
@@ -50,12 +54,26 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get('/api/v1/users', { limit: 100 });
-      // Si la respuesta es paginada, los usuarios están en res.data
+      // Intenta traer todos los usuarios (sin límite)
+      const res = await api.get('/api/v1/users');
+      // Si la respuesta es paginada, los usuarios están en res.data.data
       if (res && Array.isArray(res.data)) {
         setUsers(res.data);
       } else if (res && res.data && Array.isArray(res.data.data)) {
-        setUsers(res.data.data);
+        // Si la API sigue paginando, intenta traer todos los usuarios de todas las páginas
+        let allUsers = [...res.data.data];
+        const total = res.data.total || res.data.pagination?.totalItems;
+        const perPage = res.data.perPage || res.data.pagination?.itemsPerPage || allUsers.length;
+        let page = res.data.page || res.data.pagination?.currentPage || 1;
+        const totalPages = res.data.totalPages || res.data.pagination?.totalPages || 1;
+        while (totalPages && page < totalPages) {
+          page++;
+          const nextRes = await api.get('/api/v1/users', { page });
+          if (nextRes && nextRes.data && Array.isArray(nextRes.data.data)) {
+            allUsers = allUsers.concat(nextRes.data.data);
+          }
+        }
+        setUsers(allUsers);
       } else if (Array.isArray(res)) {
         setUsers(res);
       } else {
@@ -266,47 +284,32 @@ const UserManagement = () => {
           <Row>
             <Col lg={12}>
               <div className="mb-3 d-flex justify-content-end">
-                <Button color="primary" onClick={handleAssignScreens}>
-                  Asignar pantallas a roles
-                </Button>
+                <div className="hstack gap-2">
+                  <Button color="primary" onClick={handleAssignScreens}>
+                    Asignar pantallas a roles
+                  </Button>
+                  <Button
+                    color="success"
+                    className="add-btn"
+                    onClick={() => handleUserClicks()}
+                    id="create-btn"
+                  >
+                    <i className="ri-add-line align-bottom me-1"></i> {t('settings.users.add_user')}
+                  </Button>
+                </div>
               </div>
               <Card id="customerList">
-                <CardHeader className="border-0 mb-3">
-                  <Row className="g-4 align-items-center">
-                    <Col sm={3}>
-                      <div className="search-box">
-                        <Input
-                          type="text"
-                          className="form-control search"
-                          placeholder={t('settings.users.search_placeholder')}
-                        />
-                        <i className="ri-search-line search-icon"></i>
-                      </div>
-                    </Col>
-                    <div className="col-sm-auto ms-auto">
-                      <div className="hstack gap-2">
-                        <Button
-                          color="success"
-                          className="add-btn"
-                          onClick={() => handleUserClicks()}
-                          id="create-btn"
-                        >
-                          <i className="ri-add-line align-bottom me-1"></i> {t('settings.users.add_user')}
-                        </Button>
-                      </div>
-                    </div>
-                  </Row>
-                </CardHeader>
                 <div className="card-body pt-0">
                   <div>
                     <TableContainer
                       columns={columns}
                       data={users || []}
-                      isGlobalFilter={false}
+                      isGlobalFilter={true}
                       customPageSize={10}
                       divClass="table-responsive table-card mb-1"
                       tableClass="align-middle table-nowrap"
                       theadClass="table-light text-muted"
+                      SearchPlaceholder={t('settings.users.search_placeholder')}
                     />
                   </div>
 
@@ -491,7 +494,11 @@ const UserManagement = () => {
                   <ToastContainer closeButton={false} limit={1} />
                   {/* Modal para asignar roles a usuario */}
                   <Modal isOpen={showRoleModal} toggle={() => setShowRoleModal(false)}>
-                    <RoleAssignment user={user} onClose={() => setShowRoleModal(false)} />
+                    <RoleAssignment 
+                      user={user} 
+                      onClose={() => setShowRoleModal(false)} 
+                      onRoleUpdated={() => fetchUsers()} 
+                    />
                   </Modal>
                   {/* Modal para asignar pantallas a roles */}
                   <Modal isOpen={showScreenModal} toggle={() => setShowScreenModal(false)} size="lg">
