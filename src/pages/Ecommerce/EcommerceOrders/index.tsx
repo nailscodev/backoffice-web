@@ -473,9 +473,9 @@ const EcommerceOrders = () => {
         numericAmount = booking.amount;
       }
       
-      // Convert UTC times to local timezone
-      const startTime = booking.startTime ? moment.utc(booking.startTime, 'HH:mm:ss').local().format('HH:mm:ss') : '';
-      const endTime = booking.endTime ? moment.utc(booking.endTime, 'HH:mm:ss').local().format('HH:mm:ss') : '';
+      // Usar las horas tal cual llegan del backend
+      const startTime = booking.startTime || '';
+      const endTime = booking.endTime || '';
       
       const orderData = {
         id: booking.id,
@@ -608,29 +608,8 @@ const EcommerceOrders = () => {
   };
 
   const handleValidTime = (row: any) => {
-    // startTime comes as "13:00:00" from backend IN UTC
-    // We need to interpret it as UTC and convert to local time
-    const timeValue = row?.startTime;
-    
-    if (!timeValue) return '';
-    
-    try {
-      // Parse HH:MM:SS format and interpret as UTC
-      const [hours, minutes, seconds = '0'] = timeValue.split(':');
-      
-      // Create a date in UTC with the time from backend
-      const utcDate = new Date(Date.UTC(2000, 0, 1, parseInt(hours), parseInt(minutes), parseInt(seconds)));
-      
-      // Convert to local time and format
-      return utcDate.toLocaleTimeString('es-AR', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      });
-    } catch (error) {
-      console.error('Error parsing time:', error);
-      return '';
-    }
+    // Mostrar la hora tal cual llega del backend, sin parseo ni conversión
+    return row?.startTime || '';
   };
 
   // Calculate which page numbers to show in pagination
