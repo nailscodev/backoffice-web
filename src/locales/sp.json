@@ -507,7 +507,7 @@
     "dashboard.store_visits.web": "Web",
     "dashboard.store_visits.other": "Otro",
 
-    "dashboard.upcoming_services.title": "Próximos Servicios",
+    "dashboard.upcoming_services.title": "Servicios Pendientes",
     "dashboard.upcoming_services.service_id": "ID Servicio",
     "dashboard.upcoming_services.customer": "Cliente",
     "dashboard.upcoming_services.service": "Servicio",

@@ -44,20 +44,20 @@ const UpcomingServices = () => {
         }
     };
 
+    // Formatea la fecha (ej: 24 Jan 2026)
     const formatDate = (dateString: string) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    // Combina appointmentDate y startTime como UTC y lo convierte a local
-    const formatDateTimeLocal = (dateString: string, timeString: string) => {
+    // Formatea la hora (ej: 10:00 AM)
+    const formatTime = (dateString: string, timeString: string) => {
         if (!dateString || !timeString) return '';
         // Construir string ISO UTC
         const isoUTC = `${dateString}T${timeString}Z`;
-        const date = new Date(isoUTC); // Date interpreta y muestra en local automáticamente
-        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const timeStr = date.toLocaleTimeString('es-AR', { hour: 'numeric', minute: '2-digit', hour12: true });
-        return `${dateStr} ${timeStr}`;
+        const date = new Date(isoUTC);
+        return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: true });
     };
 
     const getRowBackgroundColor = (status: string) => {
@@ -89,10 +89,12 @@ const UpcomingServices = () => {
         const csvRows = [
             headers.join(','),
             ...bookings.map(booking => {
+                const date = formatDate(booking.appointmentDate);
+                const time = formatTime(booking.appointmentDate, booking.startTime);
                 return [
                     `"${booking.customerName}"`,
                     `"${booking.serviceName}"`,
-                    `"${formatDateTimeLocal(booking.appointmentDate, booking.startTime)}"`,
+                    `"${date} ${time}"`,
                     `"${booking.staffName}"`,
                     `"${booking.status}"`
                 ].join(',');
@@ -165,8 +167,11 @@ const UpcomingServices = () => {
                                                 <td className="text-truncate" style={{maxWidth: '180px'}}>
                                                     {booking.serviceName}
                                                 </td>
-                                                <td colSpan={2}>
-                                                    <span className="fw-medium text-success">{formatDateTimeLocal(booking.appointmentDate, booking.startTime)}</span>
+                                                <td>
+                                                    <span className="fw-medium text-success">{formatDate(booking.appointmentDate)}</span>
+                                                </td>
+                                                <td>
+                                                    <span className="fw-medium text-success">{formatTime(booking.appointmentDate, booking.startTime)}</span>
                                                 </td>
                                                 <td className="text-truncate" style={{maxWidth: '150px'}}>
                                                     {booking.staffName}

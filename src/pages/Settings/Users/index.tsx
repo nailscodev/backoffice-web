@@ -119,10 +119,9 @@ const UserManagement = () => {
   // validation
   const validation: any = useFormik({
     enableReinitialize: true,
-
     initialValues: {
-      first_name: (user && user.first_name) || '',
-      last_name: (user && user.last_name) || '',
+      username: (user && user.username) || '',
+      name: (user && user.name) || '',
       email: (user && user.email) || '',
       password: '',
       role: (user && user.role) || 'staff',
@@ -134,8 +133,8 @@ const UserManagement = () => {
           : 'active',
     },
     validationSchema: Yup.object({
-      first_name: Yup.string().required(t('settings.users.form.first_name') + ' is required'),
-      last_name: Yup.string().required(t('settings.users.form.last_name') + ' is required'),
+      username: Yup.string().required(t('settings.users.form.username') + ' is required'),
+      name: Yup.string().required(t('settings.users.form.name') + ' is required'),
       email: Yup.string().email('Invalid email').required(t('settings.users.form.email') + ' is required'),
       password: isEdit ? Yup.string() : Yup.string().required(t('settings.users.form.password') + ' is required'),
       role: Yup.string().required(t('settings.users.form.role') + ' is required'),
@@ -143,11 +142,23 @@ const UserManagement = () => {
     }),
     onSubmit: async (values) => {
       try {
+        // Construir payload compatible con backend
+        const payload: any = {
+          username: values.username,
+          name: values.name,
+          email: values.email,
+          role: values.role,
+          isActive: values.status === 'active',
+        };
+        if (!isEdit && values.password) {
+          payload.password = values.password;
+        }
         if (isEdit && user?.id) {
-          await api.patch(`/api/v1/users/${user.id}`, values);
+          await api.patch(`/api/v1/users/${user.id}`, payload);
           toast.success(t('User updated successfully'), { autoClose: 3000 });
         } else {
-          await api.create('/api/v1/users', values);
+          if (values.password) payload.password = values.password;
+          await api.create('/api/v1/users', payload);
           toast.success(t('User created successfully'), { autoClose: 3000 });
         }
         fetchUsers();
@@ -179,11 +190,11 @@ const UserManagement = () => {
 
     setUser({
       id: user.id,
-      first_name: user.first_name,
-      last_name: user.last_name,
+      username: user.username,
+      name: user.name,
       email: user.email,
       role: user.role,
-      status: user.status,
+      status: user.status || (user.isActive ? 'active' : 'inactive'),
     });
 
     setIsEdit(true);
@@ -326,49 +337,44 @@ const UserManagement = () => {
                       <ModalBody>
                         <input type="hidden" id="id-field" />
 
+
                         <div className="mb-3">
-                          <Label htmlFor="first_name-field" className="form-label">{t('settings.users.form.first_name')}</Label>
+                          <Label htmlFor="username-field" className="form-label">{t('settings.users.form.username')}</Label>
                           <Input
-                            name="first_name"
-                            id="first_name-field"
+                            name="username"
+                            id="username-field"
                             className="form-control"
-                            placeholder={t('settings.users.form.first_name')}
+                            placeholder={t('settings.users.form.username')}
                             type="text"
-                            validate={{
-                              required: { value: true },
-                            }}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
-                            value={validation.values.first_name || ""}
+                            value={validation.values.username || ""}
                             invalid={
-                              validation.touched.first_name && validation.errors.first_name ? true : false
+                              validation.touched.username && validation.errors.username ? true : false
                             }
                           />
-                          {validation.touched.first_name && validation.errors.first_name ? (
-                            <FormFeedback type="invalid">{validation.errors.first_name}</FormFeedback>
+                          {validation.touched.username && validation.errors.username ? (
+                            <FormFeedback type="invalid">{validation.errors.username}</FormFeedback>
                           ) : null}
                         </div>
 
                         <div className="mb-3">
-                          <Label htmlFor="last_name-field" className="form-label">{t('settings.users.form.last_name')}</Label>
+                          <Label htmlFor="name-field" className="form-label">{t('settings.users.form.name')}</Label>
                           <Input
-                            name="last_name"
-                            id="last_name-field"
+                            name="name"
+                            id="name-field"
                             className="form-control"
-                            placeholder={t('settings.users.form.last_name')}
+                            placeholder={t('settings.users.form.name')}
                             type="text"
-                            validate={{
-                              required: { value: true },
-                            }}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
-                            value={validation.values.last_name || ""}
+                            value={validation.values.name || ""}
                             invalid={
-                              validation.touched.last_name && validation.errors.last_name ? true : false
+                              validation.touched.name && validation.errors.name ? true : false
                             }
                           />
-                          {validation.touched.last_name && validation.errors.last_name ? (
-                            <FormFeedback type="invalid">{validation.errors.last_name}</FormFeedback>
+                          {validation.touched.name && validation.errors.name ? (
+                            <FormFeedback type="invalid">{validation.errors.name}</FormFeedback>
                           ) : null}
                         </div>
 
@@ -419,36 +425,23 @@ const UserManagement = () => {
 
                         <div className="mb-3">
                           <Label htmlFor="role-field" className="form-label">{t('settings.users.form.role')}</Label>
-                          <div className="dropdown">
-                            <button className="btn btn-outline-primary dropdown-toggle w-100 text-start" type="button" id="roleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                              {validation.values.role === 'admin' && <><i className="ri-shield-user-line me-2"></i>Admin</>}
-                              {validation.values.role === 'owner' && <><i className="ri-star-line me-2"></i>Owner</>}
-                              {validation.values.role === 'staff' && <><i className="ri-user-3-line me-2"></i>Staff</>}
-                              {!validation.values.role && <span className="text-muted">Seleccionar rol</span>}
-                            </button>
-                            <ul className="dropdown-menu w-100" aria-labelledby="roleDropdown">
-                              <li>
-                                <button type="button" className="dropdown-item d-flex align-items-center" onClick={() => validation.setFieldValue('role', 'admin')}>
-                                  <i className="ri-shield-user-line me-2 text-primary"></i>Admin
-                                  <span className="ms-auto badge bg-light text-dark">Acceso total</span>
-                                </button>
-                              </li>
-                              <li>
-                                <button type="button" className="dropdown-item d-flex align-items-center" onClick={() => validation.setFieldValue('role', 'owner')}>
-                                  <i className="ri-star-line me-2 text-warning"></i>Owner
-                                  <span className="ms-auto badge bg-light text-dark">Propietario</span>
-                                </button>
-                              </li>
-                              <li>
-                                <button type="button" className="dropdown-item d-flex align-items-center" onClick={() => validation.setFieldValue('role', 'staff')}>
-                                  <i className="ri-user-3-line me-2 text-info"></i>Staff
-                                  <span className="ms-auto badge bg-light text-dark">Solo agenda</span>
-                                </button>
-                              </li>
-                            </ul>
-                          </div>
+                          <Input
+                            name="role"
+                            type="select"
+                            className="form-select"
+                            id="role-field"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.role || ''}
+                            invalid={validation.touched.role && validation.errors.role ? true : false}
+                          >
+                            <option value="" disabled>{t('settings.users.form.role_placeholder') || 'Seleccionar rol'}</option>
+                            <option value="admin">Admin</option>
+                            <option value="owner">Owner</option>
+                            <option value="staff">Staff</option>
+                          </Input>
                           {validation.touched.role && validation.errors.role ? (
-                            <FormFeedback type="invalid" className="d-block">{validation.errors.role}</FormFeedback>
+                            <FormFeedback type="invalid">{validation.errors.role}</FormFeedback>
                           ) : null}
                         </div>
 

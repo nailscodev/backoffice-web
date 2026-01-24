@@ -71,7 +71,7 @@ const InvoiceList = () => {
 
   // Use DateRangeContext instead of local state
   const { dateRange, setDateRange, startDate, endDate, startLabel, endLabel } = useDateRange();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Backend data state
   const [dashboardStats, setDashboardStats] = useState({ cash: 0, bank: 0, bookings: 0 });
@@ -170,8 +170,13 @@ const InvoiceList = () => {
 
 
   const handleValidDate = (date: any) => {
-    const date1 = moment(new Date(date)).format("DD MMM Y");
-    return date1;
+    if (!date) return '';
+    // Usar el idioma actual de i18n
+    const lang = i18n.language || 'en';
+    moment.locale(lang);
+    // Formato resumido: español 'D MMM YYYY', inglés 'MMM D YYYY'
+    const format = lang.startsWith('sp') ? 'D MMM YYYY' : 'MMM D YYYY';
+    return moment(date, 'YYYY-MM-DD').format(format);
   };
 
   const handleValidTime = (time: any) => {
