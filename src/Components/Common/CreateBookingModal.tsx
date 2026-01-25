@@ -88,7 +88,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   toggle,
   onBookingCreated,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   // Estados principales
   const [step, setStep] = useState<'customer' | 'services' | 'vipcombo' | 'staff' | 'datetime' | 'confirm'>('customer');
@@ -139,11 +139,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   const loadInitialData = async () => {
     try {
       setLoading(true);
+      const currentLang = i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN';
       const [customersData, servicesData, categoriesData, addOnsData, staffData] = await Promise.all([
         getCustomers(),
-        getServices(1, 100, undefined, undefined, true),
-        getCategories(),
-        getAddOns(1, 100, true),
+        getServices(1, 100, undefined, undefined, true, currentLang),
+        getCategories(currentLang),
+        getAddOns(1, 100, true, undefined, undefined, currentLang),
         getStaffList(),
       ]);
 
@@ -433,6 +434,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       } catch (error) {
         console.error('Error loading available slots:', error);
         toast.error('Error al cargar horarios disponibles');
+          toast.error(t('booking.toast.load_slots_error'));
         setAvailableSlots([]);
       } finally {
         setLoadingSlots(false);
@@ -499,7 +501,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Agregar servicio
   const addService = (service: Service) => {
     if (selectedServices.find(s => s.service.id === service.id)) {
-      toast.warning('Este servicio ya está agregado');
+      toast.warning(t('booking.toast.service_already_added'));
       return;
     }
 
@@ -611,10 +613,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       setSlotVerified(true);
       toast.success('✅ Horarios verificados y disponibles');
+        toast.success(t('booking.toast.slots_verified'));
       return true;
     } catch (err) {
       console.error('Error verifying slots:', err);
       toast.error('Error al verificar disponibilidad');
+        toast.error(t('booking.toast.verify_slots_error'));
       return false;
     } finally {
       setVerifying(false);
@@ -624,7 +628,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Crear booking(s) con lógica completa del frontend
   const handleCreateBooking = async () => {
     if (!selectedCustomer || !selectedDate || !selectedTime || selectedServices.length === 0) {
-      toast.error('Por favor complete todos los campos');
+      toast.error(t('booking.toast.complete_all_fields'));
       return;
     }
 
@@ -844,6 +848,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       } catch (error) {
         console.error('❌ Error auto-assigning staff:', error);
         toast.error('Error al asignar técnicos automáticamente. Por favor seleccione manualmente.');
+        toast.error(t('booking.toast.auto_assign_error'));
       }
     }
   };
@@ -906,21 +911,28 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   const goToNextStep = () => {
     if (step === 'customer' && !selectedCustomer) {
       toast.warning('Por favor seleccione o cree un cliente');
+        toast.warning(t('booking.toast.select_or_create_customer'));
       return;
     }
     if (step === 'services' && selectedServices.length === 0) {
       toast.warning('Por favor seleccione al menos un servicio');
+        toast.warning(t('booking.toast.select_at_least_one_service'));
       return;
     }
     if (step === 'staff' && requiresStaffStep) {
       const missingStaff = selectedServices.filter(s => !s.staffId);
       if (missingStaff.length > 0) {
-        toast.warning(`Falta asignar técnico a: ${missingStaff.map(s => s.service.name).join(', ')}`);
+        toast.warning(t('booking.toast.assign_staff_missing', { services: missingStaff.map(s => s.service.name).join(', ') }));
         return;
       }
     }
     if (step === 'datetime' && (!selectedDate || !selectedTime)) {
-      toast.warning('Por favor seleccione fecha y hora');
+      toast.warning(t('booking.toast.select_date_time'));
+      // También advertir si falta asignar staff
+      const missingStaff = selectedServices.filter(s => !s.staffId);
+      if (missingStaff.length > 0) {
+        toast.warning(t('booking.toast.assign_staff_missing', { services: missingStaff.map(s => s.service.name).join(', ') }));
+      }
       return;
     }
 
@@ -961,6 +973,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       // VALIDACIÓN OBLIGATORIA: Debe verificar disponibilidad antes de confirmar
       if (!slotVerified) {
         toast.warning('⚠️ Debe verificar la disponibilidad antes de continuar');
+          toast.warning(t('booking.toast.verify_availability_first'));
         return;
       }
       setStep('confirm');
@@ -1153,15 +1166,15 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 {selectedCustomer && (
                   <Card className="border">
                     <CardBody>
-                      <h6>Cliente Seleccionado:</h6>
+                      <h6>{t('booking.customer.selected_title')}</h6>
                       <p className="mb-1">
-                        <strong>Nombre:</strong> {selectedCustomer.firstName} {selectedCustomer.lastName}
+                        <strong>{t('booking.customer.selected_name')}:</strong> {selectedCustomer.firstName} {selectedCustomer.lastName}
                       </p>
                       <p className="mb-1">
-                        <strong>Email:</strong> {selectedCustomer.email}
+                        <strong>{t('booking.customer.selected_email')}:</strong> {selectedCustomer.email}
                       </p>
                       <p className="mb-0">
-                        <strong>Teléfono:</strong> {selectedCustomer.phone}
+                        <strong>{t('booking.customer.selected_phone')}:</strong> {selectedCustomer.phone}
                       </p>
                     </CardBody>
                   </Card>
@@ -1293,7 +1306,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   {isVIPCombo && (
                     <Badge color="warning" pill>
                       <i className="ri-star-fill me-1"></i>
-                      VIP COMBO - Servicios Simultáneos
+                      {t('booking.services.vip_combo_badge')}
                     </Badge>
                   )}
                 </CardHeader>
@@ -1404,7 +1417,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
             {/* Servicios disponibles agrupados por categoría */}
             <div className="mb-3">
-              <h6 className="mb-3">Servicios Disponibles por Categoría</h6>
+              <h6 className="mb-3">{t('booking.services.available_by_category')}</h6>
               {categories.map(category => {
                 const categoryServices = servicesByCategory[category.id] || [];
                 const isIncompatible = incompatibleCategoryIds.includes(category.id);
@@ -1500,8 +1513,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             <Alert color={isVIPCombo ? 'warning' : 'info'} className="small mb-0">
               <i className={`${isVIPCombo ? 'ri-star-fill' : 'ri-information-line'} me-1`} />
               {isVIPCombo 
-                ? 'VIP COMBO: Los servicios se ejecutarán SIMULTÁNEAMENTE con diferentes técnicos.'
-                : 'Los servicios se ejecutarán de forma CONSECUTIVA (uno después del otro).'}
+                ? t('booking.services.vip_combo_info')
+                : t('booking.services.consecutive_info')}
             </Alert>
           </div>
         )}
@@ -1697,15 +1710,15 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             {/* Resumen de selección */}
             <Card className="border mb-3 bg-light">
               <CardBody>
-                <h6 className="mb-3">Resumen de Selección</h6>
+                <h6 className="mb-3">{t('booking.summary.title')}</h6>
                 <div className="mb-2">
-                  <strong>Servicios ({selectedServices.length}):</strong>
+                  <strong>{t('booking.summary.services', { count: selectedServices.length })}</strong>
                   <ul className="mb-0 mt-1">
                     {selectedServices.map(({ service, addOns, staffName }, idx) => (
                       <li key={service.id}>
-                        {service.name} - {service.duration} min
+                        {service.name} - {t('booking.summary.duration', { duration: service.duration })}
                         {addOns.length > 0 && (
-                          <span className="text-muted small"> + {addOns.length} add-ons</span>
+                          <span className="text-muted small"> + {t('booking.summary.addons', { count: addOns.length })}</span>
                         )}
                         {staffName && (
                           <span className="text-success small"> - {staffName}</span>
@@ -1716,19 +1729,19 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 </div>
                 {selectedRemovalIds.length > 0 && (
                   <div className="mb-2">
-                    <strong>Removals ({selectedRemovalIds.length}):</strong>
+                    <strong>{t('booking.summary.removals', { count: selectedRemovalIds.length })}</strong>
                     <ul className="mb-0 mt-1">
                       {removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).map(removal => (
                         <li key={removal.id}>
-                          {removal.name} - {removal.additionalTime || 0} min - ${removal.price}
+                          {removal.name} - {t('booking.summary.duration', { duration: removal.additionalTime || 0 })} - ${removal.price}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 <div className="mt-3 pt-3 border-top">
-                  <strong>Duración Total:</strong> {totals.totalDuration} min | 
-                  <strong className="ms-2">Precio Total:</strong> ${totals.totalPrice}
+                  <strong>{t('booking.summary.total_duration')}</strong> {totals.totalDuration} min | 
+                  <strong className="ms-2">{t('booking.summary.total_price')}</strong> ${totals.totalPrice}
                 </div>
               </CardBody>
             </Card>
@@ -1794,7 +1807,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                       }}
                       disabled={moment(weekStartDate).subtract(7, 'days').isBefore(moment(), 'day')}
                     >
-                      <i className="ri-arrow-left-s-line"></i> Semana Anterior
+                      <i className="ri-arrow-left-s-line"></i> {t('booking.datetime.prev_week')}
                     </Button>
                     <span className="text-muted small">
                       {moment(weekStartDate).format('MMMM YYYY')}
@@ -1809,7 +1822,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         setSelectedTime(null);
                       }}
                     >
-                      Semana Siguiente <i className="ri-arrow-right-s-line"></i>
+                      {t('booking.datetime.next_week')} <i className="ri-arrow-right-s-line"></i>
                     </Button>
                   </div>
                 </div>
@@ -1835,12 +1848,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   {selectedServices.some(s => !s.staffId || s.staffId === 'any') ? (
                     <Alert color="info" className="mb-0">
                       <i className="ri-information-line me-1"></i>
-                      Por favor seleccione un técnico específico para cada servicio en el paso anterior para ver los horarios disponibles.
+                      {t('booking.datetime.select_specific_staff')}
                     </Alert>
                   ) : loadingSlots ? (
                     <div className="text-center py-4">
                       <Spinner color="primary" size="sm" className="me-2" />
-                      <span>Cargando horarios disponibles...</span>
+                      <span>{t('booking.datetime.loading_slots')}</span>
                     </div>
                   ) : timeSlots.length === 0 ? (
                     <Alert color="warning" className="mb-0">
@@ -1963,24 +1976,24 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               <>
                 <Card className="border mb-3">
                   <CardBody>
-                    <h6>Resumen del Horario:</h6>
+                    <h6>{t('booking.datetime.summary_title')}</h6>
                     <p className="mb-1">
-                      <strong>Fecha:</strong> {moment(selectedDate).format('dddd, MMMM D, YYYY')}
+                      <strong>{t('booking.datetime.summary_date')}</strong> {moment(selectedDate).format('dddd, MMMM D, YYYY')}
                     </p>
                     <p className="mb-1">
-                      <strong>Hora de inicio:</strong> {moment(selectedTime, 'HH:mm:ss').format('h:mm A')}
+                      <strong>{t('booking.datetime.summary_start_time')}</strong> {moment(selectedTime, 'HH:mm:ss').format('h:mm A')}
                     </p>
                     <p className="mb-1">
-                      <strong>Duración total:</strong> {totals.totalDuration} minutos
+                      <strong>{t('booking.datetime.summary_total_duration')}</strong> {totals.totalDuration} {t('booking.datetime.summary_minutes')}
                     </p>
                     <p className="mb-1">
-                      <strong>Modo:</strong>{' '}
+                      <strong>{t('booking.datetime.summary_mode')}</strong>{' '}
                       <Badge color={isVIPCombo ? 'warning' : 'info'}>
-                        {isVIPCombo ? 'VIP Combo (Simultáneo)' : 'Consecutivo'}
+                        {isVIPCombo ? t('booking.datetime.summary_vip_combo') : t('booking.datetime.summary_consecutive')}
                       </Badge>
                     </p>
                     <p className="mb-0">
-                      <strong>Hora estimada de finalización:</strong>{' '}
+                      <strong>{t('booking.datetime.summary_estimated_end')}</strong>{' '}
                       {isVIPCombo
                         ? moment(selectedTime, 'HH:mm:ss')
                             .add(Math.max(...selectedServices.map(s => 
@@ -1998,7 +2011,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 {staffWorkloads.length > 0 && (
                   <Card className="border mb-3">
                     <CardHeader>
-                      <h6 className="mb-0">Carga de Trabajo de Técnicos</h6>
+                      <h6 className="mb-0">{t('booking.datetime.staff_workload_title')}</h6>
                     </CardHeader>
                     <CardBody>
                       {staffWorkloads
@@ -2007,7 +2020,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           <div key={workload.id} className="d-flex justify-content-between align-items-center mb-2">
                             <span>{workload.name}</span>
                             <Badge color={workload.workloadMinutes < 240 ? 'success' : workload.workloadMinutes < 360 ? 'warning' : 'danger'}>
-                              {workload.workloadMinutes} min ocupados
+                              {t('booking.datetime.staff_workload_badge', { minutes: workload.workloadMinutes })}
                             </Badge>
                           </div>
                         ))}
@@ -2026,29 +2039,29 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     {verifying ? (
                       <>
                         <Spinner size="sm" className="me-2" />
-                        Verificando disponibilidad...
+                        {t('booking.datetime.verifying')}
                       </>
                     ) : slotVerified ? (
                       <>
                         <i className="ri-check-double-line me-2"></i>
-                        Horarios Verificados ✓
+                        {t('booking.datetime.verified')}
                       </>
                     ) : (
                       <>
                         <i className="ri-shield-check-line me-2"></i>
-                        Verificar Disponibilidad (Requerido)
+                        {t('booking.datetime.verify_button')}
                       </>
                     )}
                   </Button>
                   {selectedServices.some(s => !s.staffId) && (
                     <small className="text-danger d-block mt-1">
-                      Debe asignar técnico a todos los servicios antes de verificar
+                      {t('booking.datetime.assign_staff_first')}
                     </small>
                   )}
                   {!slotVerified && !selectedServices.some(s => !s.staffId) && (
                     <Alert color="warning" className="mt-2 mb-0 small">
                       <i className="ri-alert-line me-1"></i>
-                      Debe verificar la disponibilidad antes de continuar al paso de confirmación
+                      {t('booking.datetime.verify_required_alert')}
                     </Alert>
                   )}
                 </div>
@@ -2056,13 +2069,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             )}
 
             <FormGroup className="mt-3">
-              <Label>Notas Adicionales</Label>
+              <Label>{t('booking.datetime.additional_notes')}</Label>
               <Input
                 type="textarea"
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Preferencias del cliente, instrucciones especiales, etc."
+                placeholder={t('booking.datetime.additional_notes_placeholder')}
               />
             </FormGroup>
           </div>
@@ -2071,33 +2084,32 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         {/* PASO 7: CONFIRMACIÓN */}
         {step === 'confirm' && !loading && (
           <div>
-            <h5 className="mb-3">Confirmar Booking</h5>
+            <h5 className="mb-3">{t('booking.confirm.title')}</h5>
 
             {!slotVerified && (
               <Alert color="warning">
                 <i className="ri-alert-line me-2"></i>
-                Advertencia: No se ha verificado la disponibilidad de los horarios. 
-                Se recomienda verificar antes de confirmar.
+                {t('booking.confirm.warning_not_verified')}
               </Alert>
             )}
 
             <Card className="border">
               <CardBody>
-                <h6 className="border-bottom pb-2 mb-3">Información del Cliente</h6>
+                <h6 className="border-bottom pb-2 mb-3">{t('booking.confirm.customer_info')}</h6>
                 <p className="mb-1">
-                  <strong>Nombre:</strong> {selectedCustomer?.firstName} {selectedCustomer?.lastName}
+                  <strong>{t('booking.confirm.customer_name')}</strong> {selectedCustomer?.firstName} {selectedCustomer?.lastName}
                 </p>
                 <p className="mb-1">
-                  <strong>Email:</strong> {selectedCustomer?.email}
+                  <strong>{t('booking.confirm.customer_email')}</strong> {selectedCustomer?.email}
                 </p>
                 <p className="mb-3">
-                  <strong>Teléfono:</strong> {selectedCustomer?.phone}
+                  <strong>{t('booking.confirm.customer_phone')}</strong> {selectedCustomer?.phone}
                 </p>
 
                 <h6 className="border-bottom pb-2 mb-3">
-                  Servicios
+                  {t('booking.confirm.services')}
                   {isVIPCombo && (
-                    <Badge color="warning" className="ms-2">VIP COMBO</Badge>
+                    <Badge color="warning" className="ms-2">{t('booking.confirm.vip_combo_badge')}</Badge>
                   )}
                 </h6>
                 {selectedServices.map(({ service, addOns: serviceAddOns, staffId, staffName }, index) => {
@@ -2107,17 +2119,17 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         <strong>{index + 1}. {service.name}</strong>
                       </p>
                       <p className="mb-1 ms-3">
-                        Duración: {service.duration} min | Precio: ${service.price}
+                        {t('booking.confirm.service_duration_price', { duration: service.duration, price: service.price })}
                       </p>
                       {serviceAddOns.length > 0 && (
                         <p className="mb-1 ms-3">
-                          Add-ons: {serviceAddOns.map(a => a.name).join(', ')}
+                          {t('booking.confirm.addons')}: {serviceAddOns.map(a => a.name).join(', ')}
                         </p>
                       )}
                       <p className="mb-0 ms-3">
-                        Técnico: {staffName || 'No asignado'} 
+                        {t('booking.confirm.technician')}: {staffName || t('booking.confirm.unassigned')}
                         {isVIPCombo && index > 0 && (
-                          <Badge color="warning" className="ms-2">Simultáneo</Badge>
+                          <Badge color="warning" className="ms-2">{t('booking.confirm.simultaneous')}</Badge>
                         )}
                       </p>
                     </div>
@@ -2128,47 +2140,47 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 {selectedRemovalIds.length > 0 && (
                   <div className="mb-3">
                     <p className="mb-1">
-                      <strong><i className="ri-delete-bin-line me-1"></i> Removal Services</strong>
+                      <strong><i className="ri-delete-bin-line me-1"></i> {t('booking.confirm.removal_services')}</strong>
                     </p>
                     <div className="ms-3">
                       {removalAddOns
                         .filter(r => selectedRemovalIds.includes(r.id))
                         .map(removal => (
                           <p key={removal.id} className="mb-1">
-                            {removal.name} (+${removal.price}, +{removal.additionalTime || 0} min)
+                            {removal.name} (+${removal.price}, +{removal.additionalTime || 0} {t('booking.datetime.summary_minutes')})
                           </p>
                         ))}
                     </div>
                   </div>
                 )}
 
-                <h6 className="border-bottom pb-2 mb-3 mt-4">Fecha y Hora</h6>
+                <h6 className="border-bottom pb-2 mb-3 mt-4">{t('booking.confirm.date_time')}</h6>
                 <p className="mb-1">
-                  <strong>Fecha:</strong> {moment(selectedDate).format('dddd, MMMM D, YYYY')}
+                  <strong>{t('booking.datetime.summary_date')}</strong> {moment(selectedDate).format('dddd, MMMM D, YYYY')}
                 </p>
                 <p className="mb-1">
-                  <strong>Hora:</strong> {moment(selectedTime, 'HH:mm:ss').format('h:mm A')}
+                  <strong>{t('booking.datetime.summary_start_time')}</strong> {moment(selectedTime, 'HH:mm:ss').format('h:mm A')}
                 </p>
                 <p className="mb-1">
-                  <strong>Modo:</strong>{' '}
+                  <strong>{t('booking.datetime.summary_mode')}</strong>{' '}
                   <Badge color={isVIPCombo ? 'warning' : 'info'}>
-                    {isVIPCombo ? 'VIP Combo (Simultáneo)' : 'Consecutivo'}
+                    {isVIPCombo ? t('booking.datetime.summary_vip_combo') : t('booking.datetime.summary_consecutive')}
                   </Badge>
                 </p>
                 <p className="mb-3">
-                  <strong>Duración total:</strong> {totals.totalDuration} minutos
+                  <strong>{t('booking.datetime.summary_total_duration')}</strong> {totals.totalDuration} {t('booking.datetime.summary_minutes')}
                 </p>
 
                 {notes && (
                   <>
-                    <h6 className="border-bottom pb-2 mb-3">Notas</h6>
+                    <h6 className="border-bottom pb-2 mb-3">{t('booking.confirm.notes')}</h6>
                     <p className="mb-3">{notes}</p>
                   </>
                 )}
 
                 <div className="bg-light p-3 rounded">
                   <div className="d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">Total:</h5>
+                    <h5 className="mb-0">{t('booking.confirm.total')}</h5>
                     <h4 className="mb-0 text-primary">${totals.totalPrice.toFixed(2)}</h4>
                   </div>
                 </div>
@@ -2178,8 +2190,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             <Alert color={isVIPCombo ? 'warning' : 'info'} className="mt-3 mb-0">
               <i className={`${isVIPCombo ? 'ri-star-fill' : 'ri-alert-line'} me-1`} />
               {isVIPCombo 
-                ? `Se crearán ${selectedServices.length} booking(s) SIMULTÁNEOS (VIP Combo) con diferentes técnicos para este cliente.`
-                : `Se crearán ${selectedServices.length} booking(s) CONSECUTIVOS para este cliente.`}
+                ? t('booking.services.vip_combo_info')
+                : t('booking.services.consecutive_info')}
             </Alert>
           </div>
         )}
