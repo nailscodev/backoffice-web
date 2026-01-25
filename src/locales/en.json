@@ -998,6 +998,7 @@
     "booking.step.confirm": "Confirm",
     
     "booking.customer.title": "Select Customer",
+    "reservations.tabs.confirmed": "Confirmed",
     "booking.customer.existing_label": "Existing Customer",
     "booking.customer.search_placeholder": "Search customer...",
     "booking.customer.create_new": "+ Create New Customer",

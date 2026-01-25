@@ -154,5 +154,6 @@
   "booking.confirm.removal_services": "Servicios de Removal",
   "booking.confirm.date_time": "Fecha y Hora",
   "booking.confirm.notes": "Notas",
-  "booking.confirm.total": "Total:"
+  "booking.confirm.total": "Total:",
+  "reservations.tabs.confirmed": "Confirmadas"
 }

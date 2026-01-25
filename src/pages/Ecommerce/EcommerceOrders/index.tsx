@@ -119,6 +119,7 @@ const EcommerceOrders = () => {
   const orderstatus = [
     {
       options: [
+        { label: t('reservations.status.confirmed'), value: "Confirmed" },
         { label: t('reservations.status.completed'), value: "Completed" },
         { label: t('reservations.status.pending'), value: "Pending" },
         { label: t('reservations.status.cancelled'), value: "Cancelled" },
@@ -391,7 +392,8 @@ const EcommerceOrders = () => {
         const statusMap: any = {
           '2': 'completed',
           '3': 'pending',
-          '4': 'cancelled'
+          '4': 'cancelled',
+          '5': 'confirmed'
         };
         if (statusMap[activeTab]) {
           filters.status = statusMap[activeTab];
@@ -715,8 +717,7 @@ const EcommerceOrders = () => {
                   >
                     <NavItem>
                       <NavLink
-                        className={classnames(
-                          { active: activeTab === "1" })}
+                        className={classnames({ active: activeTab === "1" })}
                         onClick={() => {
                           toggleTab("1", "all");
                         }}
@@ -728,8 +729,7 @@ const EcommerceOrders = () => {
                     </NavItem>
                     <NavItem>
                       <NavLink
-                        className={classnames(
-                          { active: activeTab === "2" })}
+                        className={classnames({ active: activeTab === "2" })}
                         onClick={() => {
                           toggleTab("2", "Completed");
                         }}
@@ -741,8 +741,7 @@ const EcommerceOrders = () => {
                     </NavItem>
                     <NavItem>
                       <NavLink
-                        className={classnames(
-                          { active: activeTab === "3" })}
+                        className={classnames({ active: activeTab === "3" })}
                         onClick={() => {
                           toggleTab("3", "Pending");
                         }}
@@ -754,8 +753,7 @@ const EcommerceOrders = () => {
                     </NavItem>
                     <NavItem>
                       <NavLink
-                        className={classnames(
-                          { active: activeTab === "4" })}
+                        className={classnames({ active: activeTab === "4" })}
                         onClick={() => {
                           toggleTab("4", "Cancelled");
                         }}
@@ -763,6 +761,18 @@ const EcommerceOrders = () => {
                       >
                         <i className="ri-close-circle-line me-1 align-bottom"></i>{" "}
                         {t("reservations.tabs.cancelled")}
+                      </NavLink>
+                    </NavItem>
+                    <NavItem>
+                      <NavLink
+                        className={classnames({ active: activeTab === "5" })}
+                        onClick={() => {
+                          toggleTab("5", "Confirmed");
+                        }}
+                        href="#"
+                      >
+                        <i className="ri-check-line me-1 align-bottom"></i>{" "}
+                        {t("reservations.tabs.confirmed")}
                       </NavLink>
                     </NavItem>
                   </Nav>
