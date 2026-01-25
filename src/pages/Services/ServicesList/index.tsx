@@ -295,7 +295,7 @@ const ServicesList = () => {
           const price = cell.getValue();
           return (
             <div className="text-center">
-              <h6 className="mb-0 text-success">${(price / 100).toFixed(2)}</h6>
+              <h6 className="mb-0 text-success">${(price)}</h6>
             </div>
           );
         },
@@ -494,7 +494,7 @@ const ServicesList = () => {
                     <div className="mb-3">
                       <Label className="fw-bold">{t('services.list.form.price')}</Label>
                       <p className="text-success fw-semibold">
-                        ${(selectedService.price / 100).toFixed(2)}
+                        ${(selectedService.price)}
                       </p>
                     </div>
                   </Col>
@@ -755,7 +755,7 @@ const ServicesList = () => {
                           validation.setFieldValue('price', Math.round(dollars * 100));
                         }}
                         onBlur={validation.handleBlur}
-                        value={(validation.values.price / 100).toFixed(2)}
+                        value={(validation.values.price)}
                         invalid={
                           validation.touched.price && validation.errors.price
                             ? true

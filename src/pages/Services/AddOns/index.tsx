@@ -38,6 +38,7 @@ import {
   AddOn,
 } from "../../../api/addons";
 import { getServices, Service } from "../../../api/services";
+import { Price } from "pages/Crypto/BuySell/MarketCol";
 
 const AddOns = () => {
   const { t, i18n } = useTranslation();
@@ -307,10 +308,10 @@ const AddOns = () => {
         accessorKey: "price",
         enableColumnFilter: false,
         cell: (cell: any) => {
-          const price = cell.getValue() / 100; // Convert cents to dollars
+          const price = cell.getValue(); // Convert cents to dollars
           return (
             <div className="text-center">
-              <span className="badge bg-success text-white">${price.toFixed(2)}</span>
+              <span className="badge bg-success text-white">${price}</span>
             </div>
           );
         },
@@ -478,7 +479,7 @@ const AddOns = () => {
                       <div className="mb-3">
                         <Label className="fw-bold">{t('services.addons.price')}</Label>
                         <div>
-                          <span className="badge bg-success text-white">${(selectedAddOn.price / 100).toFixed(2)}</span>
+                          <span className="badge bg-success text-white">${(selectedAddOn.price)}</span>
                         </div>
                       </div>
                     </Col>
