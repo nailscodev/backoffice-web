@@ -17,7 +17,7 @@ export interface BookingListItem {
   endTime: string;
   status: string;
   paymentMethod?: string;
-  totalAmount: number;
+  totalPrice: number;
   web: boolean;
   notes?: string;
   createdAt: Date;

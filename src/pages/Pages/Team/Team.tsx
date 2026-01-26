@@ -721,18 +721,26 @@ const Team = () => {
                                                                     closeMenuOnSelect={false}
                                                                     classNamePrefix="react-select"
                                                                     options={[
-                                                                        { value: 'Monday', label: t('team.days.monday') },
-                                                                        { value: 'Tuesday', label: t('team.days.tuesday') },
-                                                                        { value: 'Wednesday', label: t('team.days.wednesday') },
-                                                                        { value: 'Thursday', label: t('team.days.thursday') },
-                                                                        { value: 'Friday', label: t('team.days.friday') },
-                                                                        { value: 'Saturday', label: t('team.days.saturday') },
-                                                                        { value: 'Sunday', label: t('team.days.sunday') },
+                                                                        { value: 'Mon', label: t('team.days.monday') },
+                                                                        { value: 'Tue', label: t('team.days.tuesday') },
+                                                                        { value: 'Wed', label: t('team.days.wednesday') },
+                                                                        { value: 'Thu', label: t('team.days.thursday') },
+                                                                        { value: 'Fri', label: t('team.days.friday') },
+                                                                        { value: 'Sat', label: t('team.days.saturday') },
+                                                                        { value: 'Sun', label: t('team.days.sunday') },
                                                                     ]}
-                                                                    value={(validation.values.workingDays || []).map((v: string) => ({ 
-                                                                        value: v, 
-                                                                        label: t(`team.days.${v.toLowerCase()}`)
-                                                                    }))}
+                                                                    value={(validation.values.workingDays || []).map((v: string) => {
+                                                                        const option = [
+                                                                            { value: 'Mon', label: t('team.days.monday') },
+                                                                            { value: 'Tue', label: t('team.days.tuesday') },
+                                                                            { value: 'Wed', label: t('team.days.wednesday') },
+                                                                            { value: 'Thu', label: t('team.days.thursday') },
+                                                                            { value: 'Fri', label: t('team.days.friday') },
+                                                                            { value: 'Sat', label: t('team.days.saturday') },
+                                                                            { value: 'Sun', label: t('team.days.sunday') },
+                                                                        ].find(opt => opt.value === v);
+                                                                        return option || { value: v, label: v };
+                                                                    })}
                                                                     onChange={(selected: any) => {
                                                                         const values = selected ? selected.map((opt: any) => opt.value) : [];
                                                                         validation.setFieldValue('workingDays', values);

@@ -88,7 +88,7 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (dateRange
           staff: booking.staffName,
           status: booking.status,
           paymentMethod: booking.paymentMethod,
-          totalAmount: booking.totalAmount,
+          totalPrice: booking.totalPrice,
           categoryId: booking.categoryId,
           categoryName: booking.categoryName
         }

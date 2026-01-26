@@ -278,7 +278,7 @@ const InvoiceList = () => {
       },
       {
         header: t('invoices.col.amount', 'Amount'),
-        accessorKey: "totalAmount",
+        accessorKey: "totalPrice",
         enableColumnFilter: false,
         cell: (cell: any) => {
           const amount = parseFloat(cell.getValue() || 0);

@@ -186,7 +186,7 @@ export const createStaff = async (data: CreateStaffDto): Promise<Staff> => {
  * Update an existing staff member
  */
 export const updateStaff = async (id: string, data: UpdateStaffDto): Promise<Staff> => {
-  const response = await api.update(`${url.STAFF}/${id}`, data);
+  const response = await api.patch(`${url.STAFF}/${id}`, data);
   return response.data;
 };
 

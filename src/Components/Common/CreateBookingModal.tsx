@@ -78,7 +78,7 @@ interface BookingToCreate {
   duration: number;
   addOnIds: string[];
   status: string;
-  totalAmount: number;
+  totalPrice: number;
   notes: string;
   web: boolean;
 }
@@ -689,7 +689,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           duration: totalDuration,
           addOnIds: allAddOns.map(a => a.id),
           status: 'pending',
-          totalAmount: index === selectedServices.length - 1 ? totals.totalPrice : service.price,
+          totalPrice: index === selectedServices.length - 1 ? totals.totalPrice : service.price,
           notes: index === 0 
             ? (notes || (isVIPCombo ? 'VIP Combo booking' : '')) 
             : (isVIPCombo ? `VIP Combo - Parte ${index + 1}` : `Parte ${index + 1} de ${selectedServices.length}`),
@@ -726,7 +726,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             startTime: booking.startTime,
             endTime: booking.endTime,
             status: booking.status,
-            totalAmount: booking.totalAmount,
+            totalPrice: booking.totalPrice,
             addOnIds: booking.addOnIds.length > 0 ? booking.addOnIds : undefined,
             notes: booking.notes,
             web: booking.web,
@@ -740,7 +740,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             startTime: booking.startTime,
             endTime: booking.endTime,
             status: booking.status,
-            totalAmount: booking.totalAmount,
+            totalPrice: booking.totalPrice,
             addOnIds: booking.addOnIds.length > 0 ? booking.addOnIds : undefined,
             notes: booking.notes,
             web: booking.web,

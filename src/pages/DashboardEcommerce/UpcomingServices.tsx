@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardBody, CardHeader, Col } from 'reactstrap';
 import { useTranslation } from 'react-i18next';
-import { getUpcomingBookings } from '../../helpers/backend_helper';
+import { getPendingBookings } from '../../helpers/backend_helper';
 
 interface UpcomingBooking {
     id: string;
@@ -12,7 +12,7 @@ interface UpcomingBooking {
     appointmentDate: string;
     startTime: string;
     status: string;
-    totalAmount: number;
+    totalPrice: number;
 }
 
 const UpcomingServices = () => {
@@ -21,24 +21,24 @@ const UpcomingServices = () => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        fetchUpcomingBookings();
+        fetchPendingBookings();
     }, []);
 
-    const fetchUpcomingBookings = async () => {
+    const fetchPendingBookings = async () => {
         setLoading(true);
         try {
-            const response = await getUpcomingBookings(10);
+            const response = await getPendingBookings();
             if (response && response.data && response.data.data) {
-                // Ordenar por appointmentDate ascendente (más próximo primero)
+                // Ordenar por appointmentDate descendente (más reciente primero)
                 const sorted = response.data.data.slice().sort((a: UpcomingBooking, b: UpcomingBooking) => {
                     const dateA = new Date(a.appointmentDate).getTime();
                     const dateB = new Date(b.appointmentDate).getTime();
-                    return dateA - dateB;
+                    return dateB - dateA;
                 });
                 setBookings(sorted);
             }
         } catch (error) {
-            console.error('Error fetching upcoming bookings:', error);
+            console.error('Error fetching pending bookings:', error);
         } finally {
             setLoading(false);
         }
@@ -62,10 +62,10 @@ const UpcomingServices = () => {
 
     const getRowBackgroundColor = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'confirmed':
-                return '#d4edda'; // Light green
             case 'pending':
                 return '#fff3cd'; // Light yellow
+            case 'confirmed':
+                return '#d4edda'; // Light green
             default:
                 return 'transparent';
         }
@@ -123,39 +123,39 @@ const UpcomingServices = () => {
             <Col xl={8}>
                 <Card className="card-height-100">
                     <CardHeader className="align-items-center d-flex">
-                        <h4 className="card-title mb-0 flex-grow-1">{t('dashboard.upcoming_services.title')}</h4>
+                        <h4 className="card-title mb-0 flex-grow-1">{t('dashboard.pending_services.title', 'Servicios pendientes')}</h4>
                         <div className="flex-shrink-0">
                             <button 
                                 type="button" 
-                                className="btn btn-soft-info btn-sm"
+                                className="btn btn-soft-warning btn-sm"
                                 onClick={generateReport}
                                 disabled={loading || bookings.length === 0}
                             >
-                                <i className="ri-file-list-3-line align-middle"></i> {t('dashboard.upcoming_services.generate_report')}
+                                <i className="ri-file-list-3-line align-middle"></i> {t('dashboard.pending_services.generate_report', 'Generar reporte')}
                             </button>
                         </div>
                     </CardHeader>
                     <CardBody>
                         {loading ? (
                             <div className="text-center py-4">
-                                <div className="spinner-border text-primary" role="status">
-                                    <span className="visually-hidden">{t('dashboard.upcoming_services.loading')}</span>
+                                <div className="spinner-border text-warning" role="status">
+                                    <span className="visually-hidden">{t('dashboard.pending_services.loading', 'Cargando...')}</span>
                                 </div>
                             </div>
                         ) : bookings.length === 0 ? (
                             <div className="text-center py-4">
-                                <p className="text-muted">{t('dashboard.upcoming_services.no_bookings')}</p>
+                                <p className="text-muted">{t('dashboard.pending_services.no_bookings', 'No hay bookings pendientes')}</p>
                             </div>
                         ) : (
                             <div className="table-card" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                                 <table className="table table-borderless table-centered align-middle table-nowrap mb-0">
                                     <thead className="text-muted table-light">
                                         <tr>
-                                            <th scope="col">{t('dashboard.upcoming_services.customer')}</th>
-                                            <th scope="col">{t('dashboard.upcoming_services.service')}</th>
-                                            <th scope="col">{t('dashboard.upcoming_services.date')}</th>
-                                            <th scope="col">{t('dashboard.upcoming_services.time')}</th>
-                                            <th scope="col">{t('dashboard.upcoming_services.staff')}</th>
+                                            <th scope="col">{t('dashboard.pending_services.customer', 'Cliente')}</th>
+                                            <th scope="col">{t('dashboard.pending_services.service', 'Servicio')}</th>
+                                            <th scope="col">{t('dashboard.pending_services.date', 'Fecha')}</th>
+                                            <th scope="col">{t('dashboard.pending_services.time', 'Hora')}</th>
+                                            <th scope="col">{t('dashboard.pending_services.staff', 'Staff')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -168,10 +168,10 @@ const UpcomingServices = () => {
                                                     {booking.serviceName}
                                                 </td>
                                                 <td>
-                                                    <span className="fw-medium text-success">{formatDate(booking.appointmentDate)}</span>
+                                                    <span className="fw-medium text-warning">{formatDate(booking.appointmentDate)}</span>
                                                 </td>
                                                 <td>
-                                                    <span className="fw-medium text-success">{formatTime(booking.appointmentDate, booking.startTime)}</span>
+                                                    <span className="fw-medium text-warning">{formatTime(booking.appointmentDate, booking.startTime)}</span>
                                                 </td>
                                                 <td className="text-truncate" style={{maxWidth: '150px'}}>
                                                     {booking.staffName}

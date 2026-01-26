@@ -118,11 +118,18 @@ export const getTopStaff = async (startDate: string, endDate: string, limit: num
   }
 };
 
-export const getUpcomingBookings = async (limit: number = 10) => {
+export const getPendingBookings = async () => {
   try {
-    return await api.get(`${url.BOOKINGS_UPCOMING}?limit=${limit}`);
+    // Obtener la fecha actual en formato YYYY-MM-DD
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    // Usar /bookings/list con status=pending y endDate=hoy
+    return await api.get(`${url.GET_BOOKINGS_LIST}?status=pending&endDate=${todayStr}`);
   } catch (error: any) {
-    console.error('Error fetching upcoming bookings:', error);
+    console.error('Error fetching pending bookings:', error);
     throw error;
   }
 };
