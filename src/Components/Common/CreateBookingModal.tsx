@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './calendarChips.css';
 import {
   Modal,
   ModalHeader,
@@ -1766,27 +1767,26 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                       
                       return (
                         <Col key={dayOffset} className="text-center mb-2">
-                          <Button
-                            color={isSelected ? 'primary' : isToday ? 'secondary' : 'light'}
-                            outline={!isSelected}
+                          <button
+                            type="button"
+                            className={`calendar-chip${isSelected ? ' selected' : ''}`}
                             disabled={isDisabled}
                             onClick={() => {
                               setSelectedDate(date.toDate());
                               setSelectedTime(null);
                             }}
-                            className="w-100 d-flex flex-column align-items-center py-2"
-                            style={{ minHeight: '80px' }}
+                            style={{ minHeight: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}
                           >
-                            <div className="text-uppercase small mb-1" style={{ fontSize: '0.7rem' }}>
+                            <span className="text-uppercase small mb-1" style={{ fontSize: '0.7rem' }}>
                               {date.format('ddd')}
-                            </div>
-                            <div className="h4 mb-0">
+                            </span>
+                            <span className="h4 mb-0">
                               {date.format('D')}
-                            </div>
-                            <div className="small" style={{ fontSize: '0.7rem' }}>
+                            </span>
+                            <span className="small" style={{ fontSize: '0.7rem' }}>
                               {date.format('MMM')}
-                            </div>
-                          </Button>
+                            </span>
+                          </button>
                         </Col>
                       );
                     })}
@@ -1879,19 +1879,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 return hour < 12;
                               })
                               .map(slot => (
-                                <Button
+                                <button
                                   key={slot.time}
-                                  color={selectedTime === slot.time ? 'primary' : 'outline-secondary'}
-                                  size="sm"
+                                  type="button"
+                                  className={`calendar-chip${selectedTime === slot.time ? ' selected' : ''}`}
                                   disabled={!slot.available}
                                   onClick={() => handleTimeSelect(slot.time)}
-                                  style={{
-                                    minWidth: '80px',
-                                    textDecoration: !slot.available ? 'line-through' : 'none'
-                                  }}
+                                  style={{ minWidth: '80px' }}
                                 >
                                   {slot.label}
-                                </Button>
+                                </button>
                               ))}
                           </div>
                         </div>
@@ -1914,19 +1911,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 return hour >= 12 && hour < 18;
                               })
                               .map(slot => (
-                                <Button
+                                <button
                                   key={slot.time}
-                                  color={selectedTime === slot.time ? 'primary' : 'outline-secondary'}
-                                  size="sm"
+                                  type="button"
+                                  className={`calendar-chip${selectedTime === slot.time ? ' selected' : ''}`}
                                   disabled={!slot.available}
                                   onClick={() => handleTimeSelect(slot.time)}
-                                  style={{
-                                    minWidth: '80px',
-                                    textDecoration: !slot.available ? 'line-through' : 'none'
-                                  }}
+                                  style={{ minWidth: '80px' }}
                                 >
                                   {slot.label}
-                                </Button>
+                                </button>
                               ))}
                           </div>
                         </div>
@@ -1949,19 +1943,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 return hour >= 18;
                               })
                               .map(slot => (
-                                <Button
+                                <button
                                   key={slot.time}
-                                  color={selectedTime === slot.time ? 'primary' : 'outline-secondary'}
-                                  size="sm"
+                                  type="button"
+                                  className={`calendar-chip${selectedTime === slot.time ? ' selected' : ''}`}
                                   disabled={!slot.available}
                                   onClick={() => handleTimeSelect(slot.time)}
-                                  style={{
-                                    minWidth: '80px',
-                                    textDecoration: !slot.available ? 'line-through' : 'none'
-                                  }}
+                                  style={{ minWidth: '80px' }}
                                 >
                                   {slot.label}
-                                </Button>
+                                </button>
                               ))}
                           </div>
                         </div>
@@ -2006,27 +1997,6 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     </p>
                   </CardBody>
                 </Card>
-
-                {/* Workload de técnicos */}
-                {staffWorkloads.length > 0 && (
-                  <Card className="border mb-3">
-                    <CardHeader>
-                      <h6 className="mb-0">{t('booking.datetime.staff_workload_title')}</h6>
-                    </CardHeader>
-                    <CardBody>
-                      {staffWorkloads
-                        .sort((a, b) => a.workloadMinutes - b.workloadMinutes)
-                        .map(workload => (
-                          <div key={workload.id} className="d-flex justify-content-between align-items-center mb-2">
-                            <span>{workload.name}</span>
-                            <Badge color={workload.workloadMinutes < 240 ? 'success' : workload.workloadMinutes < 360 ? 'warning' : 'danger'}>
-                              {t('booking.datetime.staff_workload_badge', { minutes: workload.workloadMinutes })}
-                            </Badge>
-                          </div>
-                        ))}
-                    </CardBody>
-                  </Card>
-                )}
 
                 {/* Botón de verificación */}
                 <div className="mb-3">
@@ -2085,14 +2055,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         {step === 'confirm' && !loading && (
           <div>
             <h5 className="mb-3">{t('booking.confirm.title')}</h5>
-
-            {!slotVerified && (
-              <Alert color="warning">
-                <i className="ri-alert-line me-2"></i>
-                {t('booking.confirm.warning_not_verified')}
-              </Alert>
-            )}
-
+            
             <Card className="border">
               <CardBody>
                 <h6 className="border-bottom pb-2 mb-3">{t('booking.confirm.customer_info')}</h6>

@@ -515,7 +515,7 @@
     "dashboard.store_visits.web": "Web",
     "dashboard.store_visits.other": "Other",
 
-    "dashboard.upcoming_services.title": "Pending Services",
+    "dashboard.pending_services.title": "Pending Services",
     "dashboard.upcoming_services.service_id": "Service ID",
     "dashboard.upcoming_services.customer": "Customer",
     "dashboard.upcoming_services.service": "Service",

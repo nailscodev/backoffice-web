@@ -19,7 +19,8 @@ import {
 } from "reactstrap";
 import { Link, useLocation } from "react-router-dom";
 import classnames from "classnames";
-import Flatpickr from "react-flatpickr";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
 import ReservationModal from "../../../Components/Common/ReservationModal";
@@ -58,6 +59,8 @@ import { useTranslation } from 'react-i18next';
 const EcommerceOrders = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  // Estado para filtro de fecha (rango)
+  const [dateFilter, setDateFilter] = useState<[Date | null, Date | null]>([null, null]);
 
   const [modal, setModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("1");
@@ -778,15 +781,17 @@ const EcommerceOrders = () => {
                   </Nav>
 
                   <div className="mb-3 mt-3">
-                    <div className="search-box">
-                      <input
-                        type="text"
-                        className="form-control search"
-                        placeholder={t('reservations.search_placeholder')}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                      <i className="ri-search-line search-icon"></i>
+                    <div className="d-flex gap-2 flex-wrap">
+                      <div className="search-box">
+                        <input
+                          type="text"
+                          className="form-control search"
+                          placeholder={t('reservations.search_placeholder')}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <i className="ri-search-line search-icon"></i>
+                      </div>
                     </div>
                   </div>
 

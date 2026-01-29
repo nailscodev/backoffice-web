@@ -282,7 +282,7 @@
 
     "dashboard.store_visits.title": "Reservations by Source",
 
-    "dashboard.upcoming_services.title": "Upcoming Services",
+    "dashboard.pending_services.title": "Upcoming Services",
     "dashboard.upcoming_services.service_id": "Service ID",
     "dashboard.upcoming_services.customer": "Customer",
     "dashboard.upcoming_services.service": "Service",
