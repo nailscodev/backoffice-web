@@ -32,8 +32,11 @@ import RoleScreenAssignment from '../../../Components/Roles/RoleScreenAssignment
 
 
 import { APIClient } from '../../../helpers/api_helper';
+
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+import { Spinner } from 'reactstrap';
 
 const api = new APIClient();
 
@@ -43,6 +46,7 @@ const UserManagement = () => {
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Search state for table
   const [search, setSearch] = useState('');
@@ -123,7 +127,6 @@ const UserManagement = () => {
       username: (user && user.username) || '',
       name: (user && user.name) || '',
       email: (user && user.email) || '',
-      password: '',
       role: (user && user.role) || 'staff',
       status:
         user && typeof user.isActive === 'boolean'
@@ -136,11 +139,11 @@ const UserManagement = () => {
       username: Yup.string().required(t('settings.users.form.username') + ' is required'),
       name: Yup.string().required(t('settings.users.form.name') + ' is required'),
       email: Yup.string().email('Invalid email').required(t('settings.users.form.email') + ' is required'),
-      password: isEdit ? Yup.string() : Yup.string().required(t('settings.users.form.password') + ' is required'),
       role: Yup.string().required(t('settings.users.form.role') + ' is required'),
       status: Yup.string().required(t('settings.users.form.status') + ' is required'),
     }),
     onSubmit: async (values) => {
+      setIsSaving(true);
       try {
         // Construir payload compatible con backend
         const payload: any = {
@@ -150,14 +153,11 @@ const UserManagement = () => {
           role: values.role,
           isActive: values.status === 'active',
         };
-        if (!isEdit && values.password) {
-          payload.password = values.password;
-        }
+        // Password is no longer handled here
         if (isEdit && user?.id) {
           await api.patch(`/api/v1/users/${user.id}`, payload);
           toast.success(t('User updated successfully'), { autoClose: 3000 });
         } else {
-          if (values.password) payload.password = values.password;
           await api.create('/api/v1/users', payload);
           toast.success(t('User created successfully'), { autoClose: 3000 });
         }
@@ -166,6 +166,8 @@ const UserManagement = () => {
         toggle();
       } catch (err) {
         toast.error('Error al guardar usuario');
+      } finally {
+        setIsSaving(false);
       }
     },
   });
@@ -401,27 +403,7 @@ const UserManagement = () => {
                           ) : null}
                         </div>
 
-                        {!isEdit && (
-                          <div className="mb-3">
-                            <Label htmlFor="password-field" className="form-label">{t('settings.users.form.password')}</Label>
-                            <Input
-                              name="password"
-                              id="password-field"
-                              className="form-control"
-                              placeholder={t('settings.users.form.password')}
-                              type="password"
-                              onChange={validation.handleChange}
-                              onBlur={validation.handleBlur}
-                              value={validation.values.password || ""}
-                              invalid={
-                                validation.touched.password && validation.errors.password ? true : false
-                              }
-                            />
-                            {validation.touched.password && validation.errors.password ? (
-                              <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
-                            ) : null}
-                          </div>
-                        )}
+                        {/* Password field removed as per requirements */}
 
                         <div className="mb-3">
                           <Label htmlFor="role-field" className="form-label">{t('settings.users.form.role')}</Label>
@@ -476,8 +458,8 @@ const UserManagement = () => {
                             Close
                           </Button>
 
-                          <Button type="submit" color="success" id="add-btn">
-                            {!!isEdit ? "Update" : "Add User"}
+                          <Button type="submit" color="success" id="add-btn" disabled={isSaving}>
+                            {isSaving && <Spinner size="sm" className="me-2" />} {!!isEdit ? "Update" : "Add User"}
                           </Button>
                         </div>
                       </ModalFooter>
