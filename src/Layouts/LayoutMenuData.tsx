@@ -237,7 +237,7 @@ const Navdata = () => {
             stateVariables: isConfiguracion,
             subItems: [
                 { id: "usuarios-roles", label: t('menu.admin.settings.users_roles'), link: "/config/usuarios", parentId: "admin-config" },
-                { id: "idioma", label: t('menu.admin.settings.language'), link: "/config/idioma", parentId: "admin-config" },
+                { id: "idioma", label: t('menu.admin.settings.language'), link: "/config/idioma", parentId: "admin-config", icon: "ri-time-line", disabled: true, badgeName: "Coming Soon", badgeColor: "info" },
             ],
         }
     ];
@@ -272,7 +272,7 @@ const menuData = [
     { id: "admin-reportes", label: 'menu.admin.reports.title', icon: "ri-time-line", link: "/#", disabled: true, badgeName: "Coming Soon", badgeColor: "info" },
     { id: "admin-config", label: 'menu.admin.settings.title', icon: "ri-settings-2-line", link: "/config", subItems: [
         { id: "usuarios-roles", label: 'menu.admin.settings.users_roles', link: "/config/usuarios", parentId: "admin-config" },
-        { id: "idioma", label: 'menu.admin.settings.language', link: "/config/idioma", parentId: "admin-config" }
+        { id: "idioma", label: 'menu.admin.settings.language', link: "/config/idioma", parentId: "admin-config", icon: "ri-time-line", disabled: true, badgeName: "Coming Soon", badgeColor: "info" }
     ] }
 ];
 

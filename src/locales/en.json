@@ -1189,5 +1189,11 @@
     "booking.confirm.removal_services": "Removal Services",
     "booking.confirm.date_time": "Date & Time",
     "booking.confirm.notes": "Notes",
-    "booking.confirm.total": "Total:"
+    "booking.confirm.total": "Total:",
+    "roles.assignment.title": "Assign Screens to Roles",
+    "roles.assignment.select_role": "Select a role:",
+    "roles.assignment.select_role_placeholder": "-- Select a role --",
+    "roles.assignment.available_screens": "Available screens:",
+    "roles.assignment.save": "Save",
+    "roles.assignment.saved": "Assignment saved for role {{role}}: {{screens}}"
 }

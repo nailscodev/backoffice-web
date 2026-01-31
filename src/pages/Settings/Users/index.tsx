@@ -298,8 +298,8 @@ const UserManagement = () => {
             <Col lg={12}>
               <div className="mb-3 d-flex justify-content-end">
                 <div className="hstack gap-2">
-                  <Button color="primary" onClick={handleAssignScreens}>
-                    Asignar pantallas a roles
+                  <Button color="primary" onClick={handleAssignScreens} disabled>
+                    <i className="ri-time-line align-bottom me-1"></i> Coming soon. {t('roles.assignment.title')}
                   </Button>
                   <Button
                     color="success"

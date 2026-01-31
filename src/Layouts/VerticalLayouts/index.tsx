@@ -181,8 +181,10 @@ const VerticalLayout = (props : any) => {
                                                         {!subItem.isChildItem ? (
                                                             <li className="nav-item">
                                                                 <Link
-                                                                    to={subItem.link ? subItem.link : "/#"}
-                                                                    className="nav-link"
+                                                                    to={subItem.disabled ? "#" : (subItem.link ? subItem.link : "/#")}
+                                                                    className={`nav-link${subItem.disabled ? ' disabled' : ''}`}
+                                                                    onClick={subItem.disabled ? (e) => e.preventDefault() : undefined}
+                                                                    style={subItem.disabled ? { cursor: 'not-allowed', opacity: 0.6 } : undefined}
                                                                 >
                                                                     {props.t(subItem.label)}
                                                                     {subItem.badgeName ?

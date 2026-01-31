@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { menuData } from '../../Layouts/LayoutMenuData';
 
 
@@ -26,6 +27,7 @@ function flattenMenu(menu: any[]): { id: string, label: string }[] {
 }
 
 const RoleScreenAssignment = () => {
+  const { t } = useTranslation();
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [assignedScreens, setAssignedScreens] = useState<string[]>([]);
   const screens = flattenMenu(menuData);
@@ -47,20 +49,25 @@ const RoleScreenAssignment = () => {
 
   const handleSave = () => {
     // TODO: save assignedScreens for selectedRole via API
-    alert(`Asignación guardada para el rol ${selectedRole}:\n${assignedScreens.join(', ')}`);
+    alert(
+      t('roles.assignment.saved', {
+        role: selectedRole,
+        screens: assignedScreens.join(', '),
+      })
+    );
   };
 
   return (
     <div style={{ maxWidth: 500, margin: '0 auto' }}>
-      <h3>Asignar Pantallas a Roles</h3>
-      <label htmlFor="role-select">Selecciona un rol:</label>
+      <h3>{t('roles.assignment.title')}</h3>
+      <label htmlFor="role-select">{t('roles.assignment.select_role')}</label>
       <select
         id="role-select"
         value={selectedRole}
         onChange={e => setSelectedRole(e.target.value)}
         style={{ width: '100%', marginBottom: 16, padding: 8 }}
       >
-        <option value="">-- Selecciona un rol --</option>
+        <option value="">{t('roles.assignment.select_role_placeholder')}</option>
         {ROLES.map(role => (
           <option key={role.value} value={role.value}>{role.label}</option>
         ))}
@@ -68,7 +75,7 @@ const RoleScreenAssignment = () => {
       {selectedRole && (
         <>
           <div style={{ margin: '16px 0' }}>
-            <strong>Pantallas disponibles:</strong>
+            <strong>{t('roles.assignment.available_screens')}</strong>
             <ul style={{ listStyle: 'none', padding: 0 }}>
               {screens.map(screen => (
                 <li key={screen.id} style={{ marginBottom: 8 }}>
@@ -85,7 +92,7 @@ const RoleScreenAssignment = () => {
             </ul>
           </div>
           <button onClick={handleSave} style={{ padding: '8px 16px', background: '#1677ff', color: '#fff', border: 'none', borderRadius: 4 }}>
-            Guardar
+            {t('roles.assignment.save')}
           </button>
         </>
       )}

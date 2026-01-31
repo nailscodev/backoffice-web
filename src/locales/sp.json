@@ -1182,5 +1182,11 @@
     "booking.toast.customer_created": "Cliente creado exitosamente",
     "booking.toast.booking_created": "¡Reserva creada exitosamente!",
     "booking.toast.booking_error": "Error al crear la reserva",
-    "booking.toast.load_error": "Error al cargar datos iniciales"
+    "booking.toast.load_error": "Error al cargar datos iniciales",
+    "roles.assignment.title": "Asignar Pantallas a Roles",
+    "roles.assignment.select_role": "Selecciona un rol:",
+    "roles.assignment.select_role_placeholder": "-- Selecciona un rol --",
+    "roles.assignment.available_screens": "Pantallas disponibles:",
+    "roles.assignment.save": "Guardar",
+    "roles.assignment.saved": "Asignación guardada para el rol {{role}}: {{screens}}"
 }

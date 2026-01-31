@@ -155,5 +155,11 @@
   "booking.confirm.date_time": "Fecha y Hora",
   "booking.confirm.notes": "Notas",
   "booking.confirm.total": "Total:",
-  "reservations.tabs.confirmed": "Confirmadas"
+  "reservations.tabs.confirmed": "Confirmadas",
+  "roles.assignment.title": "Asignar Pantallas a Roles",
+  "roles.assignment.select_role": "Selecciona un rol:",
+  "roles.assignment.select_role_placeholder": "-- Selecciona un rol --",
+  "roles.assignment.available_screens": "Pantallas disponibles:",
+  "roles.assignment.save": "Guardar",
+  "roles.assignment.saved": "Asignación guardada para el rol {{role}}: {{screens}}"
 }
