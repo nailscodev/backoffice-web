@@ -3,38 +3,27 @@ import { userForgetPasswordSuccess, userForgetPasswordError } from "./reducer"
 //Include Both Helper File with needed methods
 import { getFirebaseBackend } from "../../../helpers/firebase_helper";
 
-import {
-  postFakeForgetPwd,
-  postJwtForgetPwd,
-} from "../../../helpers/fakebackend_helper";
+
+import axios from "axios";
 
 const fireBaseBackend : any= getFirebaseBackend();
 
 export const userForgetPassword = (user : any, history : any) => async (dispatch : any) => {
   try {
-      let response;
-      if (process.env.REACT_APP_DEFAULTAUTH === "firebase") {
+      // Real backend call
+      const response = await axios.post(
+        "/api/v1/users/forgot-password",
+        { email: user.email },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
-          response = fireBaseBackend.forgetPassword(
-              user.email
+      if (response && response.data) {
+        dispatch(
+          userForgetPasswordSuccess(
+            response.data.message ||
+              "Reset link has been sent to your mailbox, check there first."
           )
-
-      } else if (process.env.REACT_APP_DEFAULTAUTH === "jwt") {
-          response = postJwtForgetPwd(
-              user.email
-          )
-      } else {
-          response = postFakeForgetPwd(
-              user.email
-          )
-      }
-
-      const data = await response;
-
-      if (data) {
-          dispatch(userForgetPasswordSuccess(
-              "Reset link are sended to your mailbox, check there first"
-          ))
+        );
       }
   } catch (forgetError) {
       dispatch(userForgetPasswordError(forgetError))

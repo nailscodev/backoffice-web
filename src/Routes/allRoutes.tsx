@@ -518,8 +518,9 @@ const publicRoutes = [
   { path: "/nft-landing", component: <NFTLanding /> },
   { path: "/job-landing", component: <JobLanding /> },
 
-  { path: "/auth-pass-change-basic", component: <BasicPasswCreate /> },
-  { path: "/auth-pass-change-cover", component: <CoverPasswCreate /> },
+  // Reset password con token
+  { path: "/reset-password/:token", component: <BasicPasswCreate /> },
+  { path: "/reset-password-cover/:token", component: <CoverPasswCreate /> },
   { path: "/auth-offline", component: <Offlinepage /> },
 
   { path: "/pages-maintenance", component: <Maintenance /> },

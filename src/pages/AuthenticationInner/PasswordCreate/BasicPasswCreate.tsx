@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Button, Card, CardBody, Col, Container, Row, Form, Input, Label, FormFeedback } from 'reactstrap';
 import ParticlesAuth from '../ParticlesAuth';
 import logoLight from "../../../assets/images/logo-light.png";
@@ -15,26 +16,47 @@ const BasicPasswCreate = () => {
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
     const [confrimPasswordShow, setConfrimPasswordShow] = useState<boolean>(false);
 
+    const { token } = useParams();
+    const navigate = useNavigate();
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+
     const validation = useFormik({
         enableReinitialize: true,
-
         initialValues: {
-            password: "",
+            newPassword: "",
             confirm_password: "",
         },
         validationSchema: Yup.object({
-            password: Yup.string()
+            newPassword: Yup.string()
                 .min(8, 'Password must be at least 8 characters')
                 .matches(RegExp('(.*[a-z].*)'), 'At least lowercase letter')
                 .matches(RegExp('(.*[A-Z].*)'), 'At least uppercase letter')
                 .matches(RegExp('(.*[0-9].*)'), 'At least one number')
-                .required("This field is required"),
+                .required("La nueva contraseña es requerida"),
             confirm_password: Yup.string()
-                .oneOf([Yup.ref('password'), ""],)
+                .oneOf([Yup.ref('newPassword'), ""],)
                 .required('Confirm Password is required')
         }),
-        onSubmit: (values) => {
-            // console.log(values);
+        onSubmit: async (values) => {
+            setError(null);
+            setSuccess(null);
+            try {
+                const response = await axios.post(
+                    "/api/v1/users/reset-password",
+                    {
+                        token,
+                        newPassword: values.newPassword
+                    },
+                    { headers: { "Content-Type": "application/json" } }
+                );
+                if (response && response.data) {
+                    setSuccess(response.data.message || "Password reset successfully");
+                    setTimeout(() => navigate("/login"), 2000);
+                }
+            } catch (err: any) {
+                setError(err?.response?.data?.message || "Error resetting password");
+            }
         }
     });
     return (
@@ -64,7 +86,9 @@ const BasicPasswCreate = () => {
                                     </div>
 
                                     <div className="p-2">
-                                        <Form onSubmit={validation.handleSubmit} action="/auth-signin-basic">
+                                        {error && <div className="alert alert-danger">{error}</div>}
+                                        {success && <div className="alert alert-success">{success}</div>}
+                                        <Form onSubmit={validation.handleSubmit}>
                                             <div className="mb-3">
                                                 <Label className="form-label" htmlFor="password-input">Password</Label>
                                                 <div className="position-relative auth-pass-inputgroup">
@@ -73,14 +97,14 @@ const BasicPasswCreate = () => {
                                                         className="form-control pe-5 password-input"
                                                         placeholder="Enter password"
                                                         id="password-input"
-                                                        name="password"
-                                                        value={validation.values.password}
+                                                        name="newPassword"
+                                                        value={validation.values.newPassword}
                                                         onBlur={validation.handleBlur}
                                                         onChange={validation.handleChange}
-                                                        invalid={validation.errors.password && validation.touched.password ? true : false}
+                                                        invalid={validation.errors.newPassword && validation.touched.newPassword ? true : false}
                                                     />
-                                                    {validation.errors.password && validation.touched.password ? (
-                                                        <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
+                                                    {validation.errors.newPassword && validation.touched.newPassword ? (
+                                                        <FormFeedback type="invalid">{validation.errors.newPassword}</FormFeedback>
                                                     ) : null}
                                                     <Button color="link" onClick={() => setPasswordShow(!passwordShow)} className="position-absolute end-0 top-0 text-decoration-none text-muted password-addon" type="button"
                                                         id="password-addon"><i className="ri-eye-fill align-middle"></i></Button>

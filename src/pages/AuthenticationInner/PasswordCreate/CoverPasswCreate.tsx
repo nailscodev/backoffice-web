@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Button, Card, Col, Container, Row, Form, Label, Input, FormFeedback } from 'reactstrap';
 
 import AuthSlider from '../authCarousel';
@@ -12,28 +13,49 @@ const CoverPasswCreate = () => {
     document.title = "Create New Password | Nails & Co Midtown - Admin Panel";
 
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
-    const [confrimPasswordShow, setConfrimPasswordShow] = useState<boolean>(false);   
+    const [confirmPasswordShow, setconfirmPasswordShow] = useState<boolean>(false);   
 
-    const validation :any= useFormik({
+    const { token } = useParams();
+    const navigate = useNavigate();
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+
+    const validation = useFormik({
         enableReinitialize: true,
-
         initialValues: {
-            password: "",
-            confrim_password: "",
+            newPassword: "",
+            confirm_password: "",
         },
         validationSchema: Yup.object({
-            password: Yup.string()
+            newPassword: Yup.string()
                 .min(8, 'Password must be at least 8 characters')
                 .matches(RegExp('(.*[a-z].*)'), 'At least lowercase letter')
                 .matches(RegExp('(.*[A-Z].*)'), 'At least uppercase letter')
                 .matches(RegExp('(.*[0-9].*)'), 'At least one number')
-                .required("This field is required"),
-                confirm_password: Yup.string()
-                .oneOf([Yup.ref('password'), ""],)
+                .required("La nueva contraseña es requerida"),
+            confirm_password: Yup.string()
+                .oneOf([Yup.ref('newPassword'), ""],)
                 .required('Confirm Password is required')
         }),
-        onSubmit: (values) => {
-            // console.log(values);
+        onSubmit: async (values) => {
+            setError(null);
+            setSuccess(null);
+            try {
+                const response = await axios.post(
+                    "/api/v1/users/reset-password",
+                    {
+                        token,
+                        newPassword: values.newPassword
+                    },
+                    { headers: { "Content-Type": "application/json" } }
+                );
+                if (response && response.data) {
+                    setSuccess(response.data.message || "Password reset successfully");
+                    setTimeout(() => navigate("/login"), 2000);
+                }
+            } catch (err: any) {
+                setError(err?.response?.data?.message || "Error resetting password");
+            }
         }
     });
     return (
@@ -53,7 +75,9 @@ const CoverPasswCreate = () => {
                                                 <p className="text-muted">Your new password must be different from previous used password.</p>
 
                                                 <div className="p-2">
-                                                    <Form onSubmit={validation.handleSubmit} action="/auth-signin-basic">
+                                                    {error && <div className="alert alert-danger">{error}</div>}
+                                                    {success && <div className="alert alert-success">{success}</div>}
+                                                    <Form onSubmit={validation.handleSubmit}>
                                                         <div className="mb-3">
                                                             <Label className="form-label" htmlFor="password-input">Password</Label>
                                                             <div className="position-relative auth-pass-inputgroup">
@@ -62,14 +86,14 @@ const CoverPasswCreate = () => {
                                                                     className="form-control pe-5 password-input"
                                                                     placeholder="Enter password"
                                                                     id="password-input"
-                                                                    name="password"
-                                                                    value={validation.values.password}
+                                                                    name="newPassword"
+                                                                    value={validation.values.newPassword}
                                                                     onBlur={validation.handleBlur}
                                                                     onChange={validation.handleChange}
-                                                                    invalid={validation.errors.password && validation.touched.password ? true : false}
+                                                                    invalid={validation.errors.newPassword && validation.touched.newPassword ? true : false}
                                                                 />
-                                                                {validation.errors.password && validation.touched.password ? (
-                                                                    <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
+                                                                {validation.errors.newPassword && validation.touched.newPassword ? (
+                                                                    <FormFeedback type="invalid">{validation.errors.newPassword}</FormFeedback>
                                                                 ) : null}
                                                                 <Button color="link" onClick={() => setPasswordShow(!passwordShow)} className="position-absolute end-0 top-0 text-decoration-none text-muted password-addon"
                                                                     id="password-addon"><i className="ri-eye-fill align-middle"></i></Button>
@@ -81,20 +105,20 @@ const CoverPasswCreate = () => {
                                                             <Label className="form-label" htmlFor="confirm-password-input">Confirm Password</Label>
                                                             <div className="position-relative auth-pass-inputgroup mb-3">
                                                                 <Input
-                                                                    type={confrimPasswordShow ? "text" : "password"}
+                                                                    type={confirmPasswordShow ? "text" : "password"}
                                                                     className="form-control pe-5 password-input"
                                                                     placeholder="Confirm password"
                                                                     id="confirm-password-input"
-                                                                    name="confrim_password"
-                                                                    value={validation.values.confrim_password}
+                                                                    name="confirm_password"
+                                                                    value={validation.values.confirm_password}
                                                                     onBlur={validation.handleBlur}
                                                                     onChange={validation.handleChange}
-                                                                    invalid={validation.errors.confrim_password && validation.touched.confrim_password ? true : false}
+                                                                    invalid={validation.errors.confirm_password && validation.touched.confirm_password ? true : false}
                                                                 />
-                                                                {validation.errors.confrim_password && validation.touched.confrim_password ? (
-                                                                    <FormFeedback type="invalid">{validation.errors.confrim_password}</FormFeedback>
+                                                                {validation.errors.confirm_password && validation.touched.confirm_password ? (
+                                                                    <FormFeedback type="invalid">{validation.errors.confirm_password}</FormFeedback>
                                                                 ) : null}
-                                                                <Button color="link" onClick={() => setConfrimPasswordShow(!confrimPasswordShow)} className="position-absolute end-0 top-0 text-decoration-none text-muted password-addon">
+                                                                <Button color="link" onClick={() => setconfirmPasswordShow(!confirmPasswordShow)} className="position-absolute end-0 top-0 text-decoration-none text-muted password-addon">
                                                                 <i className="ri-eye-fill align-middle"></i></Button>
                                                             </div>
                                                         </div>
