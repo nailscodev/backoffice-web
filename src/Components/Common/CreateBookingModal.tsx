@@ -1897,7 +1897,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                       {/* Afternoon Slots */}
                       {timeSlots.filter(s => {
                         const hour = parseInt(s.time.split(':')[0]);
-                        return hour >= 12 && hour < 18;
+                        return hour >= 12 && hour < 17;
                       }).length > 0 && (
                         <div className="mb-3">
                           <p className="small text-muted mb-2">
@@ -1908,7 +1908,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                             {timeSlots
                               .filter(s => {
                                 const hour = parseInt(s.time.split(':')[0]);
-                                return hour >= 12 && hour < 18;
+                                return hour >= 12 && hour < 17;
                               })
                               .map(slot => (
                                 <button
@@ -1929,7 +1929,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                       {/* Evening Slots */}
                       {timeSlots.filter(s => {
                         const hour = parseInt(s.time.split(':')[0]);
-                        return hour >= 18;
+                        return hour >= 17;
                       }).length > 0 && (
                         <div>
                           <p className="small text-muted mb-2">
@@ -1940,7 +1940,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                             {timeSlots
                               .filter(s => {
                                 const hour = parseInt(s.time.split(':')[0]);
-                                return hour >= 18;
+                                return hour >= 17;
                               })
                               .map(slot => (
                                 <button
