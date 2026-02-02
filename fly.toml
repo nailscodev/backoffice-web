@@ -8,16 +8,26 @@ primary_region = 'iad'
 
 [build]
 
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
 [http_service]
-  internal_port = 8080
+  internal_port = 3000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
   processes = ['app']
 
+# Enable SPA routing - serve index.html for non-asset requests
+[[http_service.response_headers]]
+  "Cache-Control" = "public, max-age=31536000, immutable"
+  "X-Content-Type-Options" = "nosniff"
+  "X-Frame-Options" = "DENY"
+  "X-XSS-Protection" = "1; mode=block"
+
 [[vm]]
-  memory = '1gb'
+  memory = '2gb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 1024

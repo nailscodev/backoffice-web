@@ -39,9 +39,13 @@ RUN yarn install --production=true
 # Final stage for app image
 FROM base
 
-# Copy built application
-COPY --from=build /app /app
+# Install serve to serve static files
+RUN npm install -g serve
+
+# Copy built application (only the build folder)
+COPY --from=build /app/build /app/build
+COPY --from=build /app/package.json /app/package.json
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "yarn", "run", "start" ]
+CMD [ "serve", "-s", "build", "-l", "3000" ]
