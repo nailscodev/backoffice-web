@@ -496,17 +496,33 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     }
   };
 
-  // Auto-asignar staff con menor workload
-  const autoAssignStaff = (serviceIndex: number): string | undefined => {
-    if (staffWorkloads.length === 0) {
-      return availableStaff[0]?.id;
+  // Auto-asignar staff con menor workload que pueda hacer el servicio
+  const autoAssignStaff = (service: Service): string | undefined => {
+    // Filtrar staff que puede hacer este servicio específico
+    const staffForService = availableStaff.filter(s => 
+      s.services?.some(svc => svc.id === service.id)
+    );
+
+    if (staffForService.length === 0) {
+      return undefined;
     }
 
-    // Encontrar staff con menor workload
-    const minWorkload = Math.min(...staffWorkloads.map(w => w.workloadMinutes));
-    const optimalStaff = staffWorkloads.find(w => w.workloadMinutes === minWorkload);
+    if (staffWorkloads.length === 0) {
+      return staffForService[0]?.id;
+    }
 
-    return optimalStaff?.id || availableStaff[0]?.id;
+    // Encontrar staff con menor workload que pueda hacer el servicio
+    const staffIdsForService = staffForService.map(s => s.id);
+    const validWorkloads = staffWorkloads.filter(w => staffIdsForService.includes(w.id));
+    
+    if (validWorkloads.length === 0) {
+      return staffForService[0]?.id;
+    }
+
+    const minWorkload = Math.min(...validWorkloads.map(w => w.workloadMinutes));
+    const optimalStaff = validWorkloads.find(w => w.workloadMinutes === minWorkload);
+
+    return optimalStaff?.id || staffForService[0]?.id;
   };
 
   // Agregar servicio
@@ -516,8 +532,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       return;
     }
 
-    // Auto-asignar staff con menor workload
-    const autoStaffId = autoAssignStaff(selectedServices.length);
+    // Auto-asignar staff con menor workload que pueda hacer el servicio
+    const autoStaffId = autoAssignStaff(service);
     const autoStaff = staff.find(s => s.id === autoStaffId);
 
     setSelectedServices([
@@ -1681,7 +1697,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           {t('booking.staff.any_available') || 'Any Available Technician'}
                         </option>
                         {staff
-                          .filter(s => s.isActive && s.isAvailable)
+                          .filter(s => 
+                            s.isActive && 
+                            s.isAvailable && 
+                            s.services?.some(svc => svc.id === service.id)
+                          )
                           .map(s => {
                             const workload = staffWorkloads.find(w => w.id === s.id);
                             const workloadText = workload 
