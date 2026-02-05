@@ -4,8 +4,9 @@ import {
   postFakeLogin,
   postJwtLogin,
 } from "../../../helpers/fakebackend_helper";
-import { postLogin, postLogout } from "../../../helpers/backend_helper";
+import { postLogin, postLogout, getUserPermissions } from "../../../helpers/backend_helper";
 import { saveAuthTokens, clearAuthTokens } from "../../../helpers/api_helper";
+import { getFirstAvailableRoute } from "../../../helpers/navigation_helper";
 
 import { loginSuccess, logoutUserSuccess, apiError, reset_login_flag } from './reducer';
 
@@ -43,10 +44,36 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
         // Backend NailsCo returns: { success: true, data: { token: string, user: {...} } }
         if (data.success && data.data) {
           const { token, user: userData } = data.data;
-          // Don't save CSRF token from login - we'll get a fresh one for each request
+          
+          // Save basic user data first
           saveAuthTokens(token, null, { user: userData });
-          dispatch(loginSuccess({ token, ...userData }));
-          history('/dashboard');
+          
+          try {
+            // Get user permissions after successful login
+            const permissionsResponse = await getUserPermissions();
+            const permissions = permissionsResponse?.data?.screens || [];
+            
+            // Create user object with permissions for storage
+            const userWithPermissions = {
+              ...userData,
+              permissions: { screens: permissions }
+            };
+            
+            // Update stored data with permissions
+            saveAuthTokens(token, null, { user: userWithPermissions });
+            dispatch(loginSuccess({ token, ...userData, permissions: { screens: permissions } }));
+            
+            // Navigate to the first available route for the user
+            const firstAvailableRoute = getFirstAvailableRoute(permissions);
+            console.log('📍 Navigating to first available route:', firstAvailableRoute, 'based on permissions:', permissions);
+            history(firstAvailableRoute);
+            
+          } catch (permissionsError) {
+            console.error('Error fetching user permissions:', permissionsError);
+            // Continue with login even if permissions fail, but go to dashboard as fallback
+            dispatch(loginSuccess({ token, ...userData, permissions: { screens: [] } }));
+            history('/dashboard');
+          }
         } else {
           dispatch(apiError({ 
             message: data.error || data.message || 'Invalid response from server',

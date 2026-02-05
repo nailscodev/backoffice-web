@@ -1,17 +1,33 @@
-app = "backoffice-web-so8xwa"
-primary_region = "mia"
+# fly.toml app configuration file generated for backoffice-web-so8xwa on 2026-01-31T23:49:41Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'backoffice-web-so8xwa'
+primary_region = 'iad'
 
 [build]
 
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
 [http_service]
-  internal_port = 8080
+  internal_port = 3000
   force_https = true
-  auto_stop_machines = "suspend"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
-  processes = ["app"]
+  min_machines_running = 1
+  processes = ['app']
+
+# Enable SPA routing - serve index.html for non-asset requests
+[[http_service.response_headers]]
+  "Cache-Control" = "public, max-age=31536000, immutable"
+  "X-Content-Type-Options" = "nosniff"
+  "X-Frame-Options" = "DENY"
+  "X-XSS-Protection" = "1; mode=block"
 
 [[vm]]
-  memory = "256mb"
-  cpu_kind = "shared"
+  memory = '2gb'
+  cpu_kind = 'shared'
   cpus = 1
