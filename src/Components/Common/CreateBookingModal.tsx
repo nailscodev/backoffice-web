@@ -124,6 +124,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   
   // Combos VIP y validación avanzada
   const [isVIPCombo, setIsVIPCombo] = useState(false);
+  const [userConfirmedVIPChoice, setUserConfirmedVIPChoice] = useState(false); // Track if user made explicit VIP choice
   const [showVIPComboSuggestion, setShowVIPComboSuggestion] = useState(false);
   const [staffWorkloads, setStaffWorkloads] = useState<StaffWorkload[]>([]);
   const [slotVerified, setSlotVerified] = useState(false);
@@ -267,7 +268,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   }, [services]);
 
   // Detectar si es elegible para VIP Combo (2+ servicios de diferente técnico)
+  // IMPORTANT: Only auto-set VIP when user hasn't made explicit choice yet
   useEffect(() => {
+    // If user already made their choice (passed through vipcombo step), respect it
+    if (userConfirmedVIPChoice) {
+      return;
+    }
+    
     if (selectedServices.length >= 2) {
       // Verificar si todos los servicios tienen staff asignado y son diferentes
       const staffIds = selectedServices
@@ -276,12 +283,15 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       
       const uniqueStaffIds = new Set(staffIds);
       
+      // Auto-detect VIP Combo only if user hasn't made explicit choice
       // Es VIP Combo si hay 2+ servicios y tienen diferentes técnicos asignados
       setIsVIPCombo(staffIds.length >= 2 && uniqueStaffIds.size >= 2);
     } else {
       setIsVIPCombo(false);
+      // Reset user choice when services change to less than 2
+      setUserConfirmedVIPChoice(false);
     }
-  }, [selectedServices]);
+  }, [selectedServices, userConfirmedVIPChoice]);
 
   // Generar slots de tiempo basados en disponibilidad del backend
   const generateTimeSlots = (): TimeSlot[] => {
@@ -865,6 +875,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     setNotes('');
     setError(null);
     setIsVIPCombo(false);
+    setUserConfirmedVIPChoice(false); // Reset user's VIP choice
     setSlotVerified(false);
     setStaffWorkloads([]);
     customerForm.resetForm();
@@ -1592,6 +1603,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   block
                   onClick={() => {
                     setIsVIPCombo(true);
+                    setUserConfirmedVIPChoice(true); // User made explicit choice
                     goToNextStep();
                   }}
                 >
@@ -1606,6 +1618,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   block
                   onClick={() => {
                     setIsVIPCombo(false);
+                    setUserConfirmedVIPChoice(true); // User made explicit choice
                     goToNextStep();
                   }}
                 >
