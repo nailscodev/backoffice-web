@@ -29,8 +29,8 @@ const config: Config = {
   },
   api: {
     // API_URL: "https://api-node.themesbrand.website",
-    // API_URL: "http://localhost:3001",
-    API_URL: "https://nailsco-backend.fly.dev",
+    API_URL: "http://localhost:3001",
+    // API_URL: "https://nailsco-backend.fly.dev",
   },
 };
 

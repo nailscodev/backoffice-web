@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from "react-router-dom";
+import usePermissions from "../hooks/usePermissions";
 
 const Navdata = () => {
     const history = useNavigate();
     const { t } = useTranslation();
+    const { filterMenuItems, loading: permissionsLoading } = usePermissions();
 
     // Keep minimal original state used by the template
     const [isDashboard, setIsDashboard] = useState<boolean>(false);
@@ -242,7 +244,10 @@ const Navdata = () => {
         }
     ];
 
-    return <React.Fragment>{menuItems}</React.Fragment>;
+    // Filter menu items based on user permissions
+    const filteredMenuItems = permissionsLoading ? menuItems : filterMenuItems(menuItems);
+
+    return <React.Fragment>{filteredMenuItems}</React.Fragment>;
 };
 
 // Exporta el array de pantallas fuera del componente para evitar el error de scope
