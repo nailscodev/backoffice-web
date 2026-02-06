@@ -30,6 +30,10 @@ export const postLogout = async () => {
 // USER API
 //==============================================
 
+export const getUserPermissions = () => {
+  return api.get(url.GET_USER_PERMISSIONS);
+};
+
 export const changeUserPassword = async (userId: string, data: { currentPassword: string; newPassword: string }) => {
   try {
     return await api.update(`${url.USERS}/${userId}/change-password`, data);

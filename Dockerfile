@@ -1,30 +1,51 @@
-# Build stage
-FROM node:20-alpine AS builder
+# syntax = docker/dockerfile:1
 
+# Adjust NODE_VERSION as desired
+ARG NODE_VERSION=22.21.1
+FROM node:${NODE_VERSION}-slim AS base
+
+LABEL fly_launch_runtime="Node.js"
+
+# Node.js app lives here
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Set production environment
+ENV NODE_ENV="production"
+ARG YARN_VERSION=1.22.21
+RUN npm install -g yarn@$YARN_VERSION --force
 
-# Install dependencies with legacy peer deps
-RUN npm install --legacy-peer-deps
 
-# Copy source code
+# Throw-away build stage to reduce size of final image
+FROM base AS build
+
+# Install packages needed to build node modules
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
+
+# Install node modules
+COPY package-lock.json package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production=false
+
+# Copy application code
 COPY . .
 
-# Build the app
-RUN npm run build
+# Build application
+RUN yarn run build
 
-# Production stage - use nginx to serve static files
-FROM nginx:alpine
+# Remove development dependencies
+RUN yarn install --production=true
 
-# Copy built files to nginx
-COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Final stage for app image
+FROM base
 
-# Expose port 8080 for Fly.io
-EXPOSE 8080
+# Install serve to serve static files
+RUN npm install -g serve
 
-CMD ["nginx", "-g", "daemon off;"]
+# Copy built application (only the build folder)
+COPY --from=build /app/build /app/build
+COPY --from=build /app/package.json /app/package.json
+
+# Start the server by default, this can be overwritten at runtime
+EXPOSE 3000
+CMD [ "serve", "-s", "build", "-l", "3000" ]
