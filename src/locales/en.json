@@ -747,7 +747,7 @@
     "reservations.create_reservation": "Create Reservation",
     "reservations.edit_reservation": "Edit Reservation",
     "reservations.export": "Export",
-    "reservations.search_placeholder": "Search for reservation ID, customer, status...",
+    "reservations.search_placeholder": "Search by reservation ID, customer, staff, status...",
     "reservations.no_data": "No reservations found",
     "reservations.no_data_description": "There are no reservations to display. Try adjusting your filters or create a new reservation.",
 
@@ -755,10 +755,13 @@
     "reservations.tabs.completed": "Completed",
     "reservations.tabs.pending": "Pending",
     "reservations.tabs.cancelled": "Cancelled",
+    "reservations.tabs.confirmed": "Confirmed",
+    "reservations.tabs.in_progress": "In Progress",
 
     "reservations.filter.showing_customer_bookings": "Showing reservations for specific customer. Click X to see all reservations.",
 
     "reservations.table.reservation_id": "Reservation ID",
+    "reservations.table.id": "ID",
     "reservations.table.customer": "Customer",
     "reservations.table.services": "Services",
     "reservations.table.reservation_date": "Reservation Date",
@@ -839,6 +842,11 @@
     "reservations.validation.amount_required": "Please enter total amount",
     "reservations.validation.payment_required": "Please enter payment method",
     "reservations.validation.status_required": "Please enter status",
+
+    "reservations.id.copy_tooltip": "Click to copy: {{id}}",
+    "reservations.id.copy_success": "ID copied to clipboard",
+    "reservations.id.copy_error": "Error copying ID",
+    "reservations.id.copy_full_tooltip": "Copy full ID",
 
     "calendar.title": "Reservation Calendar",
     "calendar.breadcrumb": "Calendar",

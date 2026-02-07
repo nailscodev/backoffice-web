@@ -396,7 +396,7 @@ const EcommerceOrders = () => {
           '2': 'completed',
           '3': 'pending',
           '4': 'cancelled',
-          '5': 'confirmed'
+          '5': 'in_progress'
         };
         if (statusMap[activeTab]) {
           filters.status = statusMap[activeTab];
@@ -516,26 +516,85 @@ const EcommerceOrders = () => {
   const columns = useMemo(
     () => [
       {
+        header: t("reservations.table.id"),
+        accessorKey: "id",
+        enableColumnFilter: false,
+        size: 100,
+        cell: (cell: any) => {
+          const id = cell.getValue();
+          
+          const copyToClipboard = async (text: string) => {
+            try {
+              await navigator.clipboard.writeText(text);
+              toast.success(t('reservations.id.copy_success'));
+            } catch (err) {
+              console.error('Error al copiar:', err);
+              toast.error(t('reservations.id.copy_error'));
+            }
+          };
+          
+          return (
+            <div className="d-flex align-items-center">
+              <span 
+                className="text-body fw-medium me-2" 
+                title={t('reservations.id.copy_tooltip', { id: id || '' })}
+                style={{ cursor: 'pointer', fontSize: '0.875rem' }}
+                onClick={() => id && copyToClipboard(id)}
+              >
+                {id ? id.substring(0, 8) + '...' : '-'}
+              </span>
+              {id && (
+                <i 
+                  className="ri-file-copy-line text-muted" 
+                  style={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                  onClick={() => copyToClipboard(id)}
+                  title={t('reservations.id.copy_full_tooltip')}
+                ></i>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         header: t("reservations.table.customer"),
         accessorKey: "customer",
         enableColumnFilter: false,
+        size: 150,
+        cell: (cell: any) => {
+          const customerName = cell.getValue();
+          return (
+            <div className="text-truncate" style={{ maxWidth: '140px' }} title={customerName || ''}>
+              {customerName || '-'}
+            </div>
+          );
+        },
       },
       {
         header: t("reservations.table.services"),
         accessorKey: "product",
         enableColumnFilter: false,
+        size: 180,
+        cell: (cell: any) => {
+          const serviceName = cell.getValue();
+          return (
+            <div className="text-truncate" style={{ maxWidth: '170px' }} title={serviceName || ''}>
+              {serviceName || '-'}
+            </div>
+          );
+        },
       },
       {
         header: t("reservations.table.reservation_date"),
         accessorKey: "orderDate",
         enableColumnFilter: false,
+        size: 140,
         cell: (cell: any) => {
           const row = cell.row.original;
           return (
-            <>
-              {handleValidDate(cell.getValue())},
-              <small className="text-muted"> {handleValidTime(row)}</small>
-            </>
+            <div style={{ minWidth: '130px' }}>
+              <div>{handleValidDate(cell.getValue())}</div>
+              <small className="text-muted">{handleValidTime(row)}</small>
+            </div>
           );
         },
       },
@@ -543,20 +602,35 @@ const EcommerceOrders = () => {
         header: t("reservations.table.amount"),
         accessorKey: "amount",
         enableColumnFilter: false,
+        size: 90,
+        cell: (cell: any) => {
+          const amount = cell.getValue();
+          return (
+            <div style={{ minWidth: '80px' }}>
+              {amount || '-'}
+            </div>
+          );
+        },
       },
       {
         header: t("reservations.table.staff"),
         accessorKey: "staffName",
         enableColumnFilter: false,
+        size: 140,
         cell: (cell: any) => {
           const staffName = cell.getValue();
-          return staffName || <span className="text-muted">-</span>;
+          return (
+            <div className="text-truncate" style={{ maxWidth: '130px' }} title={staffName || ''}>
+              {staffName || <span className="text-muted">-</span>}
+            </div>
+          );
         },
       },
       {
         header: t("reservations.table.status"),
         accessorKey: 'status',
         enableColumnFilter: false,
+        size: 110,
         cell: (cell: any) => {
           const status = cell.getValue()?.toLowerCase();
           switch (status) {
@@ -570,9 +644,10 @@ const EcommerceOrders = () => {
             case "completed":
             case "delivered":
               return <span className="badge text-uppercase bg-success-subtle text-success"> {t('reservations.status.completed')} </span>;
-            case "confirmed":
-            case "confirmado":
-              return <span className="badge text-uppercase bg-info-subtle text-info"> {status} </span>;
+            case "in_progress":
+            case "en_progreso":
+            case "in progress":
+              return <span className="badge text-uppercase bg-primary-subtle text-primary"> {t('reservations.status.in_progress')} </span>;
             case "no_show":
               return <span className="badge text-uppercase bg-secondary-subtle text-secondary"> No Show </span>;
             default:
@@ -583,6 +658,7 @@ const EcommerceOrders = () => {
 
       {
         header: t("reservations.table.action"),
+        size: 80,
         cell: (cellProps: any) => {
           return (
             <ul className="list-inline hstack gap-2 mb-0">
@@ -770,19 +846,19 @@ const EcommerceOrders = () => {
                       <NavLink
                         className={classnames({ active: activeTab === "5" })}
                         onClick={() => {
-                          toggleTab("5", "Confirmed");
+                          toggleTab("5", "InProgress");
                         }}
                         href="#"
                       >
-                        <i className="ri-check-line me-1 align-bottom"></i>{" "}
-                        {t("reservations.tabs.confirmed")}
+                        <i className="ri-play-circle-line me-1 align-bottom"></i>{" "}
+                        {t("reservations.tabs.in_progress")}
                       </NavLink>
                     </NavItem>
                   </Nav>
 
                   <div className="mb-3 mt-3">
                     <div className="d-flex gap-2 flex-wrap">
-                      <div className="search-box">
+                      <div className="search-box" style={{ width: '100%' }}>
                         <input
                           type="text"
                           className="form-control search"
@@ -803,7 +879,7 @@ const EcommerceOrders = () => {
                         isGlobalFilter={false}
                         customPageSize={pageSize}
                         divClass="table-responsive table-card mb-1 mt-0"
-                        tableClass="align-middle table-nowrap"
+                        tableClass="align-middle table-sm"
                         theadClass="table-light text-muted text-uppercase"
                         isOrderFilter={false}
                         isPagination={false}
@@ -1032,7 +1108,7 @@ const EcommerceOrders = () => {
                           >
                             <option value="">{t("reservations.form.select_status")}</option>
                             <option value="pending">{t("reservations.status.pending")}</option>
-                            <option value="confirmed">{t("reservations.status.confirmed")}</option>
+                            <option value="in_progress">{t("reservations.status.in_progress")}</option>
                             <option value="completed">{t("reservations.status.completed")}</option>
                             <option value="cancelled">{t("reservations.status.cancelled")}</option>
                           </Input>

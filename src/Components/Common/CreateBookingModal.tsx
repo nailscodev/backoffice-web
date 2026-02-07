@@ -699,7 +699,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           endTime: serviceEndTime.format('HH:mm:ss'),
           duration: totalDuration,
           addOnIds: allAddOns.map(a => a.id),
-          status: 'pending',
+          status: 'in_progress', // Marcar como "en progreso" para reflejar que el servicio está activo desde el inicio
           totalPrice: index === selectedServices.length - 1 ? totals.totalPrice : service.price,
           notes: index === 0 
             ? (notes || (isVIPCombo ? 'VIP Combo booking' : '')) 
