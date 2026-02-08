@@ -81,7 +81,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({
               <div className="flex-grow-1">
                 <h6 className="d-block fw-semibold mb-0">
                   <span id="event-title-tag">
-                    {event && event.title !== undefined ? event.title : "No Customer"}
+                    {event && event.title !== undefined ? event.title : t("common.no_customer")}
                   </span>
                 </h6>
               </div>
@@ -94,7 +94,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({
                 <div className="flex-grow-1">
                   <h6 className="d-block fw-semibold mb-0">
                     <span id="event-start-date-tag">
-                      {event && event.datetag ? event.datetag : "No Date"}
+                      {event && event.datetag ? event.datetag : t("common.no_date")}
                     </span>
                   </h6>
                 </div>

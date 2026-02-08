@@ -794,6 +794,8 @@
     "reservations.form.close": "Close",
     "reservations.form.update": "Update",
     "reservations.form.add_reservation": "Add Reservation",
+    "reservations.form.cancellation_reason": "Cancellation Reason",
+    "reservations.form.cancellation_reason_placeholder": "Please specify the reason for cancellation (e.g., client no-show, client requested, etc.)",
 
     "reservations.view_reservation": "View Reservation",
     "reservations.edit_reservation": "Edit Reservation",
@@ -813,6 +815,7 @@
     "reservations.status.pending": "Pending",
     "reservations.status.cancelled": "Cancelled",
     "reservations.status.in_progress": "In Progress",
+    "reservations.status.no_show": "No Show",
     "reservations.status.all": "All",
 
     "reservations.filters.select_date": "Select date",
@@ -842,6 +845,20 @@
     "reservations.validation.amount_required": "Please enter total amount",
     "reservations.validation.payment_required": "Please enter payment method",
     "reservations.validation.status_required": "Please enter status",
+    "reservations.validation.status_only_completed_cancelled": "Only completed or cancelled status allowed for manual closure",
+    "reservations.validation.payment_required_for_completed": "Payment method is required for completed status",
+    "reservations.validation.payment_cannot_be_pending": "Cannot mark as completed with pending payment",
+    "reservations.validation.cancellation_reason_required": "Cancellation reason is required",
+    "reservations.validation.completed_cannot_have_zero_amount": "Completed bookings cannot have zero amount",
+    "reservations.validation.completed_cannot_have_future_date": "Cannot mark future bookings as completed",
+
+    "common.not_available": "N/A",
+    "common.no_customer": "No Customer", 
+    "common.no_date": "No Date",
+    "common.addons": "Add-ons:",
+    "common.minutes_short": "min",
+    "common.select_date": "Select a date",
+    "common.page_title_reservations": "Reservations | Nails & Co Midtown - Admin Panel",
 
     "reservations.id.copy_tooltip": "Click to copy: {{id}}",
     "reservations.id.copy_success": "ID copied to clipboard",

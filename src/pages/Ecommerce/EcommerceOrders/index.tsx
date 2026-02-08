@@ -213,18 +213,78 @@ const EcommerceOrders = () => {
       status: order?.status || '',
       notes: order?.notes || '',
       web: order?.web || false,
+      cancellationReason: order?.cancellationReason || '',
     },
     validationSchema: Yup.object({
-      status: Yup.string().required(t("reservations.validation.status_required")),
-      payment: Yup.string().required(t("reservations.validation.payment_required"))
+      status: Yup.string()
+        .required(t("reservations.validation.status_required"))
+        .oneOf(["completed", "cancelled"], t("reservations.validation.status_only_completed_cancelled")),
+      payment: Yup.string().when('status', {
+        is: 'completed',
+        then: (schema) => schema
+          .required(t("reservations.validation.payment_required_for_completed"))
+          .notOneOf(['pending', ''], t("reservations.validation.payment_cannot_be_pending")),
+        otherwise: (schema) => schema
+      }),
+      cancellationReason: Yup.string().when('status', {
+        is: 'cancelled',
+        then: (schema) => schema.required(t("reservations.validation.cancellation_reason_required")),
+        otherwise: (schema) => schema
+      })
+    }).test('completed-validations', '', function(values) {
+      const { status } = values;
+      
+      if (status === 'completed') {
+        // Access form values correctly through this.from
+        const formData = this.from?.[0]?.value;
+        const amount = formData?.amount;
+        const orderDate = formData?.orderDate;
+        
+        console.log('🔍 Validation - amount from formData:', amount, 'type:', typeof amount);
+        console.log('🔍 Validation - orderDate:', orderDate);
+        console.log('🔍 Validation - complete formData keys:', Object.keys(formData || {}));
+        
+        // Validate amount is not zero (amount is in dollars, so should be > 0)
+        if (!amount || amount === 0) {
+          return this.createError({
+            path: 'status',
+            message: t("reservations.validation.completed_cannot_have_zero_amount")
+          });
+        }
+        
+        // Validate date is not in the future
+        if (orderDate) {
+          const bookingDate = new Date(orderDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (bookingDate > today) {
+            return this.createError({
+              path: 'status',
+              message: t("reservations.validation.completed_cannot_have_future_date")
+            });
+          }
+        }
+      }
+      
+      return true;
     }),
     onSubmit: async (values) => {
       if (isEdit && order) {
-        // Only send fields that are updatable by backend
-        const updatePayload = {
-          status: values.status,
-          paymentMethod: values.payment ? values.payment.toUpperCase() : undefined,
+        // Handle different status updates with appropriate fields
+        let updatePayload: any = {
+          status: values.status
         };
+        
+        // Only include paymentMethod for completed bookings
+        if (values.status === 'completed' && values.payment) {
+          updatePayload.paymentMethod = values.payment.toUpperCase();
+        }
+        
+        // For cancelled bookings, include cancellation reason
+        if (values.status === 'cancelled' && values.cancellationReason) {
+          updatePayload.cancellationReason = values.cancellationReason;
+        }
         try {
           await dispatch(onUpdateOrder({ id: order.id, ...updatePayload }));
           // Refresh bookings after update
@@ -264,6 +324,27 @@ const EcommerceOrders = () => {
     if (order) {
       console.log('🔄 Order state updated:', order);
       console.log('📝 Validation values:', validation.values);
+      console.log('📝 CancellationReason from order:', order.cancellationReason);
+      console.log('📝 CancellationReason from validation:', validation.values.cancellationReason);
+      
+      // Force formik to reinitialize with new values
+      validation.setValues({
+        orderId: order?.orderId || '',
+        customer: order?.customer || '',
+        customerEmail: order?.customerEmail || '',
+        customerPhone: order?.customerPhone || '',
+        product: order?.product || '',
+        categoryName: order?.categoryName || '',
+        staffName: order?.staffName || '',
+        orderDate: order?.orderDate || '',
+        ordertime: order?.ordertime || '',
+        amount: order?.amount || 0,
+        payment: order?.payment || '',
+        status: order?.status || '',
+        notes: order?.notes || '',
+        web: order?.web || false,
+        cancellationReason: order?.cancellationReason || '',
+      });
     }
   }, [order]);
 
@@ -290,7 +371,7 @@ const EcommerceOrders = () => {
       description: Yup.string().required(t('calendar.validation.notes_required')),
       start: Yup.date().required(t('calendar.validation.start_required')),
       end: Yup.date().required(t('calendar.validation.end_required')),
-      defaultDate: Yup.array().of(Yup.date()).required(t('calendar.validation.date_required')).min(1, 'Select a date'),
+      defaultDate: Yup.array().of(Yup.date()).required(t('calendar.validation.date_required')).min(1, t('common.select_date')),
       email: Yup.string().email(t('calendar.validation.email_invalid')).required(t('calendar.validation.email_required')),
       staff: Yup.string().required(t('calendar.validation.staff_required')),
     }),
@@ -451,14 +532,11 @@ const EcommerceOrders = () => {
     
     try {
       // 1. Fetch full booking details by ID
-      console.log('🔍 Fetching booking details for ID:', booking.id);
       const bookingDetails = await getBookingById(booking.id);
-      console.log('📦 Full booking details:', bookingDetails);
       
       // 2. Fetch addon details if addOnIds exist
       let addons = [];
       if (bookingDetails.addOnIds && bookingDetails.addOnIds.length > 0) {
-        console.log('🔍 Fetching addons:', bookingDetails.addOnIds);
         const addonPromises = bookingDetails.addOnIds.map((addonId: string) => 
           getAddOn(addonId).catch(err => {
             console.error(`Failed to fetch addon ${addonId}:`, err);
@@ -470,12 +548,21 @@ const EcommerceOrders = () => {
         console.log('✅ Addons fetched:', addons);
       }
       
-      // Extract numeric amount from string like "$5500.00"
+      // Extract numeric amount - use totalPrice directly as it's already in correct format
       let numericAmount = 0;
-      if (typeof booking.amount === 'string') {
-        numericAmount = parseFloat(booking.amount.replace(/[$,]/g, '')) * 100; // Convert to cents
-      } else if (typeof booking.amount === 'number') {
-        numericAmount = booking.amount;
+      
+      
+      if (booking.totalPrice) {
+        // totalPrice from backend is already a decimal number (e.g., 30.00)
+        // Keep original value without conversion
+        numericAmount = Number(booking.totalPrice);
+      } else if (booking.amount) {
+        // Fallback to amount field
+        if (typeof booking.amount === 'string') {
+          numericAmount = parseFloat(booking.amount.replace(/[$,]/g, ''));
+        } else if (typeof booking.amount === 'number') {
+          numericAmount = booking.amount;
+        }
       }
       
       // Usar las horas tal cual llegan del backend
@@ -498,10 +585,12 @@ const EcommerceOrders = () => {
         status: (booking.status || 'pending').toLowerCase(),
         notes: booking.notes || '',
         web: booking.web || false,
+        cancellationReason: bookingDetails.cancellationReason || '',
         addons: addons // Include fetched addons
       };
       
       console.log('📦 Order data to set:', orderData);
+      console.log('🔍 CancellationReason in orderData:', orderData.cancellationReason);
       setOrder(orderData);
       setIsEdit(true);
       toggle();
@@ -649,7 +738,7 @@ const EcommerceOrders = () => {
             case "in progress":
               return <span className="badge text-uppercase bg-primary-subtle text-primary"> {t('reservations.status.in_progress')} </span>;
             case "no_show":
-              return <span className="badge text-uppercase bg-secondary-subtle text-secondary"> No Show </span>;
+              return <span className="badge text-uppercase bg-secondary-subtle text-secondary"> {t('reservations.status.no_show')} </span>;
             default:
               return <span className="badge text-uppercase bg-warning-subtle text-warning"> {cell.getValue()} </span>;
           }
@@ -751,7 +840,7 @@ const EcommerceOrders = () => {
   // Export Modal
   const [isExportCSV, setIsExportCSV] = useState<boolean>(false);
 
-  document.title = "Reservas | Nails & Co Midtown - Admin Panel";
+  document.title = t("common.page_title_reservations");
   return (
     <div className="page-content">
       <ExportCSVModal
@@ -960,7 +1049,7 @@ const EcommerceOrders = () => {
                             {t("reservations.form.customer_name")}
                           </Label>
                           <div className="text-muted">
-                            {validation.values.customer || "N/A"}
+                            {validation.values.customer || t("common.not_available")}
                           </div>
                         </div>
                         <div className="col-md-6">
@@ -968,7 +1057,7 @@ const EcommerceOrders = () => {
                             {t("reservations.form.phone")}
                           </Label>
                           <div className="text-muted">
-                            {validation.values.customerPhone || "N/A"}
+                            {validation.values.customerPhone || t("common.not_available")}
                           </div>
                         </div>
                       </div>
@@ -978,7 +1067,7 @@ const EcommerceOrders = () => {
                           {t("reservations.form.email")}
                         </Label>
                         <div className="text-muted">
-                          {validation.values.customerEmail || "N/A"}
+                          {validation.values.customerEmail || t("common.not_available")}
                         </div>
                       </div>
 
@@ -987,22 +1076,22 @@ const EcommerceOrders = () => {
                           {t("reservations.form.services")}
                         </Label>
                         <div className="text-muted">
-                          {validation.values.product || "N/A"}
+                          {validation.values.product || t("common.not_available")}
                         </div>
                         
                         {/* Show addons if they exist */}
                         {order && order.addons && order.addons.length > 0 && (
                           <div className="mt-2">
-                            <span className="text-muted small fw-semibold">Add-ons:</span>
+                            <span className="text-muted small fw-semibold">{t("common.addons")}</span>
                             <ul className="list-unstyled ms-3 mb-0">
                               {order.addons.map((addon: any) => (
                                 <li key={addon.id} className="text-muted small">
                                   • {addon.name} 
                                   {addon.price > 0 && (
-                                    <span className="text-success"> (+${(addon.price / 100).toFixed(2)})</span>
+                                    <span className="text-success"> (+${addon.price.toFixed(2)})</span>
                                   )}
                                   {addon.additionalTime > 0 && (
-                                    <span className="text-info"> (+{addon.additionalTime} min)</span>
+                                    <span className="text-info"> (+{addon.additionalTime} {t("common.minutes_short")})</span>
                                   )}
                                 </li>
                               ))}
@@ -1016,7 +1105,7 @@ const EcommerceOrders = () => {
                           {t("reservations.form.staff")}
                         </Label>
                         <div className="text-muted">
-                          {validation.values.staffName || "N/A"}
+                          {validation.values.staffName || t("common.not_available")}
                         </div>
                       </div>
 
@@ -1026,7 +1115,7 @@ const EcommerceOrders = () => {
                             {t("reservations.form.reservation_date")}
                           </Label>
                           <div className="text-muted">
-                            {validation.values.orderDate || "N/A"}
+                            {validation.values.orderDate || t("common.not_available")}
                           </div>
                         </div>
                         <div className="col-md-6">
@@ -1034,7 +1123,7 @@ const EcommerceOrders = () => {
                             {t("reservations.form.time")}
                           </Label>
                           <div className="text-muted">
-                            {validation.values.ordertime || "N/A"}
+                            {validation.values.ordertime || t("common.not_available")}
                           </div>
                         </div>
                       </div>
@@ -1045,7 +1134,7 @@ const EcommerceOrders = () => {
                             {t("reservations.form.amount")}
                           </Label>
                           <div className="text-muted">
-                            ${((validation.values.amount || 0) / 100).toFixed(2)}
+                            ${(validation.values.amount || 0).toFixed(2)}
                           </div>
                         </div>
                         <div className="col-md-6">
@@ -1107,8 +1196,6 @@ const EcommerceOrders = () => {
                             }
                           >
                             <option value="">{t("reservations.form.select_status")}</option>
-                            <option value="pending">{t("reservations.status.pending")}</option>
-                            <option value="in_progress">{t("reservations.status.in_progress")}</option>
                             <option value="completed">{t("reservations.status.completed")}</option>
                             <option value="cancelled">{t("reservations.status.cancelled")}</option>
                           </Input>
@@ -1117,6 +1204,35 @@ const EcommerceOrders = () => {
                           ) : null}
                         </div>
                       </div>
+
+                      {/* Cancellation Reason field - only show when status is cancelled */}
+                      {validation.values.status === 'cancelled' && (
+                        <div className="mb-3">
+                          <Label
+                            htmlFor="cancellation-reason-field"
+                            className="form-label fw-semibold"
+                          >
+                            {t("reservations.form.cancellation_reason")}
+                          </Label>
+                          <Input
+                            name="cancellationReason"
+                            type="textarea"
+                            className="form-control"
+                            id="cancellation-reason-field"
+                            placeholder={t("reservations.form.cancellation_reason_placeholder")}
+                            rows={3}
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.cancellationReason || ""}
+                            invalid={
+                              validation.touched.cancellationReason && validation.errors.cancellationReason ? true : false
+                            }
+                          />
+                          {validation.touched.cancellationReason && validation.errors.cancellationReason ? (
+                            <FormFeedback type="invalid">{validation.errors.cancellationReason}</FormFeedback>
+                          ) : null}
+                        </div>
+                      )}
 
                       {validation.values.notes && (
                         <div className="mb-3">
