@@ -10,18 +10,30 @@ export interface AddOn {
   price: number;
   additionalTime?: number;
   isActive: boolean;
+  removal?: boolean;
   displayOrder: number;
-  compatibleServiceIds?: string[];
-  imageUrl?: string;
+  compatibleServiceIds?: string[] | null;
+  imageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
   // Translation fields (for edit form)
   titleEN?: string;
   titleES?: string;
   descriptionEN?: string;
   descriptionES?: string;
   // Services from service_addons table (many-to-many)
-  services?: Array<{ id: string; name: string }>;
+  services?: Array<{ 
+    id: string; 
+    name: string;
+    ServiceAddon?: {
+      id: string;
+      service_id: string;
+      addon_id: string;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  }>;
 }
 
 export interface PaginatedAddOnsResponse {

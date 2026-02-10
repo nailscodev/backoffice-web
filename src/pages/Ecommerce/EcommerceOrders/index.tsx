@@ -15,7 +15,8 @@ import {
   ModalBody,
   Label,
   Input,
-  FormFeedback
+  FormFeedback,
+  Button
 } from "reactstrap";
 import { Link, useLocation } from "react-router-dom";
 import classnames from "classnames";
@@ -51,13 +52,16 @@ import { createSelector } from "reselect";
 import moment from "moment";
 import { servicesByCategory, staffMembers } from "../../../common/data/calender";
 import { getBookingById } from "../../../api/bookings";
-import { getAddOn } from "../../../api/addons";
+import { getAddOn, AddOn as AddonType, getAddOns } from "../../../api/addons";
+import { getStaffList, Staff } from "../../../api/staff";
+import { getServices, Service, getRemovalAddonsByServices } from "../../../api/services";
+import { getCategories, Category } from "../../../api/categories";
 
 // i18n
 import { useTranslation } from 'react-i18next';
 
 const EcommerceOrders = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   // Estado para filtro de fecha (rango)
   const [dateFilter, setDateFilter] = useState<[Date | null, Date | null]>([null, null]);
@@ -70,6 +74,20 @@ const EcommerceOrders = () => {
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [staffFilter, setStaffFilter] = useState<string>("");
+  
+  // Staff data
+  const [staff, setStaff] = useState<Staff[]>([]);
+  
+  // Service editing data
+  const [allServices, setAllServices] = useState<Service[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allAddons, setAllAddons] = useState<AddonType[]>([]);
+  const [removalAddons, setRemovalAddons] = useState<AddonType[]>([]);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedAddons, setSelectedAddons] = useState<AddonType[]>([]);
+  const [selectedRemovalAddons, setSelectedRemovalAddons] = useState<AddonType[]>([]);
+  const [servicesByCategory, setServicesByCategory] = useState<{[key: string]: Service[]}>({});
+  const [showServiceEditor, setShowServiceEditor] = useState(false);
   
   // Extraer customer ID y nombre de la URL
   useEffect(() => {
@@ -206,8 +224,11 @@ const EcommerceOrders = () => {
       product: order?.product || '',
       categoryName: order?.categoryName || '',
       staffName: order?.staffName || '',
+      staffId: order?.staffId || '',
       orderDate: order?.orderDate || '',
       ordertime: order?.ordertime || '',
+      startTime: order?.ordertime ? order.ordertime.split(' - ')[0] || '' : '',
+      endTime: order?.ordertime ? order.ordertime.split(' - ')[1] || '' : '',
       amount: order?.amount || 0,
       payment: order?.payment || '',
       status: order?.status || '',
@@ -218,7 +239,7 @@ const EcommerceOrders = () => {
     validationSchema: Yup.object({
       status: Yup.string()
         .required(t("reservations.validation.status_required"))
-        .oneOf(["completed", "cancelled"], t("reservations.validation.status_only_completed_cancelled")),
+        .oneOf(["pending", "in_progress", "completed", "cancelled"], t("reservations.validation.status_invalid")),
       payment: Yup.string().when('status', {
         is: 'completed',
         then: (schema) => schema
@@ -239,10 +260,6 @@ const EcommerceOrders = () => {
         const formData = this.from?.[0]?.value;
         const amount = formData?.amount;
         const orderDate = formData?.orderDate;
-        
-        console.log('🔍 Validation - amount from formData:', amount, 'type:', typeof amount);
-        console.log('🔍 Validation - orderDate:', orderDate);
-        console.log('🔍 Validation - complete formData keys:', Object.keys(formData || {}));
         
         // Validate amount is not zero (amount is in dollars, so should be > 0)
         if (!amount || amount === 0) {
@@ -273,8 +290,37 @@ const EcommerceOrders = () => {
       if (isEdit && order) {
         // Handle different status updates with appropriate fields
         let updatePayload: any = {
-          status: values.status
+          status: values.status,
+          // Include editable fields that user can modify
+          staffId: values.staffId,
+          appointmentDate: values.orderDate,
+          startTime: values.startTime || '',
+          endTime: values.endTime || '',
         };
+        
+        // Include service and addons changes if service editor was used
+        if (selectedService) {
+          updatePayload.serviceId = selectedService.id;
+          
+          // Combine normal addons and removal addons into a single array
+          // Following the same pattern as CreateBookingModal
+          const allAddOns = [
+            ...selectedAddons,
+            ...selectedRemovalAddons.filter(addon => addon.id) // Include selected removal addons
+          ];
+          updatePayload.addOnIds = allAddOns.map(addon => addon.id);
+          
+          // Update total price based on selected service, addons, and removals
+          const newTotalPrice = selectedService.price + 
+            selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
+            selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
+          updatePayload.totalPrice = newTotalPrice.toFixed(2);
+        }
+        
+        // Include notes if provided
+        if (values.notes) {
+          updatePayload.notes = values.notes;
+        }
         
         // Only include paymentMethod for completed bookings
         if (values.status === 'completed' && values.payment) {
@@ -285,6 +331,12 @@ const EcommerceOrders = () => {
         if (values.status === 'cancelled' && values.cancellationReason) {
           updatePayload.cancellationReason = values.cancellationReason;
         }
+        
+        // Remove serviceId if it's empty or invalid to avoid validation errors
+        if (updatePayload.serviceId === '' || updatePayload.serviceId === null || updatePayload.serviceId === undefined) {
+          delete updatePayload.serviceId;
+        }
+        
         try {
           await dispatch(onUpdateOrder({ id: order.id, ...updatePayload }));
           // Refresh bookings after update
@@ -319,13 +371,36 @@ const EcommerceOrders = () => {
     },
   });
 
+  // Debug: Log when selected service changes
+  useEffect(() => {
+    // This effect runs when selectedservice or allAddons change
+    // Used for debugging service and addon compatibility
+  }, [selectedService, allAddons]);
+
   // Debug: Log when order changes
   useEffect(() => {
     if (order) {
-      console.log('🔄 Order state updated:', order);
-      console.log('📝 Validation values:', validation.values);
-      console.log('📝 CancellationReason from order:', order.cancellationReason);
-      console.log('📝 CancellationReason from validation:', validation.values.cancellationReason);
+      // Set selected service from order if available
+      if (order.serviceId && allServices.length > 0) {
+        const service = allServices.find(s => s.id === order.serviceId);
+        if (service) {
+          setSelectedService(service);
+          // Load removal addons for the initial service
+          loadRemovalAddonsForService(service.id);
+        }
+      }
+      
+      // Set selected addons from order
+      if (order.addons && order.addons.length > 0) {
+        // Separate normal addons from removal addons
+        const normalAddons = order.addons.filter((addon: any) => !addon.removal);
+        const removalAddons = order.addons.filter((addon: any) => addon.removal === true);
+        setSelectedAddons(normalAddons);
+        setSelectedRemovalAddons(removalAddons);
+      } else {
+        setSelectedAddons([]);
+        setSelectedRemovalAddons([]);
+      }
       
       // Force formik to reinitialize with new values
       validation.setValues({
@@ -336,8 +411,11 @@ const EcommerceOrders = () => {
         product: order?.product || '',
         categoryName: order?.categoryName || '',
         staffName: order?.staffName || '',
+        staffId: order?.staffId || '',
         orderDate: order?.orderDate || '',
         ordertime: order?.ordertime || '',
+        startTime: order?.ordertime ? order.ordertime.split(' - ')[0] || '' : '',
+        endTime: order?.ordertime ? order.ordertime.split(' - ')[1] || '' : '',
         amount: order?.amount || 0,
         payment: order?.payment || '',
         status: order?.status || '',
@@ -346,7 +424,7 @@ const EcommerceOrders = () => {
         cancellationReason: order?.cancellationReason || '',
       });
     }
-  }, [order]);
+  }, [order, allServices]);
 
   // Validation para ReservationModal
   const reservationValidation: any = useFormik({
@@ -503,14 +581,51 @@ const EcommerceOrders = () => {
   }, [orders]);
 
 
-  const toggle = useCallback(() => {
+  const toggle = useCallback(async () => {
     if (modal) {
       setModal(false);
       setOrder(null);
+      // Reset service editing states
+      setSelectedService(null);
+      setSelectedAddons([]);
+      setSelectedRemovalAddons([]);
+      setShowServiceEditor(false);
     } else {
       setModal(true);
+      // Load all necessary data when opening modal
+      try {
+        const [staffData, servicesData, categoriesData, addonsData] = await Promise.all([
+          getStaffList(),
+          getServices(1, 100, undefined, undefined, true, i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN'),
+          getCategories(i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN'),
+          getAddOns(1, 100, true, undefined, undefined, i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN')
+        ]);
+        
+        setStaff(staffData);
+        setAllServices(servicesData);
+        setAllCategories(Array.isArray(categoriesData) ? categoriesData.filter((c: Category) => c.isActive) : []);
+        setAllAddons(addonsData);
+        
+        // Group services by category
+        const grouped: {[key: string]: Service[]} = {};
+        servicesData.forEach((service: Service) => {
+          if (!grouped[service.categoryId]) {
+            grouped[service.categoryId] = [];
+          }
+          grouped[service.categoryId].push(service);
+        });
+        setServicesByCategory(grouped);
+        
+      } catch (error) {
+        console.error('Error loading modal data:', error);
+        toast.error('Error loading data');
+        setStaff([]);
+        setAllServices([]);
+        setAllCategories([]);
+        setAllAddons([]);
+      }
     }
-  }, [modal]);
+  }, [modal, i18n.language]);
 
   const toggleReservationModal = useCallback(() => {
     if (reservationModal) {
@@ -526,15 +641,227 @@ const EcommerceOrders = () => {
     setIsEditReservation(true);
   };
 
+  // Handle time input changes to sync ordertime field
+  // Calculate total duration including service, addons and buffer time
+  const calculateTotalDuration = (service?: Service, addons?: AddonType[], removalAddons?: AddonType[]) => {
+    let totalDuration = 0;
+    
+    // Use passed service or current selectedService
+    const currentService = service || selectedService;
+    // Use passed addons or current selected ones
+    const currentAddons = addons || selectedAddons;
+    const currentRemovalAddons = removalAddons || selectedRemovalAddons;
+    
+    // Add service duration + buffer time
+    if (currentService) {
+      const serviceDuration = currentService.duration || 0;
+      // Use service buffer time or default to 15 minutes
+      const bufferTime = currentService.bufferTime !== undefined ? currentService.bufferTime : 15;
+      totalDuration += serviceDuration + bufferTime;
+      
+      console.log('🔍 Service Duration Calculation:');
+      console.log('  - Service name:', currentService.name);
+      console.log('  - Service duration:', serviceDuration, 'min');
+      console.log('  - Buffer time:', bufferTime, 'min');
+      console.log('  - Service subtotal:', serviceDuration + bufferTime, 'min');
+    }
+    
+    // Add addons duration (both normal and removal addons)
+    currentAddons.forEach(addon => {
+      const addonTime = addon.additionalTime || 0;
+      totalDuration += addonTime;
+      console.log('  - Normal addon:', addon.name, 'Time:', addonTime, 'min');
+    });
+    
+    currentRemovalAddons.forEach(addon => {
+      const addonTime = addon.additionalTime || 0;
+      totalDuration += addonTime;
+      console.log('  - Removal addon:', addon.name, 'Time:', addonTime, 'min');
+    });
+    
+    console.log('  - TOTAL DURATION:', totalDuration, 'min');
+    return totalDuration;
+  };
+
+  // Update end time based on start time and total duration
+  const updateEndTimeFromDuration = (service?: Service, addons?: AddonType[], removalAddons?: AddonType[]) => {
+    const startTime = validation.values.startTime;
+    if (!startTime) return;
+
+    const totalDuration = calculateTotalDuration(service, addons, removalAddons);
+    if (totalDuration <= 0) return;
+
+    // Parse start time and add duration
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDate = new Date();
+    startDate.setHours(hours, minutes, 0, 0);
+    
+    // Add total duration in minutes
+    const endDate = new Date(startDate.getTime() + (totalDuration * 60000));
+    
+    // Format end time as HH:mm
+    const endTime = endDate.toTimeString().slice(0, 5);
+    
+    // Update the form values
+    validation.setFieldValue('endTime', endTime);
+    validation.setFieldValue('ordertime', `${startTime} - ${endTime}`);
+  };
+
+  const handleTimeInputChange = (fieldName: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    validation.handleChange(e);
+    
+    // If start time is changed and we have service selected, update end time automatically
+    if (fieldName === 'startTime' && selectedService) {
+      setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, selectedAddons, selectedRemovalAddons), 100);
+      return;
+    }
+    
+    // Update the combined ordertime field for consistency
+    setTimeout(() => {
+      const currentStartTime = fieldName === 'startTime' ? value : validation.values.startTime;
+      const currentEndTime = fieldName === 'endTime' ? value : validation.values.endTime;
+      
+      if (currentStartTime && currentEndTime) {
+        validation.setFieldValue('ordertime', `${currentStartTime} - ${currentEndTime}`);
+      } else if (currentStartTime) {
+        validation.setFieldValue('ordertime', `${currentStartTime} - `);
+      } else if (currentEndTime) {
+        validation.setFieldValue('ordertime', ` - ${currentEndTime}`);
+      } else {
+        validation.setFieldValue('ordertime', '');
+      }
+    }, 0);
+  };
+
+  // Service and addon management functions
+  const handleServiceChange = (serviceId: string) => {
+    const service = allServices.find(s => s.id === serviceId);
+    if (service) {
+      setSelectedService(service);
+      // Clear addons when service changes as they may be incompatible
+      setSelectedAddons([]);
+      // Clear and reload removal addons specific to this service
+      setSelectedRemovalAddons([]);
+      loadRemovalAddonsForService(service.id);
+      // Update the form values
+      validation.setFieldValue('product', service.name);
+      // Update amount based on service price only (removal addons will be updated when loaded)
+      const newAmount = service.price;
+      validation.setFieldValue('amount', newAmount);
+      
+      // Update end time based on new service duration - pass the service and cleared addons
+      setTimeout(() => updateEndTimeFromDuration(service, [], []), 100);
+    }
+  };
+
+  const handleAddonToggle = (addon: AddonType) => {
+    const isSelected = selectedAddons.find(a => a.id === addon.id);
+    let newAddons: AddonType[];
+    
+    if (isSelected) {
+      // Remove addon
+      newAddons = selectedAddons.filter(a => a.id !== addon.id);
+    } else {
+      // Add addon
+      newAddons = [...selectedAddons, addon];
+    }
+    
+    setSelectedAddons(newAddons);
+    
+    // Update amount based on service, addons, and removals
+    if (selectedService) {
+      const newAmount = selectedService.price + 
+        newAddons.reduce((sum, addon) => sum + addon.price, 0) +
+        selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
+      validation.setFieldValue('amount', newAmount);
+    }
+    
+    // Update end time based on new addon selection - pass the updated addon list
+    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, newAddons, selectedRemovalAddons), 100);
+  };
+
+  const getCompatibleAddons = (serviceId: string) => {
+    if (!serviceId) return [];
+    
+    const compatibleAddons = allAddons.filter(addon => 
+      addon.isActive && 
+      !addon.removal && // Exclude removal addons
+      (
+        !addon.services || 
+        addon.services.length === 0 ||
+        addon.services.some(service => service.id === serviceId)
+      )
+    );
+    
+    return compatibleAddons;
+  };
+
+  const getCompatibleRemovalAddons = () => {
+    return removalAddons.filter(addon => addon.isActive);
+  };
+
+  // Load removal addons specific to a service (following CreateBookingModal pattern)
+  const loadRemovalAddonsForService = async (serviceId: string) => {
+    if (!serviceId) {
+      setRemovalAddons([]);
+      return;
+    }
+    
+    try {
+      const response = await getRemovalAddonsByServices([serviceId]);
+      setRemovalAddons(response || []);
+    } catch (error) {
+      console.error('Error loading removal addons:', error);
+      setRemovalAddons([]);
+    }
+  };
+
+  const handleRemovalAddonToggle = (addon: AddonType) => {
+    const isSelected = selectedRemovalAddons.find(a => a.id === addon.id);
+    let newRemovals: AddonType[];
+    
+    if (isSelected) {
+      // Remove addon
+      newRemovals = selectedRemovalAddons.filter(a => a.id !== addon.id);
+    } else {
+      // Add addon
+      newRemovals = [...selectedRemovalAddons, addon];
+    }
+    
+    setSelectedRemovalAddons(newRemovals);
+    
+    // Update amount based on service, addons, and removals
+    if (selectedService) {
+      const newAmount = selectedService.price + 
+        selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
+        newRemovals.reduce((sum, addon) => sum + addon.price, 0);
+      validation.setFieldValue('amount', newAmount);
+    }
+    
+    // Update end time based on new removal addon selection - pass the updated removal addon list
+    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, selectedAddons, newRemovals), 100);
+  };
+
   const handleOrderClick = useCallback(async (arg: any) => {
     const booking = arg;
     console.log('📋 Booking data from list:', booking);
     
     try {
-      // 1. Fetch full booking details by ID
+      // 1. Load staff data first
+      let staffData: Staff[] = [];
+      try {
+        const staffResponse = await getStaffList();
+        staffData = staffResponse;
+        setStaff(staffData);
+      } catch (error) {
+        console.error('Error loading staff:', error);
+      }
+      
+      // 2. Fetch full booking details by ID
       const bookingDetails = await getBookingById(booking.id);
       
-      // 2. Fetch addon details if addOnIds exist
+      // 3. Fetch addon details if addOnIds exist
       let addons = [];
       if (bookingDetails.addOnIds && bookingDetails.addOnIds.length > 0) {
         const addonPromises = bookingDetails.addOnIds.map((addonId: string) => 
@@ -569,6 +896,30 @@ const EcommerceOrders = () => {
       const startTime = booking.startTime || '';
       const endTime = booking.endTime || '';
       
+      // Get staffId from bookingDetails (it comes directly from backend)
+      const staffId = bookingDetails.staffId || '';
+      
+      // Find staff name from staffId if available
+      let staffName = booking.staffName || '';
+      if (staffId && staffData.length > 0) {
+        const matchingStaff = staffData.find(s => s.id === staffId);
+        staffName = matchingStaff?.fullName || staffName;
+      }
+      
+      // Find current service if serviceId exists
+      let currentService: Service | null = null;
+      if (bookingDetails.serviceId && allServices.length > 0) {
+        currentService = allServices.find(s => s.id === bookingDetails.serviceId) || null;
+        setSelectedService(currentService);
+      }
+      
+      // Set selected addons from booking
+      if (addons && addons.length > 0) {
+        setSelectedAddons(addons);
+      } else {
+        setSelectedAddons([]);
+      }
+      
       const orderData = {
         id: booking.id,
         orderId: booking.id,
@@ -577,7 +928,8 @@ const EcommerceOrders = () => {
         customerPhone: booking.customerPhone || '',
         product: booking.product || booking.serviceName || '',
         categoryName: booking.categoryName || '',
-        staffName: booking.staffName || '',
+        staffName: staffName,
+        staffId: staffId,
         orderDate: booking.orderDate || booking.appointmentDate || '',
         ordertime: `${startTime} - ${endTime}`,
         amount: numericAmount,
@@ -586,7 +938,8 @@ const EcommerceOrders = () => {
         notes: booking.notes || '',
         web: booking.web || false,
         cancellationReason: bookingDetails.cancellationReason || '',
-        addons: addons // Include fetched addons
+        addons: addons, // Include fetched addons
+        ...(bookingDetails.serviceId ? { serviceId: bookingDetails.serviceId } : {}) // Only include serviceId if it exists
       };
       
       console.log('📦 Order data to set:', orderData);
@@ -1072,30 +1425,246 @@ const EcommerceOrders = () => {
                       </div>
 
                       <div className="mb-3">
-                        <Label className="form-label fw-semibold">
-                          {t("reservations.form.services")}
-                        </Label>
-                        <div className="text-muted">
-                          {validation.values.product || t("common.not_available")}
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.services")}
+                          </Label>
+                          <Button
+                            color="link"
+                            size="sm"
+                            className="p-0"
+                            onClick={() => setShowServiceEditor(!showServiceEditor)}
+                          >
+                            <i className={`ri-${showServiceEditor ? 'eye-off' : 'edit'}-line me-1`} />
+                            {showServiceEditor ? t("common.hide_editor") : t("common.edit")}
+                          </Button>
                         </div>
                         
-                        {/* Show addons if they exist */}
-                        {order && order.addons && order.addons.length > 0 && (
-                          <div className="mt-2">
-                            <span className="text-muted small fw-semibold">{t("common.addons")}</span>
-                            <ul className="list-unstyled ms-3 mb-0">
-                              {order.addons.map((addon: any) => (
-                                <li key={addon.id} className="text-muted small">
-                                  • {addon.name} 
-                                  {addon.price > 0 && (
-                                    <span className="text-success"> (+${addon.price.toFixed(2)})</span>
-                                  )}
-                                  {addon.additionalTime > 0 && (
-                                    <span className="text-info"> (+{addon.additionalTime} {t("common.minutes_short")})</span>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
+                        {!showServiceEditor ? (
+                          <div>
+                            <div className="text-muted">
+                              {validation.values.product || t("common.not_available")}
+                            </div>
+                            
+                            {/* Show addons if they exist */}
+                            {order && order.addons && order.addons.length > 0 && (
+                              <div className="mt-2">
+                                <span className="text-muted small fw-semibold">{t("common.addons")}</span>
+                                <ul className="list-unstyled ms-3 mb-0">
+                                  {order.addons.map((addon: any) => (
+                                    <li key={addon.id} className="text-muted small">
+                                      • {addon.name} 
+                                      {addon.price > 0 && (
+                                        <span className="text-success"> (+${addon.price.toFixed(2)})</span>
+                                      )}
+                                      {addon.additionalTime > 0 && (
+                                        <span className="text-info"> (+{addon.additionalTime} {t("common.minutes_short")})</span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="border rounded p-3 bg-light">
+                            {/* Service Selection */}
+                            <div className="mb-3">
+                              <Label className="form-label fw-semibold small">
+                                {t("reservations.form.select_service")}
+                              </Label>
+                              <Input
+                                name="serviceSelection"
+                                type="select"
+                                className="form-select"
+                                value={selectedService?.id || ""}
+                                onChange={(e) => handleServiceChange(e.target.value)}
+                              >
+                                <option value="">{t("reservations.form.select_service_placeholder")}</option>
+                                {allCategories.map(category => {
+                                  const categoryServices = servicesByCategory[category.id] || [];
+                                  if (categoryServices.length === 0) return null;
+                                  
+                                  return (
+                                    <optgroup key={category.id} label={category.name}>
+                                      {categoryServices.map(service => (
+                                        <option key={service.id} value={service.id}>
+                                          {service.name} - ${service.price} ({service.duration} min)
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  );
+                                })}
+                              </Input>
+                              {selectedService && (
+                                <small className="text-muted">
+                                  Servicio actual: <strong>{selectedService.name}</strong> - ${selectedService.price} ({selectedService.duration} min)
+                                </small>
+                              )}
+                            </div>
+                            
+                            {/* Addons Selection - Multi-select with chips */}
+                            {selectedService && (
+                              <div className="mb-3">
+                                <Label className="form-label fw-semibold small">
+                                  {t("common.addons")} ({t("common.optional")})
+                                </Label>
+                                
+                                {/* Selected addons as chips */}
+                                {selectedAddons.length > 0 && (
+                                  <div className="mb-2">
+                                    <div className="d-flex flex-wrap gap-1">
+                                      {selectedAddons.map(addon => (
+                                        <span 
+                                          key={addon.id}
+                                          className="badge bg-success d-flex align-items-center gap-1"
+                                          style={{ fontSize: '0.75rem' }}
+                                        >
+                                          {addon.name} (+${addon.price})
+                                          <i 
+                                            className="ri-close-line" 
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => handleAddonToggle(addon)}
+                                          />
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Dropdown for selecting addons */}
+                                <Input
+                                  key={`addons-${selectedService.id}`}
+                                  type="select"
+                                  className="form-select"
+                                  value=""
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      const compatibleAddons = getCompatibleAddons(selectedService.id);
+                                      const addon = compatibleAddons.find(a => a.id === e.target.value);
+                                      if (addon && !selectedAddons.find(a => a.id === addon.id)) {
+                                        handleAddonToggle(addon);
+                                      }
+                                      // Reset select after selection
+                                      e.target.value = "";
+                                    }
+                                  }}
+                                >
+                                  <option value="">
+                                    {(() => {
+                                      const compatibleCount = getCompatibleAddons(selectedService.id).length;
+                                      return compatibleCount > 0 
+                                        ? t("reservations.form.select_addon_placeholder")
+                                        : t("booking.services.no_addons_available");
+                                    })()}
+                                  </option>
+                                  {(() => {
+                                    const compatibleAddons = getCompatibleAddons(selectedService.id);
+                                    const availableAddons = compatibleAddons.filter(addon => !selectedAddons.find(a => a.id === addon.id));
+                                    return availableAddons.map(addon => (
+                                      <option key={addon.id} value={addon.id}>
+                                        {addon.name} (+${addon.price})
+                                        {addon.additionalTime && ` (+${addon.additionalTime} min)`}
+                                      </option>
+                                    ));
+                                  })()}
+                                </Input>
+                              </div>
+                            )}
+                            
+                            {/* Removal Addons Selection - Always visible */}
+                            <div className="mb-3">
+                              <Label className="form-label fw-semibold small">
+                                {t("reservations.form.removal_services")} ({t("common.optional")})
+                              </Label>
+                              
+                              {/* Selected removal addons as chips */}
+                              {selectedRemovalAddons.length > 0 && (
+                                <div className="mb-2">
+                                  <div className="d-flex flex-wrap gap-1">
+                                    {selectedRemovalAddons.map(addon => (
+                                      <span 
+                                        key={addon.id}
+                                        className="badge bg-warning d-flex align-items-center gap-1"
+                                        style={{ fontSize: '0.75rem' }}
+                                      >
+                                        {addon.name} (+${addon.price})
+                                        <i 
+                                          className="ri-close-line" 
+                                          style={{ cursor: 'pointer' }}
+                                          onClick={() => handleRemovalAddonToggle(addon)}
+                                        />
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Dropdown for selecting removal addons */}
+                              <Input
+                                type="select"
+                                className="form-select"
+                                value=""
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    const addon = getCompatibleRemovalAddons().find(a => a.id === e.target.value);
+                                    if (addon && !selectedRemovalAddons.find(a => a.id === addon.id)) {
+                                      handleRemovalAddonToggle(addon);
+                                    }
+                                    // Reset select after selection
+                                    e.target.value = "";
+                                  }
+                                }}
+                              >
+                                <option value="">
+                                  {getCompatibleRemovalAddons().length > 0 
+                                    ? t("reservations.form.select_removal_placeholder")
+                                    : t("booking.services.no_removals_available")
+                                  }
+                                </option>
+                                {getCompatibleRemovalAddons()
+                                  .filter(addon => !selectedRemovalAddons.find(a => a.id === addon.id))
+                                  .map(addon => (
+                                    <option key={addon.id} value={addon.id}>
+                                      {addon.name} (+${addon.price})
+                                      {addon.additionalTime && ` (+${addon.additionalTime} min)`}
+                                    </option>
+                                  ))
+                                }
+                              </Input>
+                            </div>
+                            
+                            {/* Price Preview */}
+                            {selectedService && (
+                              <div className="border rounded p-2 bg-white">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                  <span className="small text-muted">{t("reservations.form.service")}:</span>
+                                  <span className="small">${selectedService.price.toFixed(2)}</span>
+                                </div>
+                                {selectedAddons.length > 0 && (
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className="small text-muted">{t("common.addons")} ({selectedAddons.length}):</span>
+                                    <span className="small">+${selectedAddons.reduce((sum, addon) => sum + addon.price, 0).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                {selectedRemovalAddons.length > 0 && (
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className="small text-muted">{t("reservations.form.removals")} ({selectedRemovalAddons.length}):</span>
+                                    <span className="small">+${selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                <hr className="my-1" />
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <span className="small fw-semibold">{t("reservations.form.new_total")}:</span>
+                                  <span className="fw-bold text-success">
+                                    ${(selectedService.price + 
+                                      selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
+                                      selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0)
+                                    ).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1104,27 +1673,62 @@ const EcommerceOrders = () => {
                         <Label className="form-label fw-semibold">
                           {t("reservations.form.staff")}
                         </Label>
-                        <div className="text-muted">
-                          {validation.values.staffName || t("common.not_available")}
-                        </div>
+                        <Input
+                          name="staffId"
+                          type="select"
+                          className="form-select"
+                          onChange={validation.handleChange}
+                          onBlur={validation.handleBlur}
+                          value={validation.values.staffId || ""}
+                        >
+                          <option value="">{t("reservations.form.select_staff")}</option>
+                          {staff.map((staffMember) => (
+                            <option key={staffMember.id} value={staffMember.id}>
+                              {staffMember.fullName}
+                            </option>
+                          ))}
+                        </Input>
                       </div>
 
                       <div className="row mb-3">
-                        <div className="col-md-6">
+                        <div className="col-md-4">
                           <Label className="form-label fw-semibold">
                             {t("reservations.form.reservation_date")}
                           </Label>
-                          <div className="text-muted">
-                            {validation.values.orderDate || t("common.not_available")}
-                          </div>
+                          <Input
+                            name="orderDate"
+                            type="date"
+                            className="form-control"
+                            onChange={validation.handleChange}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.orderDate || ""}
+                          />
                         </div>
-                        <div className="col-md-6">
+                        <div className="col-md-4">
                           <Label className="form-label fw-semibold">
-                            {t("reservations.form.time")}
+                            {t("reservations.form.start_time")}
                           </Label>
-                          <div className="text-muted">
-                            {validation.values.ordertime || t("common.not_available")}
-                          </div>
+                          <Input
+                            name="startTime"
+                            type="time"
+                            className="form-control"
+                            onChange={handleTimeInputChange('startTime')}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.startTime || ""}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <Label className="form-label fw-semibold">
+                            {t("reservations.form.end_time")}
+                          </Label>
+                          <Input
+                            name="endTime"
+                            type="time"
+                            className="form-control"
+                            onChange={handleTimeInputChange('endTime')}
+                            onBlur={validation.handleBlur}
+                            value={validation.values.endTime || ""}
+                          />
                         </div>
                       </div>
 
@@ -1154,15 +1758,17 @@ const EcommerceOrders = () => {
                             className="form-label fw-semibold"
                           >
                             {t("reservations.form.payment_method")}
+                            {validation.values.status === 'completed' && <span className="text-danger"> *</span>}
                           </Label>
                           <Input
                             name="payment"
                             id="payment-field"
-                            className="form-select"
+                            className={`form-select ${(validation.values.status === 'pending' || validation.values.status === 'in_progress') ? 'text-muted bg-light' : ''}`}
                             type="select"
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.payment || ""}
+                            disabled={validation.values.status === 'pending' || validation.values.status === 'in_progress'}
                             invalid={
                               validation.touched.payment && validation.errors.payment ? true : false
                             }
@@ -1170,11 +1776,18 @@ const EcommerceOrders = () => {
                             <option value="">{t("reservations.form.select_payment")}</option>
                             <option value="cash">{t("reservations.payment.cash")}</option>
                             <option value="card">{t("reservations.payment.card")}</option>
-                            <option value="pending">{t("reservations.payment.pending")}</option>
+                            {(validation.values.status === 'pending' || validation.values.status === 'in_progress') && (
+                              <option value="pending">{t("reservations.payment.pending")}</option>
+                            )}
                           </Input>
                           {validation.touched.payment && validation.errors.payment ? (
                             <FormFeedback type="invalid">{validation.errors.payment}</FormFeedback>
                           ) : null}
+                          {validation.values.status === 'completed' && (
+                            <div className="form-text text-muted">
+                              {t("reservations.form.payment_required_helper")}
+                            </div>
+                          )}
                         </div>
                         <div className="col-md-6">
                           <Label
@@ -1196,6 +1809,8 @@ const EcommerceOrders = () => {
                             }
                           >
                             <option value="">{t("reservations.form.select_status")}</option>
+                            <option value="pending">{t("reservations.status.pending")}</option>
+                            <option value="in_progress">{t("reservations.status.in_progress")}</option>
                             <option value="completed">{t("reservations.status.completed")}</option>
                             <option value="cancelled">{t("reservations.status.cancelled")}</option>
                           </Input>
@@ -1256,7 +1871,14 @@ const EcommerceOrders = () => {
                         >
                           {t("common.close")}
                         </button>
-                        <button type="submit" className="btn btn-success">
+                        <button 
+                          type="submit" 
+                          className="btn btn-success"
+                          disabled={
+                            validation.values.status === 'completed' && 
+                            (!validation.values.payment || validation.values.payment === 'pending' || validation.values.payment === '')
+                          }
+                        >
                           {t("common.save_changes")}
                         </button>
                       </div>

@@ -1369,19 +1369,23 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           {expandedServiceId === service.id && (
                             <div className="mb-2 mt-2">
                               {addOns.filter(a => 
-                                a.isActive && (
-                                  !a.compatibleServiceIds || 
-                                  a.compatibleServiceIds.length === 0 ||
-                                  a.compatibleServiceIds.includes(service.id)
+                                a.isActive && 
+                                !a.removal && // Exclude removal addons
+                                (
+                                  !a.services || 
+                                  a.services.length === 0 ||
+                                  a.services.some(s => s.id === service.id)
                                 )
                               ).length > 0 ? (
                                 <div className="d-flex flex-column gap-2">
                                   {addOns
                                     .filter(a => 
-                                      a.isActive && (
-                                        !a.compatibleServiceIds || 
-                                        a.compatibleServiceIds.length === 0 ||
-                                        a.compatibleServiceIds.includes(service.id)
+                                      a.isActive && 
+                                      !a.removal && // Exclude removal addons
+                                      (
+                                        !a.services || 
+                                        a.services.length === 0 ||
+                                        a.services.some(s => s.id === service.id)
                                       )
                                     )
                                     .map(addOn => {
