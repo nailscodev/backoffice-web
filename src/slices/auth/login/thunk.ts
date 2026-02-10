@@ -150,6 +150,14 @@ export const logoutUser = (history?: any) => async (dispatch : any) => {
       // Clear auth tokens from sessionStorage and axios defaults
       clearAuthTokens();
       
+      // Also clear any residual data from localStorage (backward compatibility cleanup)
+      try {
+        localStorage.removeItem('user');
+        localStorage.removeItem('authUser');
+      } catch (e) {
+        // Ignore storage errors
+      }
+      
       // Dispatch logout success to clear Redux state
       dispatch(logoutUserSuccess(true));
       

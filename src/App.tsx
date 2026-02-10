@@ -9,6 +9,9 @@ import Route from './Routes';
 // Import DateRangeContext
 import { DateRangeProvider } from './contexts/DateRangeContext';
 
+// Import AppInitializer for proper app initialization
+import AppInitializer from './Components/AppInitializer';
+
 // Import Firebase Configuration file
 // import { initFirebaseBackend } from "./helpers/firebase_helper";
 
@@ -36,7 +39,9 @@ function App() {
   return (
     <React.Fragment>
       <DateRangeProvider>
-        <Route />
+        <AppInitializer>
+          <Route />
+        </AppInitializer>
       </DateRangeProvider>
     </React.Fragment>
   );

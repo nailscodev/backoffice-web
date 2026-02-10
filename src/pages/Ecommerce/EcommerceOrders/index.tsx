@@ -120,6 +120,17 @@ const EcommerceOrders = () => {
   const [createBookingModal, setCreateBookingModal] = useState<boolean>(false);
 
   const dispatch: any = useDispatch();
+  
+  // Selector para obtener el usuario actual
+  const selectAuthState = (state: any) => state.Login;
+  const selectUserData = createSelector(
+    selectAuthState,
+    (auth) => ({
+      user: auth.user
+    })
+  );
+  const { user } = useSelector(selectUserData);
+  
   const selectLayoutState = (state: any) => state.Ecommerce;
   const selectLayoutProperties = createSelector(
     selectLayoutState,
@@ -202,6 +213,17 @@ const EcommerceOrders = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  // Auto-filtrar por staff si el usuario actual es de rol 'staff'
+  useEffect(() => {
+    if (user && user.role === 'staff' && user.id) {
+      console.log('👤 Usuario staff detectado, aplicando filtro automático:', user.id);
+      // Para usuarios staff, siempre forzar el filtro a su ID propio
+      if (staffFilter !== user.id) {
+        setStaffFilter(user.id);
+      }
+    }
+  }, [user, staffFilter]);
 
   const toggleTab = (tab: any, type: any) => {
     if (activeTab !== tab) {
@@ -344,7 +366,8 @@ const EcommerceOrders = () => {
             page: currentPage,
             limit: pageSize,
             ...(customerFilter ? { customerId: customerFilter } : {}),
-            ...(staffFilter ? { staffId: staffFilter } : {}),
+            // Para usuarios staff, siempre usar su propio ID
+            ...(user && user.role === 'staff' ? { staffId: user.id } : (staffFilter ? { staffId: staffFilter } : {})),
             ...(searchTerm ? { search: searchTerm } : {}),
           };
           dispatch(onGetOrders(filters));
@@ -521,10 +544,23 @@ const EcommerceOrders = () => {
   });
 
   useEffect(() => {
-    if (orders && !orders.length) {
-      dispatch(onGetOrders({}));
+    // Solo cargar datos iniciales si el usuario está disponible
+    if (orders && !orders.length && user) {
+      const initialFilters: any = {
+        page: 1,
+        limit: pageSize
+      };
+      
+      // Para usuarios staff, aplicar filtro desde el inicio
+      if (user.role === 'staff' && user.id) {
+        initialFilters.staffId = user.id;
+        console.log('🚀 Carga inicial con filtro staff:', user.id);
+      }
+      
+      console.log('📦 Carga inicial con filtros:', initialFilters);
+      dispatch(onGetOrders(initialFilters));
     }
-  }, [dispatch]);
+  }, [dispatch, user, orders, pageSize]);
 
   // Debounce search effect
   useEffect(() => {
@@ -534,19 +570,27 @@ const EcommerceOrders = () => {
         limit: pageSize
       };
       
+      console.log('🔍 Realizando búsqueda con usuario:', user);
+      
       // Add customer filter if exists
       if (customerFilter) {
         filters.customerId = customerFilter;
+        console.log('📋 Customer filter aplicado:', customerFilter);
       }
       
-      // Add staff filter if exists
-      if (staffFilter) {
+      // Add staff filter - for staff users, always use their own ID
+      if (user && user.role === 'staff') {
+        filters.staffId = user.id;
+        console.log('👤 STAFF FILTER FORZADO para usuario staff:', user.id);
+      } else if (staffFilter) {
         filters.staffId = staffFilter;
+        console.log('👤 Staff filter aplicado:', staffFilter);
       }
       
       // Add search term if exists
       if (searchTerm) {
         filters.search = searchTerm;
+        console.log('🔍 Search term aplicado:', searchTerm);
       }
       
       // Add status filter based on active tab
@@ -559,15 +603,18 @@ const EcommerceOrders = () => {
         };
         if (statusMap[activeTab]) {
           filters.status = statusMap[activeTab];
+          console.log('📊 Status filter aplicado:', filters.status);
         }
       }
+      
+      console.log('🚀 Enviando filtros finales:', filters);
       
       // Dispatch the search
       dispatch(onGetOrders(filters));
     }, 500); // 500ms debounce
 
     return () => clearTimeout(delaySearch);
-  }, [searchTerm, activeTab, currentPage, pageSize, customerFilter, staffFilter, dispatch]);
+  }, [searchTerm, activeTab, currentPage, pageSize, customerFilter, staffFilter, user, dispatch]);
 
   useEffect(() => {
     setOrder(orders);
@@ -1299,7 +1346,7 @@ const EcommerceOrders = () => {
                   </Nav>
 
                   <div className="mb-3 mt-3">
-                    <div className="d-flex gap-2 flex-wrap">
+                    <div className="d-flex gap-2 flex-wrap align-items-center">
                       <div className="search-box" style={{ width: '100%' }}>
                         <input
                           type="text"
@@ -1310,6 +1357,14 @@ const EcommerceOrders = () => {
                         />
                         <i className="ri-search-line search-icon"></i>
                       </div>
+                      
+                      {/* Indicación visual para usuarios staff */}
+                      {user && user.role === 'staff' && (
+                        <div className="badge bg-info-subtle text-info px-3 py-2">
+                          <i className="ri-user-line me-1"></i>
+                          {t('reservations.viewing_own_reservations')}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1909,7 +1964,12 @@ const EcommerceOrders = () => {
                       limit: pageSize
                     };
                     if (customerFilter) filters.customerId = customerFilter;
-                    if (staffFilter) filters.staffId = staffFilter;
+                    // Para usuarios staff, siempre usar su propio ID
+                    if (user && user.role === 'staff') {
+                      filters.staffId = user.id;
+                    } else if (staffFilter) {
+                      filters.staffId = staffFilter;
+                    }
                     if (searchTerm) filters.search = searchTerm;
                     dispatch(onGetOrders(filters));
                   }}

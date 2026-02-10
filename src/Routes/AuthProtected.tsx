@@ -14,7 +14,8 @@ const AuthProtected = (props : any) =>{
   useEffect(() => {
     if (userProfile && !loading && token) {
       setAuthorization(token);
-    } else if (!userProfile && loading && !token) {
+    } else if (!userProfile && !loading && !token) {
+      // Solo hacer logout si ya terminó de cargar y realmente no hay usuario
       dispatch(logoutUser());
     }
   }, [token, userProfile, loading, dispatch]);
@@ -23,7 +24,7 @@ const AuthProtected = (props : any) =>{
     Navigate is un-auth access protected routes via url
     */
 
-  if (!userProfile && loading && !token) {
+  if (!userProfile && !loading && !token) {
     return (
       <Navigate to={{ pathname: "/login"}} />
     );

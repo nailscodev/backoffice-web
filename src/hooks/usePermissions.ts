@@ -31,13 +31,13 @@ export const usePermissions = () => {
     if (user?.permissions?.screens) {
       userPermissions = user.permissions.screens;
     } else {
-      // Fallback: Get permissions from localStorage (stored during login)
-      const storedAuth = localStorage.getItem('user');
+      // Fallback: Get permissions from sessionStorage (consistent with auth storage)
+      const storedAuth = sessionStorage.getItem('authUser');
       if (storedAuth) {
         try {
-          const authData: LoginResponse = JSON.parse(storedAuth);
-          if (authData.permissions?.screens) {
-            userPermissions = authData.permissions.screens;
+          const authData: any = JSON.parse(storedAuth);
+          if (authData.user?.permissions?.screens) {
+            userPermissions = authData.user.permissions.screens;
           }
         } catch (error) {
           console.error('Error parsing stored auth data:', error);
@@ -76,13 +76,17 @@ export const usePermissions = () => {
 
   const updatePermissions = (newPermissions: string[]) => {
     setPermissions(newPermissions);
-    // Update localStorage
-    const storedAuth = localStorage.getItem('user');
+    // Update sessionStorage (consistent with auth storage)
+    const storedAuth = sessionStorage.getItem('authUser');
     if (storedAuth) {
       try {
         const authData = JSON.parse(storedAuth);
-        authData.permissions = { screens: newPermissions };
-        localStorage.setItem('user', JSON.stringify(authData));
+        if (authData.user) {
+          authData.user.permissions = { screens: newPermissions };
+        } else {
+          authData.user = { permissions: { screens: newPermissions } };
+        }
+        sessionStorage.setItem('authUser', JSON.stringify(authData));
       } catch (error) {
         console.error('Error updating stored auth data:', error);
       }
