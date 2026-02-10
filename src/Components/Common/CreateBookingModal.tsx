@@ -391,10 +391,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         return;
       }
 
-      // Verificar que todos los servicios tengan staff asignado (no 'any')
-      const hasUnassignedStaff = selectedServices.some(s => !s.staffId || s.staffId === 'any');
+      // Verificar que todos los servicios tengan staff asignado (puede ser 'any' para staff automático)
+      const hasUnassignedStaff = selectedServices.some(s => !s.staffId);
       if (hasUnassignedStaff) {
-        // No cargar slots hasta que se asigne staff específico
+        // No cargar slots hasta que se asigne staff (específico o 'any')
         setAvailableSlots([]);
         return;
       }
@@ -405,12 +405,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         setSlotVerified(false);
         const dateStr = moment(selectedDate).format('YYYY-MM-DD');
 
-        // Preparar servicios en el nuevo formato CON staff específico
+        // Preparar servicios en el nuevo formato CON staff específico o 'any'
         const services = selectedServices.map(({ service, addOns, staffId }) => ({
           serviceId: service.id,
           duration: service.duration,
           bufferTime: service.bufferTime || 0,
-          staffId: staffId, // Enviar el staff ID específico
+          staffId: staffId === 'any' ? 'any' : staffId, // Enviar 'any' o el staff ID específico
           addons: addOns.map(addon => ({
             id: addon.id,
             duration: addon.additionalTime || 0,
@@ -1619,20 +1619,6 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             <Row className="mt-4">
               <Col md={6} className="mb-2">
                 <Button
-                  color="warning"
-                  block
-                  onClick={() => {
-                    setIsVIPCombo(true);
-                    setUserConfirmedVIPChoice(true); // User made explicit choice
-                    goToNextStep();
-                  }}
-                >
-                  <i className="ri-star-fill me-2"></i>
-                  {t('booking.vipcombo.yes_combo') || 'Yes, VIP Combo'}
-                </Button>
-              </Col>
-              <Col md={6}>
-                <Button
                   color="secondary"
                   outline
                   block
@@ -1643,6 +1629,20 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   }}
                 >
                   {t('booking.vipcombo.no_consecutive') || 'No, Consecutive'}
+                </Button>
+              </Col>
+              <Col md={6}>
+                <Button
+                  color="warning"
+                  block
+                  onClick={() => {
+                    setIsVIPCombo(true);
+                    setUserConfirmedVIPChoice(true); // User made explicit choice
+                    goToNextStep();
+                  }}
+                >
+                  <i className="ri-star-fill me-2"></i>
+                  {t('booking.vipcombo.yes_combo') || 'Yes, VIP Combo'}
                 </Button>
               </Col>
             </Row>
