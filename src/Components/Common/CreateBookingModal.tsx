@@ -1615,20 +1615,6 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             <Row className="mt-4">
               <Col md={6} className="mb-2">
                 <Button
-                  color="warning"
-                  block
-                  onClick={() => {
-                    setIsVIPCombo(true);
-                    setUserConfirmedVIPChoice(true); // User made explicit choice
-                    goToNextStep();
-                  }}
-                >
-                  <i className="ri-star-fill me-2"></i>
-                  {t('booking.vipcombo.yes_combo') || 'Yes, VIP Combo'}
-                </Button>
-              </Col>
-              <Col md={6}>
-                <Button
                   color="secondary"
                   outline
                   block
@@ -1639,6 +1625,20 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   }}
                 >
                   {t('booking.vipcombo.no_consecutive') || 'No, Consecutive'}
+                </Button>
+              </Col>
+              <Col md={6}>
+                <Button
+                  color="warning"
+                  block
+                  onClick={() => {
+                    setIsVIPCombo(true);
+                    setUserConfirmedVIPChoice(true); // User made explicit choice
+                    goToNextStep();
+                  }}
+                >
+                  <i className="ri-star-fill me-2"></i>
+                  {t('booking.vipcombo.yes_combo') || 'Yes, VIP Combo'}
                 </Button>
               </Col>
             </Row>
