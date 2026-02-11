@@ -70,7 +70,7 @@ const StoreVisits: React.FC<StoreVisitsProps> = ({ dateRange }) => {
                             </div>
                         ) : (
                             <StoreVisitsCharts
-                                dataColors='["--vz-primary", "--vz-success"]'
+                                dataColors='["--vz-warning", "--vz-success"]'
                                 series={[webPercentage, otherPercentage]}
                                 labels={[t('dashboard.store_visits.web','Web'), t('dashboard.store_visits.other','Other')]}
                             />

@@ -485,7 +485,7 @@ const Team = () => {
                                                                         <img src={item.userImage} alt="" className="img-fluid d-block rounded-circle" />
 
                                                                         :
-                                                                        <div className="avatar-title text-uppercase border rounded-circle bg-light text-primary">
+                                                                        <div className="avatar-title text-uppercase border rounded-circle bg-white text-primary">
                                                                             {item.name.charAt(0) + item.name.split(" ").slice(-1).toString().charAt(0)}
                                                                         </div>}
                                                                 </div>

@@ -61,14 +61,29 @@ const UpcomingServices = () => {
     };
 
     const getRowBackgroundColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'pending':
-                return '#fff3cd'; // Light yellow
-            case 'confirmed':
-                return '#d4edda'; // Light green
-            default:
-                return 'transparent';
+        // Sin fondos de colores para mantener consistencia con otras tablas
+        return '';
+    };
+
+    const getTextClass = (status: string) => {
+        // Usar colores neutros como en otras tablas del dashboard
+        return 'text-body';
+    };
+
+    const getDateTimeClass = (appointmentDate: string, startTime: string) => {
+        if (!appointmentDate || !startTime) return 'fw-medium text-muted';
+        
+        const appointmentDateTime = new Date(`${appointmentDate}T${startTime}`);
+        const now = new Date();
+        
+        // Si la cita es en el pasado o en las próximas 2 horas, mostrar en rojo
+        const twoHoursFromNow = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+        
+        if (appointmentDateTime <= twoHoursFromNow) {
+            return 'fw-medium text-danger'; // Rojo para citas pasadas o urgentes
         }
+        
+        return 'fw-medium text-muted'; // Gris para citas futuras
     };
 
     const generateReport = () => {
@@ -148,33 +163,33 @@ const UpcomingServices = () => {
                             </div>
                         ) : (
                             <div className="table-card" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                <table className="table table-borderless table-centered align-middle table-nowrap mb-0">
+                                <table className="table table-borderless table-centered align-middle mb-0">
                                     <thead className="text-muted table-light">
                                         <tr>
-                                            <th scope="col">{t('dashboard.pending_services.customer', 'Cliente')}</th>
-                                            <th scope="col">{t('dashboard.pending_services.service', 'Servicio')}</th>
-                                            <th scope="col">{t('dashboard.pending_services.date', 'Fecha')}</th>
-                                            <th scope="col">{t('dashboard.pending_services.time', 'Hora')}</th>
-                                            <th scope="col">{t('dashboard.pending_services.staff', 'Staff')}</th>
+                                            <th scope="col" style={{ width: '22%' }}>{t('dashboard.pending_services.customer', 'Cliente')}</th>
+                                            <th scope="col" style={{ width: '30%' }}>{t('dashboard.pending_services.service', 'Servicio')}</th>
+                                            <th scope="col" style={{ width: '16%' }}>{t('dashboard.pending_services.date', 'Fecha')}</th>
+                                            <th scope="col" style={{ width: '14%' }}>{t('dashboard.pending_services.time', 'Hora')}</th>
+                                            <th scope="col" style={{ width: '18%' }}>{t('dashboard.pending_services.staff', 'Staff')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {bookings.map((booking) => (
-                                            <tr key={booking.id} style={{ backgroundColor: getRowBackgroundColor(booking.status) }}>
-                                                <td className="text-truncate" style={{maxWidth: '180px'}}>
-                                                    {booking.customerName}
+                                            <tr key={booking.id} className={getRowBackgroundColor(booking.status)}>
+                                                <td className="text-truncate" style={{ maxWidth: '120px' }}>
+                                                    <span className={getTextClass(booking.status)}>{booking.customerName}</span>
                                                 </td>
-                                                <td className="text-truncate" style={{maxWidth: '180px'}}>
-                                                    {booking.serviceName}
+                                                <td className="text-truncate" style={{ maxWidth: '140px' }}>
+                                                    <span className={getTextClass(booking.status)}>{booking.serviceName}</span>
                                                 </td>
-                                                <td>
-                                                    <span className="fw-medium text-warning">{formatDate(booking.appointmentDate)}</span>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <span className={getDateTimeClass(booking.appointmentDate, booking.startTime)}>{formatDate(booking.appointmentDate)}</span>
                                                 </td>
-                                                <td>
-                                                    <span className="fw-medium text-warning">{formatTime(booking.appointmentDate, booking.startTime)}</span>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <span className={getDateTimeClass(booking.appointmentDate, booking.startTime)}>{formatTime(booking.appointmentDate, booking.startTime)}</span>
                                                 </td>
-                                                <td className="text-truncate" style={{maxWidth: '150px'}}>
-                                                    {booking.staffName}
+                                                <td className="text-truncate" style={{ maxWidth: '100px' }}>
+                                                    <span className={getTextClass(booking.status)}>{booking.staffName}</span>
                                                 </td>
                                             </tr>
                                         ))}

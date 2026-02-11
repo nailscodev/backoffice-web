@@ -20,6 +20,8 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
     const { t } = useTranslation();
     const [services, setServices] = useState<ServiceData[]>([]);
     const [loading, setLoading] = useState(false);
+    const [sortField, setSortField] = useState<'bookingsCount' | 'totalRevenue' | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
     const fetchBestSellingServices = useCallback(async () => {
         if (!dateRange || dateRange.length < 2) return;
@@ -29,7 +31,7 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
             const start = dateRange[0].toISOString().split('T')[0];
             const end = dateRange[1].toISOString().split('T')[0];
             
-            const response = await getBestSellingServices(start, end, 5);
+            const response = await getBestSellingServices(start, end, 6);
             
             if (response && response.data && response.data.data) {
                 setServices(response.data.data);
@@ -45,27 +47,45 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
         fetchBestSellingServices();
     }, [fetchBestSellingServices]);
 
+    const handleSort = (field: 'bookingsCount' | 'totalRevenue') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('desc');
+        }
+    };
+
+    const sortedServices = React.useMemo(() => {
+        if (!sortField) return services;
+        
+        return [...services].sort((a, b) => {
+            const aValue = a[sortField];
+            const bValue = b[sortField];
+            
+            if (sortDirection === 'asc') {
+                return aValue - bValue;
+            } else {
+                return bValue - aValue;
+            }
+        });
+    }, [services, sortField, sortDirection]);
+
+    const getSortIcon = (field: 'bookingsCount' | 'totalRevenue') => {
+        if (sortField !== field) {
+            return <i className="ri-expand-up-down-line ms-1"></i>;
+        }
+        return sortDirection === 'asc' ? 
+            <i className="ri-arrow-up-s-line ms-1"></i> : 
+            <i className="ri-arrow-down-s-line ms-1"></i>;
+    };
+
     return (
         <React.Fragment>
             <Col xl={6}>
                 <Card className="card-height-100">
                     <CardHeader className="align-items-center d-flex">
                         <h4 className="card-title mb-0 flex-grow-1">{t('dashboard.best_selling.title')}</h4>
-                        <div className="flex-shrink-0">
-                            <UncontrolledDropdown className="card-header-dropdown">
-                                <DropdownToggle tag="a" className="text-reset" role="button">
-                                    <span className="fw-semibold text-uppercase fs-12">{t('dashboard.best_selling.sort_by')}: </span><span className="text-muted">{t('dashboard.best_selling.today')}<i className="mdi mdi-chevron-down ms-1"></i></span>
-                                </DropdownToggle>
-                                <DropdownMenu className="dropdown-menu-end">
-                                    <DropdownItem>Today</DropdownItem>
-                                    <DropdownItem>Yesterday</DropdownItem>
-                                    <DropdownItem>Last 7 Days</DropdownItem>
-                                    <DropdownItem>Last 30 Days</DropdownItem>
-                                    <DropdownItem>This Month</DropdownItem>
-                                    <DropdownItem>Last Month</DropdownItem>
-                                </DropdownMenu>
-                            </UncontrolledDropdown>
-                        </div>
                     </CardHeader>
 
                     <CardBody>
@@ -86,19 +106,22 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
                                         <thead className="table-light">
                                             <tr>
                                                 <th style={{width: '40%'}}>{t('dashboard.best_selling.service', 'Service')}</th>
-                                                <th style={{width: '20%'}} className="text-center">{t('dashboard.best_selling.orders')}</th>
-                                                <th style={{width: '20%'}} className="text-end">{t('dashboard.best_selling.price')}</th>
-                                                <th style={{width: '20%'}} className="text-end">{t('dashboard.best_selling.amount')}</th>
+                                                <th style={{width: '20%', cursor: 'pointer'}} className="text-center" onClick={() => handleSort('bookingsCount')}>
+                                                    {t('dashboard.best_selling.orders')}
+                                                    {getSortIcon('bookingsCount')}
+                                                </th>
+                                                <th style={{width: '20%'}} className="text-center">{t('dashboard.best_selling.price')}</th>
+                                                <th style={{width: '20%', cursor: 'pointer'}} className="text-center" onClick={() => handleSort('totalRevenue')}>
+                                                    {t('dashboard.best_selling.amount')}
+                                                    {getSortIcon('totalRevenue')}
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {services.map((item, key) => (
+                                            {sortedServices.map((item, key) => (
                                                 <tr key={key}>
                                                     <td>
                                                         <div className="d-flex align-items-center">
-                                                            <div className="avatar-xs bg-light rounded p-1 me-2 flex-shrink-0">
-                                                                <div className="bg-primary-subtle rounded-2" style={{width:32,height:32}} />
-                                                            </div>
                                                             <div className="flex-grow-1">
                                                                 <h5 className="fs-14 mb-0 text-truncate" style={{maxWidth: '200px'}}>
                                                                     <Link to="#" className="text-reset">{item.serviceName}</Link>
@@ -109,24 +132,16 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
                                                     <td className="text-center">
                                                         <span className="badge bg-info-subtle text-info fs-12">{item.bookingsCount}</span>
                                                     </td>
-                                                    <td className="text-end">
+                                                    <td className="text-center">
                                                         <span className="fw-medium text-muted">${item.averagePrice.toFixed(2)}</span>
                                                     </td>
-                                                    <td className="text-end">
+                                                    <td className="text-center">
                                                         <span className="fw-semibold text-success">${item.totalRevenue.toFixed(2)}</span>
                                                     </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
-                                </div>
-
-                                <div className="align-items-center mt-3 pt-2 justify-content-between row text-center text-sm-start">
-                                    <div className="col-sm">
-                                        <div className="text-muted fs-13">
-                                            {t('dashboard.best_selling.showing', 'Showing')} <span className="fw-semibold">{services.length}</span> {t('dashboard.best_selling.of', 'of')} <span className="fw-semibold">{services.length}</span> {t('dashboard.best_selling.results', 'Results')}
-                                        </div>
-                                    </div>
                                 </div>
                             </>
                         )}

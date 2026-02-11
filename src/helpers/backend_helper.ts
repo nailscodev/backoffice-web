@@ -95,7 +95,7 @@ export const getDashboardStats = async (startDate: string, endDate: string) => {
   }
 };
 
-export const getBestSellingServices = async (startDate: string, endDate: string, limit: number = 5) => {
+export const getBestSellingServices = async (startDate: string, endDate: string, limit: number = 6) => {
   try {
     return await api.get(`${url.DASHBOARD_BEST_SELLING}?startDate=${startDate}&endDate=${endDate}&limit=${limit}`);
   } catch (error: any) {

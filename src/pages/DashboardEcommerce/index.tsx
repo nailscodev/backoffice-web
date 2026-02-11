@@ -82,7 +82,7 @@ const DashboardEcommerce = () => {
                 </Row>
                 <Row>
                   <BestSellingServices dateRange={dateRange} />
-                  <TopSellers dateRange={dateRange} />
+                  <TopSellers dateRange={dateRange} stats={dashboardStats} />
                 </Row>
                 <Row>
                   <StoreVisits dateRange={dateRange} />

@@ -5,6 +5,13 @@ import { getTopStaff } from '../../helpers/backend_helper';
 
 interface TopSellersProps {
     dateRange: Date[];
+    stats: {
+        cash: number;
+        bank: number;
+        bookings: number;
+        distinctServices: number;
+        newCustomers: number;
+    };
 }
 
 interface StaffData {
@@ -15,10 +22,15 @@ interface StaffData {
     role: string;
 }
 
-const TopSellers: React.FC<TopSellersProps> = ({ dateRange }) => {
+const TopSellers: React.FC<TopSellersProps> = ({ dateRange, stats }) => {
     const { t } = useTranslation();
     const [staff, setStaff] = useState<StaffData[]>([]);
     const [loading, setLoading] = useState(false);
+    const [sortField, setSortField] = useState<'bookingsCount' | 'totalRevenue' | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+    const totalRevenue = (stats?.cash || 0) + (stats?.bank || 0);
+    const totalBookings = stats?.bookings || 0;
 
     const fetchTopStaff = useCallback(async () => {
         if (!dateRange || dateRange.length < 2) return;
@@ -44,6 +56,44 @@ const TopSellers: React.FC<TopSellersProps> = ({ dateRange }) => {
         fetchTopStaff();
     }, [fetchTopStaff]);
 
+    const handleSort = (field: 'bookingsCount' | 'totalRevenue') => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('desc');
+        }
+    };
+
+    const sortedStaff = React.useMemo(() => {
+        if (!sortField) return staff;
+        
+        return [...staff].sort((a, b) => {
+            const aValue = a[sortField];
+            const bValue = b[sortField];
+            
+            if (sortDirection === 'asc') {
+                return aValue - bValue;
+            } else {
+                return bValue - aValue;
+            }
+        });
+    }, [staff, sortField, sortDirection]);
+
+    const getSortIcon = (field: 'bookingsCount' | 'totalRevenue') => {
+        if (sortField !== field) {
+            return <i className="ri-expand-up-down-line ms-1"></i>;
+        }
+        return sortDirection === 'asc' ? 
+            <i className="ri-arrow-up-s-line ms-1"></i> : 
+            <i className="ri-arrow-down-s-line ms-1"></i>;
+    };
+
+    const getPercentage = (value: number, total: number) => {
+        if (total === 0) return '0.0';
+        return ((value / total) * 100).toFixed(1);
+    };
+
     return (
         <React.Fragment>
             <Col xl={6}>
@@ -68,13 +118,18 @@ const TopSellers: React.FC<TopSellersProps> = ({ dateRange }) => {
                                     <thead className="table-light text-muted">
                                         <tr>
                                             <th>{t('dashboard.top_sellers.name', 'Name')}</th>
-                                            <th>{t('dashboard.top_sellers.role', 'Role')}</th>
-                                            <th>{t('dashboard.top_sellers.bookings', 'Bookings')}</th>
-                                            <th>{t('dashboard.top_sellers.revenue', 'Revenue')}</th>
+                                            <th className="text-center" style={{ cursor: 'pointer' }} onClick={() => handleSort('bookingsCount')}>
+                                                {t('dashboard.top_sellers.bookings', 'Bookings')}
+                                                {getSortIcon('bookingsCount')}
+                                            </th>
+                                            <th className="text-center" style={{ cursor: 'pointer' }} onClick={() => handleSort('totalRevenue')}>
+                                                {t('dashboard.top_sellers.revenue', 'Revenue')}
+                                                {getSortIcon('totalRevenue')}
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {staff.map((s) => (
+                                        {sortedStaff.map((s) => (
                                             <tr key={s.staffId}>
                                                 <td>
                                                     <div className="d-flex align-items-center">
@@ -88,12 +143,17 @@ const TopSellers: React.FC<TopSellersProps> = ({ dateRange }) => {
                                                         <div>{s.staffName}</div>
                                                     </div>
                                                 </td>
-                                                <td>{s.role}</td>
-                                                <td>
-                                                    <h5 className="fs-14 mb-0">{s.bookingsCount}</h5>
+                                                <td className="text-center">
+                                                    <div>
+                                                        <span className="badge bg-info-subtle text-info fs-12">{s.bookingsCount}</span>
+                                                        <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>({getPercentage(s.bookingsCount, totalBookings)}%)</div>
+                                                    </div>
                                                 </td>
-                                                <td>
-                                                    <h5 className="fs-14 mb-0 text-success">${s.totalRevenue.toFixed(2)}</h5>
+                                                <td className="text-center">
+                                                    <div>
+                                                        <h5 className="fs-14 mb-0 text-success">${s.totalRevenue.toFixed(2)}</h5>
+                                                        <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>({getPercentage(s.totalRevenue, totalRevenue)}%)</div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
