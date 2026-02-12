@@ -119,6 +119,10 @@ interface TableContainerProps {
   setInvoiceDateRange?: any;
   invoiceService?: any;
   setInvoiceService?: any;
+  invoicePaymentMethod?: any;
+  setInvoicePaymentMethod?: any;
+  invoiceDirection?: any;
+  setInvoiceDirection?: any;
   onReloadData?: () => void;
 }
 
@@ -149,13 +153,16 @@ const TableContainer = ({
   setInvoiceDateRange,
   invoiceService,
   setInvoiceService,
+  invoicePaymentMethod,
+  setInvoicePaymentMethod,
+  invoiceDirection,
+  setInvoiceDirection,
   onReloadData,
   onRowClick,
 
 }: TableContainerProps) => {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [localInvoiceService, setLocalInvoiceService] = useState<any>(undefined);
 
   const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
     const itemRank = rankItem(row.getValue(columnId), value);
@@ -204,25 +211,6 @@ const TableContainer = ({
     getState
   } = table;
 
-  // Keep a local invoiceService state and sync from parent prop when provided.
-  React.useEffect(() => {
-    setLocalInvoiceService(typeof invoiceService !== 'undefined' ? invoiceService : undefined);
-  }, [invoiceService]);
-
-  // When the local invoice service selection changes, apply it to the table filters
-  React.useEffect(() => {
-    const col = table.getColumn ? table.getColumn('serviceName') : null;
-    if (col) {
-      if (!localInvoiceService || localInvoiceService.value === 'All') {
-        col.setFilterValue(undefined);
-      } else {
-        // Filter by service name (label) instead of ID
-        const serviceName = localInvoiceService.label;
-        col.setFilterValue(serviceName);
-      }
-    }
-  }, [localInvoiceService, table]);
-
   useEffect(() => {
     Number(customPageSize) && setPageSize(Number(customPageSize));
   }, [customPageSize, setPageSize]);
@@ -268,8 +256,12 @@ const TableContainer = ({
                 <InvoiceListGlobalSearch
                   dateRange={invoiceDateRange}
                   setDateRange={setInvoiceDateRange}
-                  service={localInvoiceService}
-                  setService={setLocalInvoiceService}
+                  service={invoiceService}
+                  setService={setInvoiceService}
+                  paymentMethod={invoicePaymentMethod}
+                  setPaymentMethod={setInvoicePaymentMethod}
+                  direction={invoiceDirection}
+                  setDirection={setInvoiceDirection}
                   onReload={onReloadData}
                 />
               )}

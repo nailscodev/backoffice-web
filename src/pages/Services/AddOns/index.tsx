@@ -55,7 +55,6 @@ const AddOns = () => {
 
   // Get current language for API calls
   const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
-
   // Load add-ons and services on mount
   useEffect(() => {
     loadAddOns();

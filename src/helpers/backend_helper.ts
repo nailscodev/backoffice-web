@@ -86,29 +86,37 @@ export const updateUserProfile = async (userId: string, data: any) => {
 // BOOKINGS / DASHBOARD API
 //==============================================
 
-export const getDashboardStats = async (startDate: string, endDate: string) => {
+export const getDashboardStats = async (startDate: string, endDate: string, language: string = 'EN') => {
   try {
-    return await api.get(`${url.DASHBOARD_STATS}?startDate=${startDate}&endDate=${endDate}`);
+    return await api.get(`${url.DASHBOARD_STATS}?startDate=${startDate}&endDate=${endDate}&lang=${language}`);
   } catch (error: any) {
     console.error('Error fetching dashboard stats:', error);
     throw error;
   }
 };
 
-export const getBestSellingServices = async (startDate: string, endDate: string, limit: number = 6) => {
+export const getRevenueByService = async (startDate: string, endDate: string, language: string = 'EN') => {
   try {
-    return await api.get(`${url.DASHBOARD_BEST_SELLING}?startDate=${startDate}&endDate=${endDate}&limit=${limit}`);
+    return await api.get(`${url.DASHBOARD_REVENUE_BY_SERVICE}?startDate=${startDate}&endDate=${endDate}&lang=${language}`);
   } catch (error: any) {
     console.error('Error fetching best selling services:', error);
     throw error;
   }
 };
 
-export const getRevenueByService = async (startDate: string, endDate: string) => {
+export const getRevenueOverTime = async (startDate: string, endDate: string) => {
   try {
-    return await api.get(`${url.DASHBOARD_REVENUE_BY_SERVICE}?startDate=${startDate}&endDate=${endDate}`);
+    return await api.get(`${url.DASHBOARD_REVENUE_OVER_TIME}?startDate=${startDate}&endDate=${endDate}`);
   } catch (error: any) {
-    console.error('Error fetching revenue by service:', error);
+    console.error('Error fetching revenue over time:', error);
+    throw error;
+  }
+};
+export const getBestSellingServices = async (startDate: string, endDate: string, language: string = 'EN', limit: number = 10) => {
+  try {
+    return await api.get(`${url.DASHBOARD_BEST_SELLING}?startDate=${startDate}&endDate=${endDate}&lang=${language}&limit=${limit}`);
+  } catch (error: any) {
+    console.error('Error fetching best selling services:', error);
     throw error;
   }
 };
@@ -147,9 +155,33 @@ export const getBookingsBySource = async (startDate: string, endDate: string) =>
   }
 };
 
-export const getInvoices = async (startDate: string, endDate: string, page: number = 1, limit: number = 10) => {
+export const getInvoices = async (
+  startDate: string, 
+  endDate: string, 
+  page: number = 1, 
+  limit: number = 10, 
+  language: string = 'EN',
+  filters?: {
+    serviceId?: string;
+    paymentMethod?: string;
+    type?: string;
+  }
+) => {
   try {
-    return await api.get(`${url.INVOICES}?startDate=${startDate}&endDate=${endDate}&page=${page}&limit=${limit}`);
+    let requestUrl = `${url.INVOICES}?startDate=${startDate}&endDate=${endDate}&page=${page}&limit=${limit}&lang=${language}`;
+    
+    // Add filters if they exist and are not "All"
+    if (filters?.serviceId && filters.serviceId !== 'All') {
+      requestUrl += `&serviceId=${encodeURIComponent(filters.serviceId)}`;
+    }
+    if (filters?.paymentMethod && filters.paymentMethod !== 'All') {
+      requestUrl += `&paymentMethod=${encodeURIComponent(filters.paymentMethod)}`;
+    }
+    if (filters?.type && filters.type !== 'All') {
+      requestUrl += `&type=${encodeURIComponent(filters.type)}`;
+    }
+    
+    return await api.get(requestUrl);
   } catch (error: any) {
     console.error('Error fetching invoices:', error);
     throw error;

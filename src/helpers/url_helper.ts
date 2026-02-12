@@ -22,6 +22,7 @@ export const MANUAL_ADJUSTMENTS = "/api/v1/bookings/manual-adjustments";
 export const DASHBOARD_STATS = "/api/v1/bookings/dashboard/stats";
 export const DASHBOARD_BEST_SELLING = "/api/v1/bookings/dashboard/best-selling-services";
 export const DASHBOARD_REVENUE_BY_SERVICE = "/api/v1/bookings/dashboard/revenue-by-service";
+export const DASHBOARD_REVENUE_OVER_TIME = "/api/v1/bookings/dashboard/revenue-over-time";
 export const DASHBOARD_TOP_STAFF = "/api/v1/bookings/dashboard/top-staff";
 export const DASHBOARD_BOOKINGS_BY_SOURCE = "/api/v1/bookings/dashboard/bookings-by-source";
 export const BOOKINGS_UPCOMING = "/api/v1/bookings/upcoming";

@@ -17,12 +17,14 @@ interface ServiceData {
 }
 
 const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [services, setServices] = useState<ServiceData[]>([]);
     const [loading, setLoading] = useState(false);
     const [sortField, setSortField] = useState<'bookingsCount' | 'totalRevenue' | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+    // Get current language for API calls
+    const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
     const fetchBestSellingServices = useCallback(async () => {
         if (!dateRange || dateRange.length < 2) return;
         
@@ -31,7 +33,7 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
             const start = dateRange[0].toISOString().split('T')[0];
             const end = dateRange[1].toISOString().split('T')[0];
             
-            const response = await getBestSellingServices(start, end, 6);
+            const response = await getBestSellingServices(start, end, currentLang, 6);
             
             if (response && response.data && response.data.data) {
                 setServices(response.data.data);
@@ -41,7 +43,7 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
         } finally {
             setLoading(false);
         }
-    }, [dateRange]);
+    }, [dateRange, currentLang]);
 
     useEffect(() => {
         fetchBestSellingServices();
