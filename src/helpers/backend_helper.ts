@@ -193,6 +193,7 @@ export const createManualAdjustment = async (data: {
   description: string;
   amount: number;
   paymentMethod: 'CASH' | 'CARD';
+  adjustmentDate?: string; // Optional date in YYYY-MM-DD format
 }) => {
   try {
     return await api.create(url.MANUAL_ADJUSTMENTS, data);

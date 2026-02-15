@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Container, Row, Col, Card, CardBody, CardHeader, Form, Label, Input, Button } from "reactstrap";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { createSelector } from "reselect";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -13,6 +15,19 @@ const InvoiceCreate = () => {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Get current user from Redux state
+  const selectAuthState = createSelector(
+    (state: any) => state.Login,
+    (login) => login.user
+  );
+  const currentUser = useSelector(selectAuthState);
+  
+  // Check if user is owner to enable/disable date field
+  const isOwner = currentUser?.role === 'owner';
+  
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
+
   document.title = `${t('invoices.form.title', 'Manual Adjustment')} | Nails & Co Midtown - Admin Panel`;
 
   const validation = useFormik({
@@ -21,6 +36,7 @@ const InvoiceCreate = () => {
       concept: "",
       amount: "",
       paymentMethod: "CASH",
+      adjustmentDate: today,
     },
     validationSchema: Yup.object({
       type: Yup.string().oneOf(["income", "expense"]).required(),
@@ -30,6 +46,7 @@ const InvoiceCreate = () => {
         .positive(t('invoices.form.amount', 'Amount must be greater than 0'))
         .required(t('invoices.form.amount', 'Amount is required')),
       paymentMethod: Yup.string().oneOf(["CASH", "CARD"]).required(),
+      adjustmentDate: Yup.date().required(t('invoices.form.date', 'Date is required')),
     }),
     onSubmit: async (values) => {
       setIsSubmitting(true);
@@ -39,6 +56,7 @@ const InvoiceCreate = () => {
           description: values.concept,
           amount: Number(values.amount),
           paymentMethod: values.paymentMethod as 'CASH' | 'CARD',
+          adjustmentDate: values.adjustmentDate,
         });
         
         toast.success(t('invoices.toast.saved', 'Manual adjustment saved successfully'));
@@ -171,6 +189,42 @@ const InvoiceCreate = () => {
                         <option value="CASH">{t('invoices.form.payment_cash', 'Cash')}</option>
                         <option value="CARD">{t('invoices.form.payment_bank', 'Bank/Card')}</option>
                       </Input>
+                    </Col>
+
+                    {/* Adjustment Date */}
+                    <Col xs={12} md={6}>
+                      <Label className="form-label fw-semibold" htmlFor="adjustmentDate">
+                        {t('invoices.form.date', 'Date')} <span className="text-danger">*</span>
+                        {!isOwner && (
+                          <small className="text-muted ms-2">
+                            ({t('invoices.form.owner_only', 'Owner access only')})
+                          </small>
+                        )}
+                      </Label>
+                      <Input
+                        id="adjustmentDate"
+                        name="adjustmentDate"
+                        type="date"
+                        value={validation.values.adjustmentDate}
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        disabled={!isOwner}
+                        invalid={!!(validation.touched.adjustmentDate && validation.errors.adjustmentDate)}
+                        className={`${validation.touched.adjustmentDate && validation.errors.adjustmentDate ? 'is-invalid' : ''} ${!isOwner ? 'bg-light' : ''}`}
+                      />
+                      {validation.touched.adjustmentDate && validation.errors.adjustmentDate ? (
+                        <div className="invalid-feedback d-block">{validation.errors.adjustmentDate as string}</div>
+                      ) : null}
+                      {!isOwner && (
+                        <div className="form-text text-muted">
+                          <i className="ri-lock-line align-middle me-1"></i>
+                          {t('invoices.form.date_locked', 'Date field is locked. Only owners can modify the adjustment date.')}
+                        </div>
+                      )}
+                    </Col>
+
+                    <Col xs={12} md={6}>
+                      {/* Empty column to maintain grid layout */}
                     </Col>
 
                     {/* Info Alert */}

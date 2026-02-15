@@ -456,6 +456,10 @@
     "common.not_available": "Not available",
     "common.select_date": "Select date",
 
+    "invoices.form.date": "Date",
+    "invoices.form.owner_only": "Owner access only",
+    "invoices.form.date_locked": "Date field is locked. Only owners can modify the adjustment date.",
+
     "menu.admin.staff.title": "Team / Staff",
     "menu.admin.staff.basic_register": "Basic register",
     "menu.admin.staff.availability": "Availability & schedules",
