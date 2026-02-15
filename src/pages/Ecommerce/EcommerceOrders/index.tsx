@@ -290,6 +290,10 @@ const EcommerceOrders = () => {
           .required(t("reservations.validation.payment_required_for_completed"))
           .notOneOf(['pending', ''], t("reservations.validation.payment_cannot_be_pending")),
         otherwise: (schema) => schema
+      }).when('status', {
+        is: 'cancelled',
+        then: (schema) => schema.notRequired(),
+        otherwise: (schema) => schema
       }),
       cancellationReason: Yup.string().when('status', {
         is: 'cancelled',
@@ -1864,12 +1868,12 @@ const EcommerceOrders = () => {
                           <Input
                             name="payment"
                             id="payment-field"
-                            className={`form-select ${(validation.values.status === 'pending' || validation.values.status === 'in_progress') ? 'text-muted bg-light' : ''}`}
+                            className={`form-select ${(validation.values.status === 'pending' || validation.values.status === 'in_progress' || validation.values.status === 'cancelled') ? 'text-muted bg-light' : ''}`}
                             type="select"
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.payment || ""}
-                            disabled={validation.values.status === 'pending' || validation.values.status === 'in_progress'}
+                            disabled={validation.values.status === 'pending' || validation.values.status === 'in_progress' || validation.values.status === 'cancelled'}
                             invalid={
                               validation.touched.payment && validation.errors.payment ? true : false
                             }
@@ -1880,6 +1884,9 @@ const EcommerceOrders = () => {
                             {(validation.values.status === 'pending' || validation.values.status === 'in_progress') && (
                               <option value="pending">{t("reservations.payment.pending")}</option>
                             )}
+                            {validation.values.status === 'cancelled' && (
+                              <option value="not_applicable">N/A</option>
+                            )}
                           </Input>
                           {validation.touched.payment && validation.errors.payment ? (
                             <FormFeedback type="invalid">{validation.errors.payment}</FormFeedback>
@@ -1887,6 +1894,11 @@ const EcommerceOrders = () => {
                           {validation.values.status === 'completed' && (
                             <div className="form-text text-muted">
                               {t("reservations.form.payment_required_helper")}
+                            </div>
+                          )}
+                          {validation.values.status === 'cancelled' && (
+                            <div className="form-text text-muted">
+                              {t("reservations.form.payment_not_applicable_helper", "Payment method is not applicable for cancelled reservations")}
                             </div>
                           )}
                         </div>
