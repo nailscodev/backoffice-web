@@ -762,6 +762,7 @@
     "reservations.tabs.completed": "Completados",
     "reservations.tabs.pending": "Pendientes",
     "reservations.tabs.cancelled": "Cancelados",
+    "reservations.tabs.in_progress": "En Progreso",
 
     "reservations.filter.showing_customer_bookings": "Mostrando reservas de un cliente específico. Haz clic en X para ver todas las reservas.",
 

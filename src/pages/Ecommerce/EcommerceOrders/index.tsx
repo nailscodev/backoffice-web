@@ -50,6 +50,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { createSelector } from "reselect";
 import moment from "moment";
+import "moment/locale/es"; // Import Spanish locale for moment
 import { servicesByCategory, staffMembers } from "../../../common/data/calender";
 import { getBookingById } from "../../../api/bookings";
 import { getAddOn, AddOn as AddonType, getAddOns } from "../../../api/addons";
@@ -74,6 +75,8 @@ const EcommerceOrders = () => {
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [staffFilter, setStaffFilter] = useState<string>("");
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [hasInitialLoad, setHasInitialLoad] = useState<boolean>(false);
   
   // Staff data
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -109,6 +112,16 @@ const EcommerceOrders = () => {
       setSearchTerm(decodeURIComponent(customerName || staffName || ''));
     }
   }, [location.search]);
+
+  // Configure moment locale based on i18n language
+  useEffect(() => {
+    const currentLang = i18n.language?.toLowerCase();
+    if (currentLang === 'sp' || currentLang === 'es') {
+      moment.locale('es');
+    } else {
+      moment.locale('en');
+    }
+  }, [i18n.language]);
   
   // Estados para ReservationModal
   const [reservationModal, setReservationModal] = useState<boolean>(false);
@@ -193,11 +206,17 @@ const EcommerceOrders = () => {
   const [isEdit, setIsEdit] = useState<boolean>(false);
 
   useEffect(() => {
-    setOrderList(orders);
-  }, [orders]);
-
-  useEffect(() => {
-    if (!isEmpty(orders)) setOrderList(orders);
+    // Always update orderList to reflect current orders data
+    // This handles both empty arrays [] and populated arrays correctly
+    console.log('🔄 Orders state changed:', {
+      orders: orders,
+      ordersLength: orders?.length || 0,
+      isArray: Array.isArray(orders),
+      ordersBefore: orderList?.length || 0
+    });
+    setOrderList(orders || []);
+    setIsSearching(false); // Clear searching state when we get results
+    console.log('📊 OrderList updated to:', (orders || []).length, 'items');
   }, [orders]);
 
   // Update pagination info from backend
@@ -227,6 +246,9 @@ const EcommerceOrders = () => {
 
   const toggleTab = (tab: any, type: any) => {
     if (activeTab !== tab) {
+      console.log('🏷️ Switching tab from', activeTab, 'to', tab, 'type:', type);
+      // Clear current data immediately when switching tabs to show loading state
+      setOrderList([]);
       setActiveTab(tab);
       setCurrentPage(1); // Reset to first page when changing tabs
       // The useEffect will handle the fetch with debounce
@@ -544,8 +566,8 @@ const EcommerceOrders = () => {
   });
 
   useEffect(() => {
-    // Solo cargar datos iniciales si el usuario está disponible
-    if (orders && !orders.length && user) {
+    // Solo cargar datos iniciales si el usuario está disponible y no se ha hecho carga inicial
+    if (user && !hasInitialLoad) {
       const initialFilters: any = {
         page: 1,
         limit: pageSize
@@ -559,12 +581,16 @@ const EcommerceOrders = () => {
       
       console.log('📦 Carga inicial con filtros:', initialFilters);
       dispatch(onGetOrders(initialFilters));
+      setHasInitialLoad(true); // Marcar que ya se hizo la carga inicial
     }
-  }, [dispatch, user, orders, pageSize]);
+  }, [dispatch, user, pageSize, hasInitialLoad]);
 
   // Debounce search effect
   useEffect(() => {
     const delaySearch = setTimeout(() => {
+      // Set searching state to show loading
+      setIsSearching(true);
+      
       const filters: any = {
         page: currentPage,
         limit: pageSize
@@ -617,14 +643,10 @@ const EcommerceOrders = () => {
   }, [searchTerm, activeTab, currentPage, pageSize, customerFilter, staffFilter, user, dispatch]);
 
   useEffect(() => {
+    // Always update order state to reflect current orders data
     setOrder(orders);
-  }, [orders]);
-
-  useEffect(() => {
-    if (!isEmpty(orders)) {
-      setOrder(orders);
-      setIsEdit(false);
-    }
+    // Reset edit mode when orders change
+    setIsEdit(false);
   }, [orders]);
 
 
@@ -1174,12 +1196,34 @@ const EcommerceOrders = () => {
   const handleValidDate = (date: any) => {
     // Date comes as "2025-12-29" from backend
     if (!date) return '';
-    return moment(date).format("DD MMM YYYY");
+    
+    const currentLang = i18n.language?.toLowerCase();
+    if (currentLang === 'sp' || currentLang === 'es') {
+      // Spanish format: day month year (15 Feb 2026)
+      return moment(date).format("DD MMM YYYY");
+    } else {
+      // English format: month day, year (Feb 15, 2026)
+      return moment(date).format("MMM DD, YYYY");
+    }
   };
 
   const handleValidTime = (row: any) => {
-    // Mostrar la hora tal cual llega del backend, sin parseo ni conversión
-    return row?.startTime || '';
+    // Convert 24h format to 12h format with AM/PM
+    const timeString = row?.startTime || '';
+    if (!timeString) return '';
+    
+    // Parse the time string (assuming format like "14:30" or "14:30:00")
+    const timeParts = timeString.split(':');
+    if (timeParts.length < 2) return timeString; // Return original if can't parse
+    
+    const hours24 = parseInt(timeParts[0]);
+    const minutes = timeParts[1];
+    
+    // Convert to 12h format
+    const hours12 = hours24 === 0 ? 12 : (hours24 > 12 ? hours24 - 12 : hours24);
+    const ampm = hours24 >= 12 ? 'PM' : 'AM';
+    
+    return `${hours12}:${minutes} ${ampm}`;
   };
 
   // Calculate which page numbers to show in pagination
@@ -1368,7 +1412,9 @@ const EcommerceOrders = () => {
                     </div>
                   </div>
 
-                  {isOrderSuccess && orderList.length ? (
+                  {isSearching ? (
+                    <Loader />
+                  ) : isOrderSuccess && orderList.length ? (
                     <>
                       <TableContainer
                         columns={columns}
@@ -1433,13 +1479,13 @@ const EcommerceOrders = () => {
                         </div>
                       </Row>
                     </>
-                  ) : isOrderSuccess && !orderList.length ? (
+                  ) : !isSearching && isOrderSuccess && !orderList.length ? (
                     <div className="py-4 text-center">
                       <p className="text-muted">{t("reservations.no_data")}</p>
                     </div>
-                  ) : (
+                  ) : !isSearching ? (
                     <Loader error={error} />
-                  )}
+                  ) : null}
                 </div>
                 <Modal id="showModal" isOpen={modal} toggle={toggle} centered size="lg">
                   <ModalHeader className="bg-light p-3" toggle={toggle}>
