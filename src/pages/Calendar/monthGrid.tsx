@@ -77,7 +77,16 @@ const MonthGridCalender = () => {
     } = useSelector(calendarDataProperties);
 
     useEffect(() => {
-        dispatch(onGetEvents());
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        const defaultFilters = {
+            page: 1,
+            limit: 1000,
+            startDate: today.toISOString().split('T')[0],
+            endDate: nextMonth.toISOString().split('T')[0]
+        };
+        
+        dispatch(onGetEvents(defaultFilters));
         dispatch(onGetCategories());
         dispatch(onGetUpCommingEvent());
         new Draggable(document.getElementById("external-events") as HTMLElement, {

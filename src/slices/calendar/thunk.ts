@@ -12,59 +12,65 @@ import {
 import { getCategories as getCategoriesApi } from "../../api/categories";
 import { getBookingsList } from "../../api/bookings";
 
-export const getEvents = createAsyncThunk("calendar/getEvents", async (dateRange: { startDate?: string; endDate?: string } | undefined, { getState }) => {
+export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: any = {}, { getState }) => {
   try {
     // Obtener las categorías del estado para asignar colores
     const state: any = getState();
     const categories = state.Calendar.categories || [];
     
-    // Obtener bookings del rango de fechas visible
-    const response = await getBookingsList({
-      page: 1,
-      limit: 1000,
-      status: undefined,
-      search: undefined,
-      startDate: dateRange?.startDate,
-      endDate: dateRange?.endDate
-    });
+    // Preparar filtros para la API, usando los parámetros pasados
+    const apiFilters = {
+      page: filters.page || 1,
+      limit: filters.limit || 1000,
+      status: filters.status,
+      search: filters.search,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      staffId: filters.staffId,
+      serviceId: filters.serviceId
+    };
+    
+    // Obtener bookings del rango de fechas visible con filtros aplicados
+    const response = await getBookingsList(apiFilters);
     
     // Transformar los bookings al formato de FullCalendar
     const events = response.data.map((booking: any) => {
-      // Combinar fecha y hora de inicio
-        const start = booking.appointmentDate && booking.startTime ? `${booking.appointmentDate}T${booking.startTime}Z` : null;
-        const end = booking.appointmentDate && booking.endTime ? `${booking.appointmentDate}T${booking.endTime}Z` : null;
+      // Combinar fecha y hora de inicio - SIN timezone para interpretar como fecha local
+      const start = booking.appointmentDate && booking.startTime ? `${booking.appointmentDate}T${booking.startTime}` : null;
+      const end = booking.appointmentDate && booking.endTime ? `${booking.appointmentDate}T${booking.endTime}` : null;
       
       // Buscar la categoría correspondiente para obtener sus colores
       const category = categories.find((cat: any) => cat.id === booking.categoryId);
       
-      // Usar los colores de la categoría si existe, sino usar colores por defecto según el estado
+      // Usar colores basados en el estado del booking
       let backgroundColor = '#e9d5ff';
       let borderColor = '#6b21a8';
       let textColor = '#6b21a8';
       
-      if (category) {
-        backgroundColor = category.bg || '#e9d5ff';
-        textColor = category.text || '#6b21a8';
-        borderColor = category.text || '#6b21a8';
-      } else {
-        // Fallback: colores por estado si no hay categoría
-        if (booking.status === 'CONFIRMED') {
-          backgroundColor = '#d1fae5';
-          textColor = '#065f46';
-          borderColor = '#065f46';
-        } else if (booking.status === 'PENDING') {
-          backgroundColor = '#fef3c7';
-          textColor = '#92400e';
-          borderColor = '#92400e';
-        } else if (booking.status === 'CANCELLED') {
-          backgroundColor = '#fee2e2';
-          textColor = '#991b1b';
-          borderColor = '#991b1b';
-        } else if (booking.status === 'COMPLETED') {
-          backgroundColor = '#cffafe';
-          textColor = '#155e75';
-          borderColor = '#155e75';
-        }
+      // Normalizar status a mayúsculas para comparación
+      const normalizedStatus = booking.status?.toUpperCase?.() || '';
+      
+      // Colores por estado siempre tienen prioridad
+      if (normalizedStatus === 'CONFIRMED') {
+        backgroundColor = '#d1fae5';
+        textColor = '#065f46';
+        borderColor = '#065f46';
+      } else if (normalizedStatus === 'PENDING') {
+        backgroundColor = '#fef3c7'; // Amarillo
+        textColor = '#92400e';
+        borderColor = '#92400e';
+      } else if (normalizedStatus === 'CANCELLED') {
+        backgroundColor = '#fee2e2'; // Rojo
+        textColor = '#991b1b';
+        borderColor = '#991b1b';
+      } else if (normalizedStatus === 'COMPLETED') {
+        backgroundColor = '#dcfce7'; // Verde
+        textColor = '#166534';
+        borderColor = '#166534';
+      } else if (normalizedStatus === 'IN_PROGRESS') {
+        backgroundColor = '#e9d5ff'; // Violeta
+        textColor = '#6b21a8';
+        borderColor = '#6b21a8';
       }
       
       return {
@@ -193,22 +199,19 @@ export const getUpCommingEvent = createAsyncThunk("calendar/getUpCommingEvent", 
       const category = categories.find((cat: any) => cat.id === booking.categoryId);
       // Determinar colores
       let backgroundColor, borderColor, textColor;
-      if (category) {
-        backgroundColor = category.bg;
-        borderColor = category.text;
-        textColor = category.text;
-      } else {
-        const statusColors: any = {
-          PENDING: { bg: '#fef3c7', border: '#92400e', text: '#92400e' },
-          CONFIRMED: { bg: '#d1fae5', border: '#065f46', text: '#065f46' },
-          CANCELLED: { bg: '#fee2e2', border: '#991b1b', text: '#991b1b' },
-          COMPLETED: { bg: '#e9d5ff', border: '#6b21a8', text: '#6b21a8' }
-        };
-        const colors = statusColors[booking.status?.toUpperCase?.()] || statusColors.PENDING;
-        backgroundColor = colors.bg;
-        borderColor = colors.border;
-        textColor = colors.text;
-      }
+      
+      // Siempre usar colores basados en el estado del booking
+      const statusColors: any = {
+        PENDING: { bg: '#fef3c7', border: '#92400e', text: '#92400e' }, // Amarillo
+        CONFIRMED: { bg: '#d1fae5', border: '#065f46', text: '#065f46' }, // Verde claro
+        CANCELLED: { bg: '#fee2e2', border: '#991b1b', text: '#991b1b' }, // Rojo
+        COMPLETED: { bg: '#dcfce7', border: '#166534', text: '#166534' }, // Verde
+        IN_PROGRESS: { bg: '#e9d5ff', border: '#6b21a8', text: '#6b21a8' } // Violeta
+      };
+      const colors = statusColors[booking.status?.toUpperCase?.()] || statusColors.PENDING;
+      backgroundColor = colors.bg;
+      borderColor = colors.border;
+      textColor = colors.text;
       // Combinar fecha y hora para obtener un string ISO válido en UTC
       let start = booking.appointmentDate && booking.startTime ? `${booking.appointmentDate}T${booking.startTime}Z` : null;
       let end = booking.appointmentDate && booking.endTime ? `${booking.appointmentDate}T${booking.endTime}Z` : null;

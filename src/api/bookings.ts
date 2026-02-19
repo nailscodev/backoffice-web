@@ -43,6 +43,8 @@ export interface BookingFilters {
   startDate?: string;
   endDate?: string;
   search?: string;
+  staffId?: string;
+  serviceId?: string;
 }
 
 /**
@@ -57,6 +59,8 @@ export const getBookingsList = async (filters?: BookingFilters): Promise<Booking
   if (filters?.startDate) params.append('startDate', filters.startDate);
   if (filters?.endDate) params.append('endDate', filters.endDate);
   if (filters?.search) params.append('search', filters.search);
+  if (filters?.staffId) params.append('staffId', filters.staffId);
+  if (filters?.serviceId) params.append('serviceId', filters.serviceId);
 
   const queryString = params.toString();
   const endpoint = queryString ? `${url.GET_BOOKINGS_LIST}?${queryString}` : url.GET_BOOKINGS_LIST;
