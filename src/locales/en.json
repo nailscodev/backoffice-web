@@ -795,6 +795,7 @@
     "reservations.tabs.in_progress": "In Progress",
 
     "reservations.filter.showing_customer_bookings": "Showing reservations for specific customer. Click X to see all reservations.",
+    "reservations.viewing_own_reservations": "You are viewing only your own reservations.",
 
     "reservations.table.reservation_id": "Reservation ID",
     "reservations.table.id": "ID",

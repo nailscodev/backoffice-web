@@ -7,6 +7,7 @@ import {
 import { postLogin, postLogout, getUserPermissions } from "../../../helpers/backend_helper";
 import { saveAuthTokens, clearAuthTokens } from "../../../helpers/api_helper";
 import { getFirstAvailableRoute } from "../../../helpers/navigation_helper";
+import { getStaff } from "../../../api/staff";
 
 import { loginSuccess, logoutUserSuccess, apiError, reset_login_flag } from './reducer';
 
@@ -53,15 +54,47 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
             const permissionsResponse = await getUserPermissions();
             const permissions = permissionsResponse?.data?.screens || [];
             
-            // Create user object with permissions for storage
+            // If the user is staff, get their staff ID for booking filters
+            let staffId = null;
+            if (userData.role === 'staff' && userData.email) {
+              try {
+                console.log('👤 User is staff, searching for staff record by email:', userData.email);
+                const staffResponse = await getStaff(1, 100, userData.email);
+                if (staffResponse?.data && staffResponse.data.length > 0) {
+                  // Find exact email match
+                  const matchingStaff = staffResponse.data.find(
+                    (staff: any) => staff.email.toLowerCase() === userData.email.toLowerCase()
+                  );
+                  if (matchingStaff) {
+                    staffId = matchingStaff.id;
+                    console.log('✅ Found matching staff ID:', staffId, 'for staff:', matchingStaff.firstName, matchingStaff.lastName);
+                  } else {
+                    console.warn('⚠️ No exact email match found in staff records');
+                  }
+                } else {
+                  console.warn('⚠️ No staff records found for email:', userData.email);
+                }
+              } catch (staffError) {
+                console.error('❌ Error fetching staff record:', staffError);
+                // Continue login even if staff lookup fails
+              }
+            }
+            
+            // Create user object with permissions and staff ID for storage
             const userWithPermissions = {
               ...userData,
-              permissions: { screens: permissions }
+              permissions: { screens: permissions },
+              staffId: staffId // Add staff ID for staff users
             };
             
-            // Update stored data with permissions
+            // Update stored data with permissions and staff ID
             saveAuthTokens(token, null, { user: userWithPermissions });
-            dispatch(loginSuccess({ token, ...userData, permissions: { screens: permissions } }));
+            dispatch(loginSuccess({ 
+              token, 
+              ...userData, 
+              permissions: { screens: permissions },
+              staffId: staffId 
+            }));
             
             // Navigate to the first available route for the user
             const firstAvailableRoute = getFirstAvailableRoute(permissions);
@@ -70,8 +103,34 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
             
           } catch (permissionsError) {
             console.error('Error fetching user permissions:', permissionsError);
+            
+            // If the user is staff, try to get their staff ID even if permissions fail
+            let staffId = null;
+            if (userData.role === 'staff' && userData.email) {
+              try {
+                console.log('👤 User is staff, searching for staff record by email (fallback):', userData.email);
+                const staffResponse = await getStaff(1, 100, userData.email);
+                if (staffResponse?.data && staffResponse.data.length > 0) {
+                  const matchingStaff = staffResponse.data.find(
+                    (staff: any) => staff.email.toLowerCase() === userData.email.toLowerCase()
+                  );
+                  if (matchingStaff) {
+                    staffId = matchingStaff.id;
+                    console.log('✅ Found matching staff ID (fallback):', staffId);
+                  }
+                }
+              } catch (staffError) {
+                console.error('❌ Error fetching staff record (fallback):', staffError);
+              }
+            }
+            
             // Continue with login even if permissions fail, but go to dashboard as fallback
-            dispatch(loginSuccess({ token, ...userData, permissions: { screens: [] } }));
+            dispatch(loginSuccess({ 
+              token, 
+              ...userData, 
+              permissions: { screens: [] },
+              staffId: staffId 
+            }));
             history('/dashboard');
           }
         } else {
@@ -109,7 +168,7 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
       errorField = error.response.data.field || null;
       
       // If message contains "Invalid credentials" or similar, associate with password field
-      if (!errorField && (
+      if (!errorField && errorMessage && typeof errorMessage === 'string' && (
         errorMessage.toLowerCase().includes('invalid credentials') ||
         errorMessage.toLowerCase().includes('incorrect password') ||
         errorMessage.toLowerCase().includes('wrong password')
@@ -120,13 +179,13 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
     } else if (error?.message) {
       errorMessage = error.message;
       // Check for invalid credentials in error message
-      if (errorMessage.toLowerCase().includes('invalid credentials')) {
+      if (errorMessage && typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('invalid credentials')) {
         errorField = 'password';
         errorMessage = 'Invalid password';
       }
     } else if (typeof error === 'string') {
       errorMessage = error;
-      if (errorMessage.toLowerCase().includes('invalid credentials')) {
+      if (errorMessage && errorMessage.toLowerCase().includes('invalid credentials')) {
         errorField = 'password';
         errorMessage = 'Invalid password';
       }

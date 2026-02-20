@@ -15,6 +15,7 @@
   "reservations.tabs.confirmed": "Confirmadas",
   "reservations.tabs.in_progress": "En Progreso",
   "reservations.filter.showing_customer_bookings": "Mostrando reservas para un cliente específico. Haz clic en X para ver todas las reservas.",
+  "reservations.viewing_own_reservations": "Estás viendo solo tus propias reservas.",
   "reservations.table.reservation_id": "ID de Reserva",
   "reservations.table.id": "ID",
   "reservations.table.customer": "Cliente",

@@ -214,15 +214,17 @@ const Calender = () => {
       userExists: !!user, 
       userRole: user?.role, 
       userId: user?.id,
+      staffId: user?.staffId,
       currentStaffFilter: staffFilter 
     });
     
-    if (user && user.role === 'staff' && user.id) {
-      console.log('👤 [STAFF AUTO-FILTER] Usuario staff detectado, forzando filtro a su ID:', user.id);
-      // Para usuarios staff, siempre forzar el filtro a su ID propio
-      if (staffFilter !== user.id) {
-        console.log('👤 [STAFF AUTO-FILTER] Updating staffFilter from', staffFilter, 'to', user.id);
-        setStaffFilter(user.id);
+    if (user && user.role === 'staff' && (user.staffId || user.id)) {
+      const staffIdToUse = user.staffId || user.id;
+      console.log('👤 [STAFF AUTO-FILTER] Usuario staff detectado, forzando filtro a su staffId:', staffIdToUse);
+      // Para usuarios staff, siempre forzar el filtro a su staff ID
+      if (staffFilter !== staffIdToUse) {
+        console.log('👤 [STAFF AUTO-FILTER] Updating staffFilter from', staffFilter, 'to', staffIdToUse);
+        setStaffFilter(staffIdToUse);
       } else {
         console.log('👤 [STAFF AUTO-FILTER] Staff filter ya está correctamente configurado');
       }
@@ -251,10 +253,10 @@ const Calender = () => {
         // Determine final staff ID to use
         let finalStaffId = null;
         
-        // If user is staff role, always use their ID (staff can only see their own bookings)
+        // If user is staff role, always use their staff ID (staff can only see their own bookings)
         if (user && user.role === 'staff') {
-          finalStaffId = user.id;
-          console.log('🔒 [FILTER DEBUG] Staff user - forcing own ID:', finalStaffId);
+          finalStaffId = user.staffId || user.id; // Use staffId if available, fallback to user.id
+          console.log('🔒 [FILTER DEBUG] Staff user - using staff ID:', finalStaffId, '(staffId:', user.staffId, ', userId:', user.id, ')');
         } 
         // If user is admin/other role and has selected a staff filter, use that
         else if (staffFilter && staffFilter.trim() !== '') {
@@ -858,7 +860,7 @@ const Calender = () => {
         startDate,
         endDate,
         // Apply staff filter - for staff users, always use their own ID
-        ...(user && user.role === 'staff' ? { staffId: user.id } : (staffFilter ? { staffId: staffFilter } : {})),
+        ...(user && user.role === 'staff' ? { staffId: user.staffId || user.id } : (staffFilter ? { staffId: staffFilter } : {})),
         status: statusFilter || undefined
       };
       
@@ -902,10 +904,10 @@ const Calender = () => {
       // Determine final staff ID to use (same logic as useEffect)
       let finalStaffId = null;
       
-      // If user is staff role, always use their ID (staff can only see their own bookings)
+      // If user is staff role, always use their staff ID (staff can only see their own bookings)
       if (user && user.role === 'staff') {
-        finalStaffId = user.id;
-        console.log('🔒 [MANUAL APPLY] Staff user - forcing own ID:', finalStaffId);
+        finalStaffId = user.staffId || user.id; // Use staffId if available, fallback to user.id
+        console.log('🔒 [MANUAL APPLY] Staff user - using staff ID:', finalStaffId, '(staffId:', user.staffId, ', userId:', user.id, ')');
       } 
       // If user is admin/other role and has selected a staff filter, use that
       else if (staffFilter && staffFilter.trim() !== '') {
@@ -1319,9 +1321,10 @@ const Calender = () => {
                       <Label className="form-label">{t('calendar.staff_member')}</Label>
                       <Input
                         type="select"
-                        value={staffFilter}
+                        value={user?.role === 'staff' ? user.staffId : staffFilter}
                         onChange={(e) => setStaffFilter(e.target.value)}
                         className="form-select"
+                        disabled={user?.role === 'staff'}
                       >
                         <option value="">{t('calendar.all_staff')}</option>
                         {staff.map((member) => (

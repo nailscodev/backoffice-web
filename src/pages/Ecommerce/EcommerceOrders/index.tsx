@@ -393,7 +393,7 @@ const EcommerceOrders = () => {
             limit: pageSize,
             ...(customerFilter ? { customerId: customerFilter } : {}),
             // Para usuarios staff, siempre usar su propio ID
-            ...(user && user.role === 'staff' ? { staffId: user.id } : (staffFilter ? { staffId: staffFilter } : {})),
+            ...(user && user.role === 'staff' ? { staffId: user.staffId || user.id } : (staffFilter ? { staffId: staffFilter } : {})),
             ...(searchTerm ? { search: searchTerm } : {}),
           };
           dispatch(onGetOrders(filters));
@@ -578,9 +578,10 @@ const EcommerceOrders = () => {
       };
       
       // Para usuarios staff, aplicar filtro desde el inicio
-      if (user.role === 'staff' && user.id) {
-        initialFilters.staffId = user.id;
-        console.log('🚀 Carga inicial con filtro staff:', user.id);
+      if (user.role === 'staff' && (user.staffId || user.id)) {
+        const staffId = user.staffId || user.id;
+        initialFilters.staffId = staffId;
+        console.log('🚀 Carga inicial con filtro staff:', staffId, '(staffId:', user.staffId, ', userId:', user.id, ')');
       }
       
       console.log('📦 Carga inicial con filtros:', initialFilters);
@@ -610,8 +611,9 @@ const EcommerceOrders = () => {
       
       // Add staff filter - for staff users, always use their own ID
       if (user && user.role === 'staff') {
-        filters.staffId = user.id;
-        console.log('👤 STAFF FILTER FORZADO para usuario staff:', user.id);
+        const staffId = user.staffId || user.id;
+        filters.staffId = staffId;
+        console.log('👤 STAFF FILTER FORZADO para usuario staff:', staffId, '(staffId:', user.staffId, ', userId:', user.id, ')');
       } else if (staffFilter) {
         filters.staffId = staffFilter;
         console.log('👤 Staff filter aplicado:', staffFilter);
@@ -2024,7 +2026,8 @@ const EcommerceOrders = () => {
                     if (customerFilter) filters.customerId = customerFilter;
                     // Para usuarios staff, siempre usar su propio ID
                     if (user && user.role === 'staff') {
-                      filters.staffId = user.id;
+                      const staffId = user.staffId || user.id;
+                      filters.staffId = staffId;
                     } else if (staffFilter) {
                       filters.staffId = staffFilter;
                     }
