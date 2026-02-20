@@ -1558,6 +1558,7 @@ const Calender = () => {
           </Row>
 
           {/* Próximas reservas */}
+          {/*
           <Row>
             <Col xs={12}>
               <Card>
@@ -1683,6 +1684,7 @@ const Calender = () => {
               </Card>
             </Col>
           </Row>
+          */}
 
           {/* Modal de edición de booking - igual que EcommerceOrders */}
           <Modal isOpen={editModal} toggle={toggleEditModal} centered size="lg">
