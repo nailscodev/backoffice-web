@@ -33,6 +33,10 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: 
     // Obtener bookings del rango de fechas visible con filtros aplicados
     const response = await getBookingsList(apiFilters);
     
+    console.log('🔥 [CALENDAR THUNK] Raw response from API:', response);
+    console.log('🔥 [CALENDAR THUNK] Bookings data:', response.data);
+    console.log('🔥 [CALENDAR THUNK] Available categories:', categories);
+    
     // Transformar los bookings al formato de FullCalendar
     const events = response.data.map((booking: any) => {
       // Combinar fecha y hora de inicio - SIN timezone para interpretar como fecha local
@@ -76,8 +80,8 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: 
       return {
         id: booking.id,
         title: booking.customerName,
-          start,
-          end,
+        start,
+        end,
         backgroundColor: backgroundColor,
         borderColor: borderColor,
         textColor: textColor,
@@ -92,16 +96,21 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: 
           email: booking.customerEmail,
           service: booking.serviceName,
           staff: booking.staffName,
-          staffId: booking.staffId, // Add staffId if available
+          staffId: booking.staffId || null, // May be undefined from backend
           staffName: booking.staffName,
           status: booking.status,
           paymentMethod: booking.paymentMethod,
           totalPrice: booking.totalPrice,
           categoryId: booking.categoryId,
-          categoryName: booking.categoryName
+          categoryName: booking.categoryName,
+          // Add raw booking data for debugging
+          rawBooking: booking
         }
       };
     });
+    
+    console.log('🎯 [CALENDAR THUNK] Transformed events for FullCalendar:', events);
+    console.log('🎯 [CALENDAR THUNK] Events count:', events.length);
     
     return events;
   } catch (error) {

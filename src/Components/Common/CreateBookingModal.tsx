@@ -179,12 +179,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   useEffect(() => {
     if (isOpen && preselectedDate) {
       setSelectedDate(preselectedDate);
-      // Si viene del calendario, ir directamente al paso de servicios
+      // Si viene del calendario con tiempo preseleccionado, guardarlo pero no saltear customer step
       if (preselectedTime) {
-        setSelectedTime(preselectedTime);
+        // Normalize preselected time format to match backend slots
+        const normalizedTime = normalizeTimeFormat(preselectedTime);
+        setSelectedTime(normalizedTime);
         setHasPreselectedTime(true); // Marcar que tiene tiempo preseleccionado
-        // Si es desde el calendario, empezar con el paso de servicios en lugar de customer
-        setStep('services');
+        // Siempre empezar por customer step, incluso cuando viene del calendario
+        setStep('customer');
       } else {
         setStep('customer');
       }
@@ -378,7 +380,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     return workingDaysSet.size > 0 ? Array.from(workingDaysSet) : [1, 2, 3, 4, 5, 6];
   };
 
-  // Generar slots de tiempo basados en disponibilidad del backend
+  // Helper function to normalize time format for comparison
+  const normalizeTimeFormat = (time: string | null): string => {
+    if (!time) return '';
+    // If time has format HH:mm, add :00 seconds
+    if (time.length === 5 && time.includes(':')) {
+      return time + ':00';
+    }
+    // If time has format HH:mm:ss, keep as is
+    return time;
+  };
   const generateTimeSlots = (): TimeSlot[] => {
     if (loadingSlots || availableSlots.length === 0) {
       // Mientras carga o si no hay slots, retornar array vacío
@@ -1237,16 +1248,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       <ModalHeader toggle={handleClose}>
         {t('booking.create_title')} {isVIPCombo && <Badge color="warning" className="ms-2">{t('booking.vip_combo_badge')}</Badge>}
         <div className="mt-2">
-          <Badge color={step === 'customer' ? 'primary' : 'secondary'} className="me-1">
+          <Badge color={step === 'customer' ? 'primary' : 'light'} className="me-1" style={{ color: step === 'customer' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
             1. {t('booking.step.customer')}
           </Badge>
-          <Badge color={step === 'services' ? 'primary' : 'secondary'} className="me-1">
+          <Badge color={step === 'services' ? 'primary' : 'light'} className="me-1" style={{ color: step === 'services' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
             2. {t('booking.step.services')}
           </Badge>
-          <Badge color={step === 'datetime' ? 'primary' : 'secondary'} className="me-1">
+          <Badge color={step === 'datetime' ? 'primary' : 'light'} className="me-1" style={{ color: step === 'datetime' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
             3. {t('booking.step.datetime')}
           </Badge>
-          <Badge color={step === 'confirm' ? 'primary' : 'secondary'}>
+          <Badge color={step === 'confirm' ? 'primary' : 'light'} style={{ color: step === 'confirm' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
             4. {t('booking.step.confirm')}
           </Badge>
         </div>
@@ -2062,7 +2073,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 <button
                                   key={slot.time}
                                   type="button"
-                                  className={`calendar-chip${selectedTime === slot.time ? ' selected' : ''}`}
+                                  className={`calendar-chip${normalizeTimeFormat(selectedTime) === normalizeTimeFormat(slot.time) ? ' selected' : ''}`}
                                   disabled={!slot.available}
                                   onClick={() => handleTimeSelect(slot.time)}
                                   style={{ minWidth: '80px' }}
@@ -2094,7 +2105,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 <button
                                   key={slot.time}
                                   type="button"
-                                  className={`calendar-chip${selectedTime === slot.time ? ' selected' : ''}`}
+                                  className={`calendar-chip${normalizeTimeFormat(selectedTime) === normalizeTimeFormat(slot.time) ? ' selected' : ''}`}
                                   disabled={!slot.available}
                                   onClick={() => handleTimeSelect(slot.time)}
                                   style={{ minWidth: '80px' }}
@@ -2126,7 +2137,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 <button
                                   key={slot.time}
                                   type="button"
-                                  className={`calendar-chip${selectedTime === slot.time ? ' selected' : ''}`}
+                                  className={`calendar-chip${normalizeTimeFormat(selectedTime) === normalizeTimeFormat(slot.time) ? ' selected' : ''}`}
                                   disabled={!slot.available}
                                   onClick={() => handleTimeSelect(slot.time)}
                                   style={{ minWidth: '80px' }}

@@ -95,14 +95,17 @@ interface CustomDayViewProps {
   onEventClick: (event: any) => void;
   onSlotClick: (date: Date, staffId: string) => void;
   onEventMoved: (bookingId: string, newDate: Date, newStaffId: string) => Promise<void>;
+  onEventResized: (bookingId: string, newStartTime: string, newEndTime: string) => Promise<void>;
   isSpanish: boolean;
   t: any;
   staffFilter: string;
 }
 
-const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onEventMoved, isSpanish, t, staffFilter }) => {
+const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onEventMoved, onEventResized, isSpanish, t, staffFilter }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [draggedBooking, setDraggedBooking] = useState<any>(null);
+  const [resizing, setResizing] = useState<{ bookingId: string; side: 'top' | 'bottom'; originalHeight: number; originalTop: number; startY: number } | null>(null);
+  const [resizePreview, setResizePreview] = useState<{ bookingId: string; newStartTime: string; newEndTime: string; position: { top: number; left: number } } | null>(null);
 
   // Helper: Filtrar staff que trabaja en el día seleccionado
   const getWorkingStaffForDate = (date: Date) => {
@@ -194,16 +197,22 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
       const eventStaffName = event.extendedProps?.staffName || event.extendedProps?.staff || event.staff;
       
       const dateMatches = eventDate === dateStr;
+      // If staffId is not available from backend, use staffName comparison
       const staffMatches = eventStaffId === staffId || eventStaffName === staffName;
       
       console.log('🔍 Event check:', {
         eventId: event.id,
+        eventTitle: event.title,
         eventDate,
         eventStaffId,
         eventStaffName,
+        expectedDate: dateStr,
+        expectedStaffId: staffId,
+        expectedStaffName: staffName,
         dateMatches,
         staffMatches,
-        included: dateMatches && staffMatches
+        included: dateMatches && staffMatches,
+        rawEvent: event
       });
       
       return dateMatches && staffMatches;
@@ -211,8 +220,8 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
       id: event.id,
       customerName: event.title,
       serviceName: event.extendedProps?.service || event.service || '',
-      startTime: moment(event.start).format('HH:mm'),
-      endTime: moment(event.end).format('HH:mm'),
+      startTime: moment(event.start).format('h:mm A'),
+      endTime: moment(event.end).format('h:mm A'),
       duration: moment(event.end).diff(moment(event.start), 'minutes'),
       status: event.extendedProps?.status || '',
       backgroundColor: event.backgroundColor || '#3788d8',
@@ -223,7 +232,10 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
 
   // Calculate position and height for appointment cards
   const getCardPosition = (startTime: string, duration: number) => {
-    const [hour, minute] = startTime.split(':').map(Number);
+    // Parse AM/PM time format using moment
+    const timeMoment = moment(startTime, 'h:mm A');
+    const hour = timeMoment.hour();
+    const minute = timeMoment.minute();
     const startMinutes = (hour - 8) * 60 + minute; // Relative to 8:00 AM
     const top = (startMinutes / 30) * 40; // 40px per 30-minute slot
     const height = Math.max((duration / 30) * 40, 30); // Minimum 30px height
@@ -297,7 +309,7 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                 ...(timeSlot.endsWith('00') ? styles.timeSlotHour : {})
               }}
             >
-              {timeSlot.endsWith('00') ? timeSlot : ''}
+              {timeSlot.endsWith('00') ? moment(timeSlot, 'HH:mm').format('h A') : ''}
             </div>
           ))}
         </div>
@@ -445,11 +457,17 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                   ) : (
                     staffEvents.map(appointment => {
                       const position = getCardPosition(appointment.startTime, appointment.duration);
+                      const isCurrentlyResizing = resizing?.bookingId === appointment.id;
+                      
                       return (
                         <div
                           key={appointment.id}
-                          draggable={true}
+                          draggable={!isCurrentlyResizing}
                           onDragStart={(e) => {
+                            if (isCurrentlyResizing) {
+                              e.preventDefault();
+                              return;
+                            }
                             setDraggedBooking({
                               id: appointment.event.id,
                               currentStaffId: staffMember.id,
@@ -464,24 +482,164 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                             // Remove visual feedback
                             (e.target as HTMLElement).style.opacity = '1';
                           }}
+                          onMouseMove={(e) => {
+                            if (isCurrentlyResizing) return;
+                            
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const y = e.clientY - rect.top;
+                            const resizeZone = 8; // 8px resize zone
+                            
+                            if (y <= resizeZone || y >= rect.height - resizeZone) {
+                              e.currentTarget.style.cursor = 'ns-resize';
+                            } else {
+                              e.currentTarget.style.cursor = 'move';
+                            }
+                          }}
+                          onMouseDown={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const y = e.clientY - rect.top;
+                            const resizeZone = 8;
+                            
+                            if (y <= resizeZone || y >= rect.height - resizeZone) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              
+                              // Capture the element before creating event handlers
+                              const element = e.currentTarget as HTMLElement;
+                              
+                              const resizingData = {
+                                bookingId: appointment.id,
+                                side: y <= resizeZone ? 'top' : 'bottom' as 'top' | 'bottom',
+                                originalHeight: parseFloat(position.height.replace('px', '')),
+                                originalTop: parseFloat(position.top.replace('px', '')),
+                                startY: e.clientY
+                              };
+                              
+                              setResizing(resizingData);
+                              
+                              let currentMouseY = e.clientY;  // Track current mouse position
+                              
+                              const handleMouseMove = (moveEvent: MouseEvent) => {
+                                if (!resizing || !element) return;
+                                
+                                currentMouseY = moveEvent.clientY;  // Update current position
+                                const deltaY = moveEvent.clientY - (resizing.startY || e.clientY);
+                                const slotHeight = 25; // 30min slot = 25px
+                                const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
+                                const deltaMinutes = (snappedDelta / slotHeight) * 30;
+                                
+                                // Calculate preview times
+                                const originalStart = moment(appointment.startTime, 'h:mm A');
+                                let newStart = moment(originalStart);
+                                let newEnd = moment(originalStart).add(appointment.duration, 'minutes');
+                                
+                                if (resizing.side === 'bottom') {
+                                  newEnd = moment(originalStart).add(appointment.duration + deltaMinutes, 'minutes');
+                                } else {
+                                  newStart = moment(originalStart).add(deltaMinutes, 'minutes');
+                                }
+                                
+                                // Show preview if duration is at least 30 minutes
+                                if (newEnd.diff(newStart, 'minutes') >= 30) {
+                                  const elementRect = element.getBoundingClientRect();
+                                  setResizePreview({
+                                    bookingId: appointment.id,
+                                    newStartTime: newStart.format('h:mm A'),
+                                    newEndTime: newEnd.format('h:mm A'),
+                                    position: {
+                                      top: elementRect.top + window.scrollY - 40,
+                                      left: elementRect.left + window.scrollX + elementRect.width + 10
+                                    }
+                                  });
+                                } else {
+                                  setResizePreview(null);
+                                }
+                                
+                                // Update visual sizing
+                                if (resizing.side === 'bottom') {
+                                  const newHeight = Math.max(slotHeight, resizing.originalHeight + snappedDelta);
+                                  element.style.height = `${newHeight}px`;
+                                } else {
+                                  const newTop = resizing.originalTop + snappedDelta;
+                                  const newHeight = resizing.originalHeight - snappedDelta;
+                                  if (newHeight >= slotHeight && newTop >= 0) {
+                                    element.style.top = `${newTop}px`;
+                                    element.style.height = `${newHeight}px`;
+                                  }
+                                }
+                              };
+                              
+                              const handleMouseUp = () => {
+                                if (!resizing || !element) return;
+                                
+                                const deltaY = currentMouseY - resizing.startY;
+                                const slotHeight = 25;
+                                const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
+                                const deltaMinutes = (snappedDelta / slotHeight) * 30;
+                                
+                                // Calculate new times
+                                const originalStart = moment(appointment.startTime, 'h:mm A');
+                                let newStart = moment(originalStart);
+                                let newEnd = moment(originalStart).add(appointment.duration, 'minutes');
+                                
+                                if (resizingData.side === 'bottom') {
+                                  newEnd = moment(originalStart).add(appointment.duration + deltaMinutes, 'minutes');
+                                } else {
+                                  newStart = moment(originalStart).add(deltaMinutes, 'minutes');
+                                }
+                                
+                                // Ensure minimum duration of 30 minutes
+                                if (newEnd.diff(newStart, 'minutes') >= 30) {
+                                  onEventResized(
+                                    appointment.event.id,
+                                    newStart.format('h:mm A'),
+                                    newEnd.format('h:mm A')
+                                  );
+                                }
+                                
+                                document.removeEventListener('mousemove', handleMouseMove);
+                                document.removeEventListener('mouseup', handleMouseUp);
+                                setResizing(null);
+                                setResizePreview(null); // Clear preview
+                                
+                                // Reset element styles
+                                element.style.top = position.top;
+                                element.style.height = position.height;
+                              };
+                              
+                              document.addEventListener('mousemove', handleMouseMove);
+                              document.addEventListener('mouseup', handleMouseUp);
+                            }
+                          }}
                           style={{
                             ...styles.appointmentCard,
                             top: position.top,
                             height: position.height,
                             backgroundColor: appointment.backgroundColor,
                             color: appointment.textColor,
-                            cursor: 'move'
+                            cursor: 'move',
+                            position: 'absolute',
+                            left: '4px',
+                            right: '4px'
                           }}
-                          onClick={() => onEventClick({ event: appointment.event })}
+                          onClick={(e) => {
+                            if (isCurrentlyResizing) return;
+                            onEventClick({ event: appointment.event });
+                          }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-                            e.currentTarget.style.zIndex = '3';
+                            if (!isCurrentlyResizing) {
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                              e.currentTarget.style.zIndex = '3';
+                            }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                            e.currentTarget.style.zIndex = '2';
+                            if (!isCurrentlyResizing) {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                              e.currentTarget.style.zIndex = '2';
+                              e.currentTarget.style.cursor = 'move';
+                            }
                           }}
                         >
                           <div style={styles.appointmentHeader}>
@@ -489,6 +647,30 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                             <div style={styles.appointmentDuration}>{appointment.duration}m</div>
                           </div>
                           <div style={styles.appointmentService}>{appointment.serviceName}</div>
+                          
+                          {/* Resize handles */}
+                          <div 
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: '8px',
+                              cursor: 'ns-resize',
+                              zIndex: 10
+                            }}
+                          />
+                          <div 
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              height: '8px',
+                              cursor: 'ns-resize',
+                              zIndex: 10
+                            }}
+                          />
                         </div>
                       );
                     })
@@ -508,6 +690,38 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
               }}
             >
               <div style={styles.currentTimeIndicator}></div>
+            </div>
+          )}
+          
+          {/* Resize Preview Tooltip */}
+          {resizePreview && (
+            <div 
+              style={{
+                position: 'fixed',
+                top: resizePreview.position.top,
+                left: resizePreview.position.left,
+                background: '#2c3e50',
+                color: '#ffffff',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 1000,
+                pointerEvents: 'none',
+                whiteSpace: 'nowrap',
+                border: '2px solid #3788d8'
+              }}
+            >
+              <div style={{ marginBottom: '2px', color: '#ecf0f1' }}>
+                📅 {isSpanish ? 'Nuevo horario:' : 'New time:'}
+              </div>
+              <div style={{ color: '#3498db', fontFamily: 'monospace' }}>
+                {resizePreview.newStartTime} - {resizePreview.newEndTime}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#bdc3c7', marginTop: '2px' }}>
+                ⏱️ {moment(resizePreview.newEndTime, 'h:mm A').diff(moment(resizePreview.newStartTime, 'h:mm A'), 'minutes')}min
+              </div>
             </div>
           )}
         </div>
@@ -774,11 +988,26 @@ const Calender = () => {
     events, categories, upcommingevents, isEventUpdated
   } = useSelector(calendarDataProperties);
 
+  console.log('📅 [CALENDAR COMPONENT] Events from Redux:', events);
+  console.log('📅 [CALENDAR COMPONENT] Events count:', events?.length || 0);
+  console.log('📅 [CALENDAR COMPONENT] Categories:', categories);
+  console.log('📅 [CALENDAR COMPONENT] Selected date:', selectedDate);
+  console.log('📅 [CALENDAR COMPONENT] View filter:', viewFilter);
+
   useEffect(() => {
     // Cargar categorías solo una vez
     dispatch(onGetCategories());
     // Cargar staff y servicios para filtros
     loadStaff();
+    
+    // 🚨 TEMPORAL: Cargar eventos sin filtros para debug
+    console.log('🚨 [DEBUG] Loading events without filters for debugging...');
+    dispatch(onGetEvents({
+      page: 1,
+      limit: 1000,
+      startDate: '2026-02-20',
+      endDate: '2026-02-25'
+    }));
     
     // Cargar eventos iniciales con filtros por defecto
     const today = new Date();
@@ -1031,7 +1260,7 @@ const Calender = () => {
     }
     
     // Configurar valores preseleccionados para CreateBookingModal
-    const timeString = moment(date).format('HH:mm');
+    const timeString = moment(date).format('h:mm A');
     setPreselectedDate(date);
     setPreselectedTime(timeString);
     setPreselectedStaffId(staffId);
@@ -1705,8 +1934,8 @@ const Calender = () => {
       // Preparar los datos para la actualización
       const updateData = {
         appointmentDate: moment(newDate).format('YYYY-MM-DD'),
-        startTime: moment(newDate).format('HH:mm'),
-        endTime: moment(newEndDate).format('HH:mm'),
+        startTime: moment(newDate).format('h:mm A'),
+        endTime: moment(newEndDate).format('h:mm A'),
         staffId: newStaffId
       };
 
@@ -1758,6 +1987,76 @@ const Calender = () => {
   };
 
   /**
+   * Handle resizing an event by dragging the borders
+   */
+  const handleEventResized = async (bookingId: string, newStartTime: string, newEndTime: string) => {
+    try {
+      // Find the original event to get the current date
+      const originalEvent = events.find((e: any) => e.id === bookingId);
+      if (!originalEvent) return;
+
+      // Convert AM/PM format to 24-hour format for backend
+      const convertTo24Hour = (time12h: string) => {
+        return moment(time12h, 'h:mm A').format('HH:mm:ss');
+      };
+
+      // Prepare update data
+      const updateData = {
+        appointmentDate: moment(originalEvent.start).format('YYYY-MM-DD'),
+        startTime: convertTo24Hour(newStartTime),
+        endTime: convertTo24Hour(newEndTime)
+      };
+
+      console.log('🔄 Resizing event:', { bookingId, updateData });
+
+      // Update in database
+      await updateBooking(bookingId, updateData);
+      
+      // Reload events to maintain consistency
+      if (viewFilter === 'timeGridDay') {
+        // For custom day view, reload with current date
+        const startDate = moment(selectedDate).format('YYYY-MM-DD');
+        const endDate = moment(selectedDate).format('YYYY-MM-DD');
+        
+        // Apply same filter logic as main filter
+        let finalStaffId = null;
+        if (user && user.role === 'staff') {
+          finalStaffId = user.staffId || user.id;
+        } else if (staffFilter && staffFilter.trim() !== '') {
+          finalStaffId = staffFilter;
+        }
+        
+        const filters: any = {
+          page: 1,
+          limit: 1000,
+          startDate,
+          endDate
+        };
+        
+        if (finalStaffId) {
+          filters.staffId = finalStaffId;
+        }
+        
+        if (statusFilter && statusFilter.trim() !== '') {
+          filters.status = statusFilter;
+        }
+        
+        dispatch(onGetEvents(filters));
+      } else {
+        applyFilters();
+      }
+      
+      // Reload upcoming events
+      dispatch(onGetUpCommingEvent());
+      
+      toast.success('Event duration updated successfully');
+    } catch (error) {
+      console.error('Error resizing event:', error);
+      toast.error('Failed to update event duration');
+    }
+  };
+
+  /**
    * Clean up all tooltips from the page
    */
   const cleanupTooltips = () => {
@@ -1799,8 +2098,8 @@ const Calender = () => {
       // Preparar los datos para la actualización
       const updateData = {
         appointmentDate: moment(newStart).format('YYYY-MM-DD'),
-        startTime: moment(newStart).format('HH:mm'),
-        endTime: moment(newEnd).format('HH:mm'),
+        startTime: moment(newStart).format('h:mm A'),
+        endTime: moment(newEnd).format('h:mm A'),
       };
 
       // Actualizar en la base de datos
@@ -1833,7 +2132,7 @@ const Calender = () => {
     try {
       // Preparar los datos para la actualización (solo cambiar el endTime)
       const updateData = {
-        endTime: moment(newEnd).format('HH:mm'),
+        endTime: moment(newEnd).format('h:mm A'),
       };
 
       // Actualizar en la base de datos
@@ -2239,6 +2538,7 @@ const Calender = () => {
                           onEventClick={handleEventClick}
                           onSlotClick={handleSlotClick}
                           onEventMoved={handleEventMoved}
+                          onEventResized={handleEventResized}
                           isSpanish={isSpanish}
                           t={t}
                           staffFilter={staffFilter}
@@ -2297,8 +2597,8 @@ const Calender = () => {
                             const event = info.event;
                             
                             // Format start and end times
-                            const startTime = event.start ? moment(event.start).format('HH:mm') : '';
-                            const endTime = event.end ? moment(event.end).format('HH:mm') : '';
+                            const startTime = event.start ? moment(event.start).format('h:mm A') : '';
+                            const endTime = event.end ? moment(event.end).format('h:mm A') : '';
                             const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : '';
                             
                             const tooltip = document.createElement('div');
