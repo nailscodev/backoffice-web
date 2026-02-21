@@ -1193,6 +1193,7 @@
     "booking.customer.saving": "Saving...",
     
     "booking.services.title": "Select Services and Staff",
+    "booking.services.filtered_by_staff": "Services filtered for staff: {{staffName}}",
     "booking.services.add_service": "+ Add Service",
     "booking.services.service_label": "Service",
     "booking.services.select_service": "Select service...",
@@ -1302,6 +1303,7 @@
     "booking.toast.create_customer_error": "Error creating customer",
     "booking.toast.load_slots_error": "Error loading available slots",
     "booking.toast.service_already_added": "This service is already added",
+    "booking.toast.service_replaced_single_mode": "Service replaced (only one service allowed from calendar)",
     "booking.toast.slots_verified": "Slots verified and available",
     "booking.toast.verify_slots_error": "Error verifying availability",
     "booking.toast.complete_all_fields": "Please complete all fields",

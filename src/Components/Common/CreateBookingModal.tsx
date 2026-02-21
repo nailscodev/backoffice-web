@@ -46,6 +46,10 @@ interface CreateBookingModalProps {
   isOpen: boolean;
   toggle: () => void;
   onBookingCreated?: () => void;
+  preselectedDate?: Date;
+  preselectedTime?: string;
+  preselectedStaffId?: string;
+  restrictToOneService?: boolean;
 }
 
 interface TimeSlot {
@@ -88,6 +92,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   isOpen,
   toggle,
   onBookingCreated,
+  preselectedDate,
+  preselectedTime,
+  preselectedStaffId,
+  restrictToOneService = false,
 }) => {
   const { t, i18n } = useTranslation();
   
@@ -121,6 +129,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   const [weekStartDate, setWeekStartDate] = useState<Date>(new Date()); // Estado para controlar qué semana se muestra
   const [availableStaff, setAvailableStaff] = useState<Staff[]>([]);
   const [notes, setNotes] = useState('');
+  
+  // Variable para saber si el tiempo viene preseleccionado del calendario
+  const [hasPreselectedTime, setHasPreselectedTime] = useState(false);
   
   // Combos VIP y validación avanzada
   const [isVIPCombo, setIsVIPCombo] = useState(false);
@@ -163,6 +174,22 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       setLoading(false);
     }
   };
+
+  // Manejar valores preseleccionados del calendario
+  useEffect(() => {
+    if (isOpen && preselectedDate) {
+      setSelectedDate(preselectedDate);
+      // Si viene del calendario, ir directamente al paso de servicios
+      if (preselectedTime) {
+        setSelectedTime(preselectedTime);
+        setHasPreselectedTime(true); // Marcar que tiene tiempo preseleccionado
+        // Si es desde el calendario, empezar con el paso de servicios en lugar de customer
+        setStep('services');
+      } else {
+        setStep('customer');
+      }
+    }
+  }, [isOpen, preselectedDate, preselectedTime]);
 
   // Formik para nuevo cliente
   const customerForm = useFormik({
@@ -256,7 +283,19 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   const servicesByCategory = useMemo(() => {
     const grouped: Record<string, Service[]> = {};
     
-    services.forEach(service => {
+    // Si hay staff preseleccionado del calendario, filtrar solo sus servicios
+    let filteredServices = services;
+    if (preselectedStaffId) {
+      const preselectedStaff = staff.find(s => s.id === preselectedStaffId);
+      if (preselectedStaff?.services) {
+        // Filtrar solo los servicios que puede brindar el staff preseleccionado
+        filteredServices = services.filter(service => 
+          preselectedStaff.services?.some(staffService => staffService.id === service.id)
+        );
+      }
+    }
+    
+    filteredServices.forEach(service => {
       const categoryId = service.categoryId;
       if (!grouped[categoryId]) {
         grouped[categoryId] = [];
@@ -265,7 +304,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     });
     
     return grouped;
-  }, [services]);
+  }, [services, preselectedStaffId, staff]);
 
   // Detectar si es elegible para VIP Combo (2+ servicios de diferente técnico)
   // IMPORTANT: Only auto-set VIP when user hasn't made explicit choice yet
@@ -532,8 +571,26 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       return;
     }
 
+    // Si está restringido a un solo servicio (desde calendario), reemplazar el servicio existente
+    if (restrictToOneService && selectedServices.length >= 1) {
+      toast.info(t('booking.toast.service_replaced_single_mode'));
+      // Auto-asignar staff con menor workload que pueda hacer el servicio
+      const autoStaffId = preselectedStaffId || autoAssignStaff(service);
+      const autoStaff = staff.find(s => s.id === autoStaffId);
+
+      setSelectedServices([
+        {
+          service,
+          addOns: [],
+          staffId: autoStaffId,
+          staffName: autoStaff ? `${autoStaff.firstName} ${autoStaff.lastName}` : undefined,
+        }
+      ]);
+      return;
+    }
+
     // Auto-asignar staff con menor workload que pueda hacer el servicio
-    const autoStaffId = autoAssignStaff(service);
+    const autoStaffId = preselectedStaffId || autoAssignStaff(service);
     const autoStaff = staff.find(s => s.id === autoStaffId);
 
     setSelectedServices([
@@ -573,9 +630,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Asignar staff a un servicio
   const assignStaff = (serviceId: string, staffId: string) => {
     const staffMember = staff.find(s => s.id === staffId);
-    // Resetear la verificación y los time slots cuando cambia el staff
+    // Resetear la verificación cuando cambia el staff
     setSlotVerified(false);
-    setSelectedTime(null); // Forzar a que vuelva a seleccionar horario con el nuevo staff
+    // Siempre resetear el tiempo cuando se cambia staff, independientemente de la preselección
+    // porque la disponibilidad del horario puede cambiar con diferente staff
+    setSelectedTime(null);
+    setHasPreselectedTime(false); // Quitar la bandera porque ya no es válida la preselección
     
     setSelectedServices(
       selectedServices.map(s => {
@@ -811,6 +871,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Handler para cuando se selecciona un horario
   const handleTimeSelect = async (time: string) => {
     setSelectedTime(time);
+    setHasPreselectedTime(false); // Quitar la bandera al seleccionar manualmente
     // Resetear verificación cuando cambia el horario
     setSlotVerified(false);
 
@@ -894,6 +955,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     setUserConfirmedVIPChoice(false); // Reset user's VIP choice
     setSlotVerified(false);
     setStaffWorkloads([]);
+    setHasPreselectedTime(false); // Reset preselected time flag
     customerForm.resetForm();
     toggle();
   };
@@ -1325,6 +1387,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         {step === 'services' && !loading && (
           <div>
             <h5 className="mb-3">{t('booking.services.title')}</h5>
+            
+            {/* Mensaje informativo cuando hay staff preseleccionado */}
+            {preselectedStaffId && (
+              <Alert color="info" className="mb-3">
+                <i className="ri-information-line me-2"></i>
+                {t('booking.services.filtered_by_staff', {
+                  staffName: `${staff.find(s => s.id === preselectedStaffId)?.firstName || ''} ${staff.find(s => s.id === preselectedStaffId)?.lastName || ''}`.trim()
+                })}
+              </Alert>
+            )}
 
             {/* Servicios seleccionados */}
             {selectedServices.length > 0 && (
@@ -1810,7 +1882,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                             disabled={isDisabled}
                             onClick={() => {
                               setSelectedDate(date.toDate());
-                              setSelectedTime(null);
+                              // Solo resetear el tiempo si no viene preseleccionado del calendario
+                              if (!hasPreselectedTime) {
+                                setSelectedTime(null);
+                              }
                             }}
                             style={{ minHeight: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}
                           >
@@ -1839,7 +1914,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         const newWeekStart = moment(weekStartDate).subtract(7, 'days');
                         if (newWeekStart.isSameOrAfter(moment(), 'day')) {
                           setWeekStartDate(newWeekStart.toDate());
-                          setSelectedTime(null);
+                          // Solo resetear el tiempo si no viene preseleccionado del calendario
+                          if (!hasPreselectedTime) {
+                            setSelectedTime(null);
+                          }
                         }
                       }}
                       disabled={moment(weekStartDate).subtract(7, 'days').isBefore(moment(), 'day')}
@@ -1856,7 +1934,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         // Avanzar 7 días
                         const newWeekStart = moment(weekStartDate).add(7, 'days');
                         setWeekStartDate(newWeekStart.toDate());
-                        setSelectedTime(null);
+                        // Solo resetear el tiempo si no viene preseleccionado del calendario
+                        if (!hasPreselectedTime) {
+                          setSelectedTime(null);
+                        }
                       }}
                     >
                       {t('booking.datetime.next_week')} <i className="ri-arrow-right-s-line"></i>

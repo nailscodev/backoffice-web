@@ -44,6 +44,7 @@ import { useSelector, useDispatch } from "react-redux";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
 import DeleteModal from "../../Components/Common/DeleteModal";
 import ReservationModal from "../../Components/Common/ReservationModal";
+import CreateBookingModal from "../../Components/Common/CreateBookingModal";
 
 //Simple bar
 import SimpleBar from "simplebar-react";
@@ -669,6 +670,15 @@ const Calender = () => {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [isEditBooking, setIsEditBooking] = useState<boolean>(false);
   
+  // Estados para CreateBookingModal desde calendario
+  const [createBookingModal, setCreateBookingModal] = useState<boolean>(false);
+  const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
+  const [preselectedTime, setPreselectedTime] = useState<string | undefined>(undefined);
+  const [preselectedStaffId, setPreselectedStaffId] = useState<string | undefined>(undefined);
+  
+  // Estado para CreateBookingModal normal (desde botón de filtros)
+  const [generalCreateBookingModal, setGeneralCreateBookingModal] = useState<boolean>(false);
+  
   // Service editing data
   const [allServices, setAllServices] = useState<Service[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -945,17 +955,14 @@ const Calender = () => {
       return; // No permitir crear reservas en el pasado
     }
     
-    const endDate = new Date(date.getTime() + 30 * 60000); // Añadir 30 minutos
-    setSelectedNewDay([date]);
-    setPreselectedCategory(""); // Sin categoría preseleccionada
-    setEvent({
-      title: "",
-      start: date,
-      end: endDate,
-      defaultDate: [date],
-      staffId: staffId // Preselect staff
-    });
-    toggle();
+    // Configurar valores preseleccionados para CreateBookingModal
+    const timeString = moment(date).format('HH:mm');
+    setPreselectedDate(date);
+    setPreselectedTime(timeString);
+    setPreselectedStaffId(staffId);
+    
+    // Abrir CreateBookingModal
+    setCreateBookingModal(true);
   };
 
   const str_dt = function formatDate(date: any) {
@@ -1986,19 +1993,28 @@ const Calender = () => {
             <Col>
               <Card>
                 <CardHeader>
-                  <Nav className="nav-tabs-custom rounded card-header-tabs border-bottom-0" role="tablist">
-                    <NavItem>
-                      <NavLink
-                        to="#"
-                        className={classnames({ active: activeTab === "1" })}
-                        onClick={() => setActiveTab("1")}
-                        type="button"
-                      >
-                        <i className="fas fa-home"></i>
-                        {t('calendar.all_reservations')}
-                      </NavLink>
-                    </NavItem>
-                  </Nav>
+                  <Row className="align-items-center">
+                    <Col>
+                      <Nav className="nav-tabs-custom rounded card-header-tabs border-bottom-0" role="tablist">
+                        <NavItem>
+                          <NavLink
+                            to="#"
+                            className={classnames({ active: activeTab === "1" })}
+                            onClick={() => setActiveTab("1")}
+                            type="button"
+                          >
+                            <i className="fas fa-home"></i>
+                            {t('calendar.all_reservations')}
+                          </NavLink>
+                        </NavItem>
+                      </Nav>
+                    </Col>
+                    <Col xs="auto">
+                      <Button color="success" onClick={() => setGeneralCreateBookingModal(true)}>
+                        <i className="ri-add-line align-bottom me-1"></i> {t('reservations.create_reservation')}
+                      </Button>
+                    </Col>
+                  </Row>
                 </CardHeader>
                 <CardBody>
                   <Row className="g-3">
@@ -2893,6 +2909,37 @@ const Calender = () => {
               </ModalFooter>
             </form>
           </Modal>
+
+          {/* CreateBookingModal para crear reservas desde el calendario */}
+          <CreateBookingModal
+            isOpen={createBookingModal}
+            toggle={() => {
+              setCreateBookingModal(false);
+              setPreselectedDate(undefined);
+              setPreselectedTime(undefined);
+              setPreselectedStaffId(undefined);
+            }}
+            onBookingCreated={() => {
+              // Refrescar el calendario después de crear la reserva
+              applyFilters();
+              dispatch(onGetUpCommingEvent());
+            }}
+            preselectedDate={preselectedDate}
+            preselectedTime={preselectedTime}
+            preselectedStaffId={preselectedStaffId}
+            restrictToOneService={true}
+          />
+
+          {/* CreateBookingModal normal desde botón de filtros */}
+          <CreateBookingModal
+            isOpen={generalCreateBookingModal}
+            toggle={() => setGeneralCreateBookingModal(false)}
+            onBookingCreated={() => {
+              // Refrescar el calendario después de crear la reserva
+              applyFilters();
+              dispatch(onGetUpCommingEvent());
+            }}
+          />
 
         </Container>
       </div>

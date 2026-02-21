@@ -1128,6 +1128,7 @@
     "booking.customer.saving": "Guardando...",
     
     "booking.services.title": "Seleccionar Servicios y Personal",
+    "booking.services.filtered_by_staff": "Servicios filtrados para el técnico: {{staffName}}",
     "booking.services.add_service": "+ Agregar Servicio",
     "booking.services.service_label": "Servicio",
     "booking.services.select_service": "Seleccionar servicio...",
@@ -1234,6 +1235,8 @@
     "booking.toast.booking_created": "¡Reserva creada exitosamente!",
     "booking.toast.booking_error": "Error al crear la reserva",
     "booking.toast.load_error": "Error al cargar datos iniciales",
+    "booking.toast.service_already_added": "Este servicio ya está agregado",
+    "booking.toast.service_replaced_single_mode": "Servicio reemplazado (solo se permite un servicio desde el calendario)",
     "roles.assignment.title": "Asignar Pantallas a Roles",
     "roles.assignment.select_role": "Selecciona un rol:",
     "roles.assignment.select_role_placeholder": "-- Selecciona un rol --",
