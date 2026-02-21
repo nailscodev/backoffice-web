@@ -92,6 +92,8 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: 
           email: booking.customerEmail,
           service: booking.serviceName,
           staff: booking.staffName,
+          staffId: booking.staffId, // Add staffId if available
+          staffName: booking.staffName,
           status: booking.status,
           paymentMethod: booking.paymentMethod,
           totalPrice: booking.totalPrice,

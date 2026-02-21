@@ -73,6 +73,518 @@ import "moment/locale/es";
 import esLocale from '@fullcalendar/core/locales/es';
 import enLocale from '@fullcalendar/core/locales/en-gb';
 
+// Custom Day View Component
+interface AppointmentCard {
+  id: string;
+  customerName: string;
+  serviceName: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  status: string;
+  backgroundColor: string;
+  textColor: string;
+  event: any;
+}
+
+interface CustomDayViewProps {
+  events: any[];
+  staff: Staff[];
+  selectedDate: Date;
+  onEventClick: (event: any) => void;
+  onSlotClick: (date: Date, staffId: string) => void;
+  onEventMoved: (bookingId: string, newDate: Date, newStaffId: string) => Promise<void>;
+  isSpanish: boolean;
+  t: any;
+}
+
+const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onEventMoved, isSpanish, t }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [draggedBooking, setDraggedBooking] = useState<any>(null);
+
+  // Debug logging
+  console.log('📅 CustomDayView rendered with:', {
+    selectedDate: selectedDate.toISOString(),
+    eventsCount: events.length,
+    staffCount: staff.length,
+    events: events,
+    staff: staff
+  });
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Generate time slots (30-minute intervals from 8:00 AM to 8:00 PM)
+  const generateTimeSlots = () => {
+    const slots = [];
+    const startHour = 8;
+    const endHour = 20;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      slots.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
+    return slots;
+  };
+
+  const timeSlots = generateTimeSlots();
+  console.log('⏰ Generated time slots:', timeSlots);
+
+  // Filter events for selected date and organize by staff
+  const getEventsForStaff = (staffId: string) => {
+    const dateStr = moment(selectedDate).format('YYYY-MM-DD');
+    
+    // Find the staff member to get their name
+    const staffMember = staff.find(s => s.id === staffId);
+    const staffName = staffMember?.fullName;
+    
+    console.log('🔍 Filtering events for staff:', { staffId, staffName, dateStr });
+    console.log('📋 Available events:', events);
+    
+    return events.filter(event => {
+      const eventDate = moment(event.start).format('YYYY-MM-DD');
+      
+      // Try to match by staffId first, then by staffName
+      const eventStaffId = event.extendedProps?.staffId || event.staffId;
+      const eventStaffName = event.extendedProps?.staffName || event.extendedProps?.staff || event.staff;
+      
+      const dateMatches = eventDate === dateStr;
+      const staffMatches = eventStaffId === staffId || eventStaffName === staffName;
+      
+      console.log('🔍 Event check:', {
+        eventId: event.id,
+        eventDate,
+        eventStaffId,
+        eventStaffName,
+        dateMatches,
+        staffMatches,
+        included: dateMatches && staffMatches
+      });
+      
+      return dateMatches && staffMatches;
+    }).map(event => ({
+      id: event.id,
+      customerName: event.title,
+      serviceName: event.extendedProps?.service || event.service || '',
+      startTime: moment(event.start).format('HH:mm'),
+      endTime: moment(event.end).format('HH:mm'),
+      duration: moment(event.end).diff(moment(event.start), 'minutes'),
+      status: event.extendedProps?.status || '',
+      backgroundColor: event.backgroundColor || '#3788d8',
+      textColor: event.textColor || '#ffffff',
+      event: event
+    }));
+  };
+
+  // Calculate position and height for appointment cards
+  const getCardPosition = (startTime: string, duration: number) => {
+    const [hour, minute] = startTime.split(':').map(Number);
+    const startMinutes = (hour - 8) * 60 + minute; // Relative to 8:00 AM
+    const top = (startMinutes / 30) * 40; // 40px per 30-minute slot
+    const height = Math.max((duration / 30) * 40, 30); // Minimum 30px height
+    
+    console.log('📐 Card position calc:', {
+      startTime,
+      duration,
+      hour,
+      minute,
+      startMinutes,
+      top: `${top}px`,
+      height: `${height}px`
+    });
+    
+    return { top: `${top}px`, height: `${height}px` };
+  };
+
+  // Get current time position
+  const getCurrentTimePosition = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    if (hour < 8 || hour >= 20) return null;
+    
+    const currentMinutes = (hour - 8) * 60 + minute;
+    const top = (currentMinutes / 30) * 40;
+    return `${top}px`;
+  };
+
+  const currentTimePosition = getCurrentTimePosition();
+  const isToday = moment(selectedDate).isSame(moment(), 'day');
+
+  const handleSlotClick = (timeSlot: string, staffId: string) => {
+    const [hour, minute] = timeSlot.split(':').map(Number);
+    const slotDate = new Date(selectedDate);
+    slotDate.setHours(hour, minute, 0, 0);
+    
+    // Don't allow booking in the past
+    if (slotDate < new Date()) return;
+    
+    onSlotClick(slotDate, staffId);
+  };
+
+  return (
+    <div style={styles.customDayView}>
+      {/* Header */}
+      <div style={styles.dayHeader}>
+        <h6 className="mb-0">
+          {moment(selectedDate).format(isSpanish ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, MMMM D, YYYY')}
+        </h6>
+        {/* Debug info */}
+        <small style={{ color: '#6c757d', fontSize: '0.7rem' }}>
+          Events: {events.length} | Staff: {staff.length}
+        </small>
+      </div>
+      
+      {/* Grid */}
+      <div style={styles.timeGrid}>
+        {/* Time column */}
+        <div style={styles.timeColumn}>
+          <div style={{ height: '42px', borderBottom: '1px solid #dee2e6' }}></div>
+          {timeSlots.map((timeSlot, index) => (
+            <div 
+              key={timeSlot} 
+              style={{
+                ...styles.timeSlot,
+                ...(timeSlot.endsWith('00') ? styles.timeSlotHour : {})
+              }}
+            >
+              {timeSlot.endsWith('00') ? timeSlot : ''}
+            </div>
+          ))}
+        </div>
+        
+        {/* Staff columns */}
+        <div style={styles.staffColumns}>
+          {staff.map((staffMember, index) => {
+            const staffEvents = getEventsForStaff(staffMember.id);
+            const isLastColumn = index === staff.length - 1;
+            
+            console.log(`🧑‍💼 Staff ${staffMember.fullName} events:`, staffEvents);
+            
+            return (
+              <div 
+                key={staffMember.id} 
+                style={{
+                  ...styles.staffColumn,
+                  borderRight: isLastColumn ? 'none' : '1px solid #dee2e6'
+                }}
+              >
+                {/* Staff header */}
+                <div style={styles.staffHeader}>
+                  {staffMember.fullName}
+                </div>
+                
+                {/* Staff slots */}
+                <div 
+                  style={styles.staffSlots}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    // Add visual feedback for drop zone
+                    if (draggedBooking) {
+                      e.currentTarget.style.backgroundColor = 'rgba(55, 136, 216, 0.1)';
+                      e.currentTarget.style.border = '2px dashed #3788d8';
+                    }
+                  }}
+                  onDragLeave={(e) => {
+                    // Remove drop zone visual feedback
+                    if (draggedBooking && !e.currentTarget.contains(e.relatedTarget as Node)) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.border = 'none';
+                    }
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    // Clean drop zone visual feedback
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.border = 'none';
+                    
+                    if (!draggedBooking) return;
+                    
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const y = e.clientY - rect.top - 42; // Subtract header height
+                    const slotIndex = Math.floor(y / 40); // 40px per slot
+                    
+                    if (slotIndex >= 0 && slotIndex < timeSlots.length) {
+                      const newTimeSlot = timeSlots[slotIndex];
+                      const [hour, minute] = newTimeSlot.split(':').map(Number);
+                      const newDate = new Date(selectedDate);
+                      newDate.setHours(hour, minute, 0, 0);
+                      
+                      // Don't allow dropping in the past
+                      if (newDate < new Date()) return;
+                      
+                      try {
+                        await onEventMoved(draggedBooking.id, newDate, staffMember.id);
+                      } catch (error) {
+                        console.error('Error moving appointment:', error);
+                      }
+                    }
+                  }}
+                >
+                  {/* Time slots */}
+                  {timeSlots.map((timeSlot, index) => {
+                    const [hour, minute] = timeSlot.split(':').map(Number);
+                    const slotDate = new Date(selectedDate);
+                    slotDate.setHours(hour, minute, 0, 0);
+                    const isPast = slotDate < new Date();
+                    
+                    return (
+                      <div 
+                        key={timeSlot}
+                        style={{
+                          ...styles.slot,
+                          ...(timeSlot.endsWith('00') ? styles.slotHour : {}),
+                          ...(isPast ? styles.slotPast : {})
+                        }}
+                        onClick={() => !isPast && handleSlotClick(timeSlot, staffMember.id)}
+                        onMouseEnter={(e) => {
+                          if (!isPast) {
+                            e.currentTarget.style.backgroundColor = draggedBooking ? 'rgba(55, 136, 216, 0.2)' : 'rgba(55, 136, 216, 0.1)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isPast) {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }
+                        }}
+                      ></div>
+                    );
+                  })}
+                  
+                  {/* Appointment cards */}
+                  {staffEvents.length === 0 ? (
+                    <div style={{
+                      position: 'absolute' as 'absolute',
+                      top: '10px',
+                      left: '4px',
+                      right: '4px',
+                      padding: '4px',
+                      fontSize: '0.7rem',
+                      color: '#6c757d',
+                      textAlign: 'center' as 'center',
+                      fontStyle: 'italic'
+                    }}>
+                      No appointments
+                    </div>
+                  ) : (
+                    staffEvents.map(appointment => {
+                      const position = getCardPosition(appointment.startTime, appointment.duration);
+                      return (
+                        <div
+                          key={appointment.id}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            setDraggedBooking({
+                              id: appointment.event.id,
+                              currentStaffId: staffMember.id,
+                              duration: appointment.duration
+                            });
+                            e.dataTransfer.effectAllowed = 'move';
+                            // Add visual feedback
+                            (e.target as HTMLElement).style.opacity = '0.5';
+                          }}
+                          onDragEnd={(e) => {
+                            setDraggedBooking(null);
+                            // Remove visual feedback
+                            (e.target as HTMLElement).style.opacity = '1';
+                          }}
+                          style={{
+                            ...styles.appointmentCard,
+                            top: position.top,
+                            height: position.height,
+                            backgroundColor: appointment.backgroundColor,
+                            color: appointment.textColor,
+                            cursor: 'move'
+                          }}
+                          onClick={() => onEventClick({ event: appointment.event })}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                            e.currentTarget.style.zIndex = '3';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                            e.currentTarget.style.zIndex = '2';
+                          }}
+                        >
+                          <div style={styles.appointmentHeader}>
+                            <div style={styles.appointmentCustomer}>{appointment.customerName}</div>
+                            <div style={styles.appointmentDuration}>{appointment.duration}m</div>
+                          </div>
+                          <div style={styles.appointmentService}>{appointment.serviceName}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          
+          {/* Current time line */}
+          {isToday && currentTimePosition && (
+            <div 
+              style={{
+                ...styles.currentTimeLine,
+                top: `calc(42px + ${currentTimePosition})`
+              }}
+            >
+              <div style={styles.currentTimeIndicator}></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Styles object
+const styles = {
+  customDayView: {
+    border: '1px solid #dee2e6',
+    borderRadius: '0.375rem',
+    overflow: 'hidden',
+    background: 'white',
+  },
+  dayHeader: {
+    background: '#f8f9fa',
+    borderBottom: '1px solid #dee2e6',
+    padding: '1rem',
+  },
+  timeGrid: {
+    display: 'flex',
+    minHeight: '480px',
+    position: 'relative' as 'relative',
+  },
+  timeColumn: {
+    width: '80px',
+    borderRight: '1px solid #dee2e6',
+    background: '#f8f9fa',
+    flexShrink: 0,
+  },
+  timeSlot: {
+    height: '40px',
+    borderBottom: '1px solid #e9ecef',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.75rem',
+    color: '#6c757d',
+    position: 'relative' as 'relative',
+  },
+  timeSlotHour: {
+    borderBottom: '1px solid #dee2e6',
+    fontWeight: 500,
+  },
+  staffColumns: {
+    flex: 1,
+    display: 'flex',
+    position: 'relative' as 'relative',
+  },
+  staffColumn: {
+    flex: 1,
+    position: 'relative' as 'relative',
+    minHeight: '480px',
+  },
+  staffHeader: {
+    background: '#f8f9fa',
+    padding: '0.5rem',
+    textAlign: 'center' as 'center',
+    fontWeight: 500,
+    borderBottom: '1px solid #dee2e6',
+    height: '42px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staffSlots: {
+    position: 'relative' as 'relative',
+    height: '480px',
+  },
+  slot: {
+    height: '40px',
+    borderBottom: '1px solid #f1f3f4',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    position: 'relative' as 'relative',
+  },
+  slotHour: {
+    borderBottom: '1px solid #e9ecef',
+  },
+  slotPast: {
+    backgroundColor: '#f8f9fa',
+    cursor: 'not-allowed',
+  },
+  appointmentCard: {
+    position: 'absolute' as 'absolute',
+    left: '2px',
+    right: '2px',
+    borderRadius: '4px',
+    padding: '4px 6px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    zIndex: 2,
+    border: '1px solid rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+    wordBreak: 'break-word' as 'break-word',
+    lineHeight: 1.2,
+  },
+  appointmentHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '2px',
+  },
+  appointmentCustomer: {
+    fontWeight: 600,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    flex: 1,
+    marginRight: '4px',
+  },
+  appointmentService: {
+    opacity: 0.9,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontSize: '0.7rem',
+  },
+  appointmentDuration: {
+    opacity: 0.8,
+    fontSize: '0.65rem',
+    fontWeight: 500,
+    flexShrink: 0,
+  },
+  currentTimeLine: {
+    position: 'absolute' as 'absolute',
+    left: 0,
+    right: 0,
+    height: '2px',
+    background: '#dc3545',
+    zIndex: 5,
+    boxShadow: '0 0 4px rgba(220, 53, 69, 0.5)',
+  },
+  currentTimeIndicator: {
+    position: 'absolute' as 'absolute',
+    left: '-6px',
+    top: '-4px',
+    width: '10px',
+    height: '10px',
+    background: '#dc3545',
+    borderRadius: '50%',
+  },
+};
+
 const Calender = () => {
   const dispatch: any = useDispatch();
   const { t, i18n } = useTranslation();
@@ -145,7 +657,8 @@ const Calender = () => {
   const [activeTab, setActiveTab] = useState("1");
   const [staffFilter, setStaffFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [viewFilter, setViewFilter] = useState<string>("timeGridWeek");
+  const [viewFilter, setViewFilter] = useState<string>("timeGridDay");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   // Data states for dropdowns
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -295,6 +808,56 @@ const Calender = () => {
     return () => clearTimeout(delayReload);
   }, [staffFilter, statusFilter, user, dispatch]);
   
+  // Auto-reload events when selectedDate changes in custom day view
+  useEffect(() => {
+    if (viewFilter === 'timeGridDay') {
+      console.log('📅 [CUSTOM DAY] Date changed:', selectedDate);
+      console.log('📅 [CUSTOM DAY] Current events in state:', events);
+      
+      const delayReload = setTimeout(() => {
+        // Calculate start and end dates for the selected day
+        const startDate = moment(selectedDate).format('YYYY-MM-DD');
+        const endDate = moment(selectedDate).format('YYYY-MM-DD');
+        
+        console.log('📅 [CUSTOM DAY] Loading events for date range:', { startDate, endDate });
+        
+        // Determine final staff ID to use (same logic as main filter)
+        let finalStaffId = null;
+        
+        if (user && user.role === 'staff') {
+          finalStaffId = user.staffId || user.id;
+          console.log('🔒 [CUSTOM DAY] Staff user - using staff ID:', finalStaffId);
+        } else if (staffFilter && staffFilter.trim() !== '') {
+          finalStaffId = staffFilter;
+          console.log('👔 [CUSTOM DAY] Admin user - using selected staff:', finalStaffId);
+        } else {
+          console.log('🌐 [CUSTOM DAY] No staff filter - showing all staff');
+        }
+        
+        // Build filters object
+        const filters: any = {
+          page: 1,
+          limit: 1000,
+          startDate,
+          endDate
+        };
+        
+        if (finalStaffId) {
+          filters.staffId = finalStaffId;
+        }
+        
+        if (statusFilter && statusFilter.trim() !== '') {
+          filters.status = statusFilter;
+        }
+        
+        console.log('🚀 [CUSTOM DAY] Final filters being sent to backend:', JSON.stringify(filters, null, 2));
+        dispatch(onGetEvents(filters));
+      }, 300); // 300ms debounce
+      
+      return () => clearTimeout(delayReload);
+    }
+  }, [selectedDate, viewFilter, staffFilter, statusFilter, user, dispatch]);
+  
   useEffect(() => {
     // Inicializar Draggable cuando las categorías estén disponibles
     if (categories && categories.length > 0) {
@@ -367,6 +930,30 @@ const Calender = () => {
       start: date,
       end: endDate,
       defaultDate: [date],
+    });
+    toggle();
+  };
+
+  /**
+   * Handle slot click for custom day view
+   */
+  const handleSlotClick = (date: Date, staffId: string) => {
+    const now = new Date();
+    
+    // Verificar si la fecha/hora ya pasó
+    if (date < now) {
+      return; // No permitir crear reservas en el pasado
+    }
+    
+    const endDate = new Date(date.getTime() + 30 * 60000); // Añadir 30 minutos
+    setSelectedNewDay([date]);
+    setPreselectedCategory(""); // Sin categoría preseleccionada
+    setEvent({
+      title: "",
+      start: date,
+      end: endDate,
+      defaultDate: [date],
+      staffId: staffId // Preselect staff
     });
     toggle();
   };
@@ -966,8 +1553,36 @@ const Calender = () => {
    * Handle calendar navigation
    */
   const handleCalendarNavigation = (action: string) => {
-    if (calendarRef) {
+    if (action === 'timeGridWeek' || action === 'timeGridDay') {
+      setViewFilter(action);
+      if (calendarRef && action !== 'timeGridDay') {
+        const calendarApi = calendarRef.getApi();
+        calendarApi.changeView(action);
+      }
+      return;
+    }
+    
+    if (viewFilter === 'timeGridDay') {
+      // Handle navigation for custom day view
+      const currentDate = selectedDate;
+      let newDate = new Date(currentDate);
+      
+      switch (action) {
+        case 'prev':
+          newDate.setDate(currentDate.getDate() - 1);
+          break;
+        case 'next':
+          newDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'today':
+          newDate = new Date();
+          break;
+      }
+      
+      setSelectedDate(newDate);
+    } else if (calendarRef) {
       const calendarApi = calendarRef.getApi();
+      
       switch (action) {
         case 'prev':
           calendarApi.prev();
@@ -978,12 +1593,83 @@ const Calender = () => {
         case 'today':
           calendarApi.today();
           break;
-        case 'timeGridWeek':
-        case 'timeGridDay':
-          calendarApi.changeView(action);
-          setViewFilter(action);
-          break;
       }
+    }
+  };
+
+  /**
+   * Handle moving an event via drag and drop
+   */
+  const handleEventMoved = async (bookingId: string, newDate: Date, newStaffId: string) => {
+    try {
+      // Validar que la nueva fecha no sea en el pasado
+      const now = new Date();
+      if (newDate < now) {
+        toast.error(t('calendar.validation.past_time_error'));
+        return;
+      }
+
+      // Calculate end time based on original duration
+      const originalEvent = events.find((e: any) => e.id === bookingId);
+      if (!originalEvent) return;
+      
+      const originalStart = new Date(originalEvent.start);
+      const originalEnd = new Date(originalEvent.end);
+      const duration = originalEnd.getTime() - originalStart.getTime();
+      const newEndDate = new Date(newDate.getTime() + duration);
+
+      // Preparar los datos para la actualización
+      const updateData = {
+        appointmentDate: moment(newDate).format('YYYY-MM-DD'),
+        startTime: moment(newDate).format('HH:mm'),
+        endTime: moment(newEndDate).format('HH:mm'),
+        staffId: newStaffId
+      };
+
+      // Actualizar en la base de datos
+      await updateBooking(bookingId, updateData);
+      
+      // Recargar eventos para mantener consistencia
+      if (viewFilter === 'timeGridDay') {
+        // For custom day view, reload with current date
+        const startDate = moment(selectedDate).format('YYYY-MM-DD');
+        const endDate = moment(selectedDate).format('YYYY-MM-DD');
+        
+        // Apply same filter logic as main filter
+        let finalStaffId = null;
+        if (user && user.role === 'staff') {
+          finalStaffId = user.staffId || user.id;
+        } else if (staffFilter && staffFilter.trim() !== '') {
+          finalStaffId = staffFilter;
+        }
+        
+        const filters: any = {
+          page: 1,
+          limit: 1000,
+          startDate,
+          endDate
+        };
+        
+        if (finalStaffId) {
+          filters.staffId = finalStaffId;
+        }
+        
+        if (statusFilter && statusFilter.trim() !== '') {
+          filters.status = statusFilter;
+        }
+        
+        dispatch(onGetEvents(filters));
+      } else {
+        applyFilters();
+      }
+      
+      // Recargar upcoming events
+      dispatch(onGetUpCommingEvent());
+      
+      toast.success(t('calendar.success.event_rescheduled'));
+    } catch (error) {
+      console.error('Error moving event:', error);
+      toast.error(t('calendar.error.reschedule_failed'));
     }
   };
 
@@ -1346,7 +2032,6 @@ const Calender = () => {
                       >
                         <option value="">{t('calendar.all_status')}</option>
                         <option value="pending">{t('calendar.status_pending')}</option>
-                        <option value="confirmed">{t('calendar.status_confirmed')}</option>
                         <option value="in_progress">{t('calendar.status_in_progress')}</option>
                         <option value="completed">{t('calendar.status_completed')}</option>
                         <option value="cancelled">{t('calendar.status_cancelled')}</option>
@@ -1438,120 +2123,133 @@ const Calender = () => {
                             </div>
                           ))}
                       </div>
-                      <FullCalendar
-                        ref={setCalendarRef}
-                        plugins={[
-                          BootstrapTheme,
-                          timeGridPlugin,
-                          interactionPlugin
-                        ]}
-                        initialView={viewFilter}
-                        slotDuration={"00:30:00"}
-                        slotMinTime={"08:00:00"}
-                        slotMaxTime={"20:00:00"}
-                        handleWindowResize={true}
-                        themeSystem="bootstrap"
-                        height="auto"
-                        contentHeight="auto"
-                        headerToolbar={false} // Disable default toolbar since we have custom one
-                        locale={isSpanish ? esLocale : enLocale}
-                        dayHeaderFormat={isSpanish ? 
-                          { weekday: 'short', day: 'numeric', month: 'numeric' } : 
-                          { weekday: 'short', month: 'numeric', day: 'numeric' }
-                        }
-                        slotLabelFormat={{
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: false
-                        }}
-                        events={events}
-                        editable={true}
-                        droppable={true}
-                        selectable={true}
-                        validRange={undefined}
-                        dateClick={handleDateClick}
-                        eventClick={handleEventClick}
-                        drop={onDrop}
-                        datesSet={handleDatesSet}
-                        eventDrop={handleEventDrop}
-                        eventResize={handleEventResize}
-                        allDaySlot={false}
-                        expandRows={true}
-                        nowIndicator={true}
-                        eventDurationEditable={true}
-                        eventStartEditable={true}
-                        eventOverlap={true}
-                        selectMirror={true}
-                        dayMaxEvents={true}
-                        eventMouseEnter={(info) => {
-                          // Clean up any existing tooltips first
-                          cleanupTooltips();
-                          
-                          // Show tooltip on hover
-                          const event = info.event;
-                          
-                          // Format start and end times
-                          const startTime = event.start ? moment(event.start).format('HH:mm') : '';
-                          const endTime = event.end ? moment(event.end).format('HH:mm') : '';
-                          const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : '';
-                          
-                          const tooltip = document.createElement('div');
-                          tooltip.className = 'fc-tooltip';
-                          tooltip.style.cssText = `
-                            position: absolute;
-                            z-index: 1000;
-                            background: white;
-                            border: 1px solid #ccc;
-                            border-radius: 4px;
-                            padding: 8px;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                            font-size: 12px;
-                            max-width: 250px;
-                            pointer-events: none;
-                          `;
-                          tooltip.innerHTML = `
-                            <div><strong>${event.title}</strong></div>
-                            ${timeRange ? `<div><i class="ri-time-line"></i> ${timeRange}</div>` : ''}
-                            <div><i class="ri-scissors-cut-line"></i> ${event.extendedProps.service || ''}</div>
-                            <div><i class="ri-user-line"></i> ${event.extendedProps.staff || ''}</div>
-                            <div><span class="badge" style="background-color: ${event.backgroundColor}; color: ${event.textColor || '#ffffff'}">${event.extendedProps.status || ''}</span></div>
-                          `;
-                          document.body.appendChild(tooltip);
-                          (info.el as any).tooltip = tooltip;
-                          
-                          // Position tooltip
-                          const updateTooltipPosition = (e: MouseEvent) => {
-                            if (tooltip && tooltip.parentNode) {
-                              tooltip.style.left = (e.pageX + 10) + 'px';
-                              tooltip.style.top = (e.pageY - 10) + 'px';
-                            }
-                          };
-                          
-                          // Add mouse move listener
-                          (info.el as any).mouseMoveHandler = updateTooltipPosition;
-                          info.el.addEventListener('mousemove', updateTooltipPosition);
-                          updateTooltipPosition(info.jsEvent);
-                        }}
-                        eventMouseLeave={(info) => {
-                          // Remove tooltip
-                          if ((info.el as any).tooltip) {
-                            try {
-                              if ((info.el as any).tooltip.parentNode) {
-                                document.body.removeChild((info.el as any).tooltip);
+                      {viewFilter === 'timeGridDay' ? (
+                        <CustomDayView
+                          events={events}
+                          staff={staff}
+                          selectedDate={selectedDate}
+                          onEventClick={handleEventClick}
+                          onSlotClick={handleSlotClick}
+                          onEventMoved={handleEventMoved}
+                          isSpanish={isSpanish}
+                          t={t}
+                        />
+                      ) : (
+                        <FullCalendar
+                          ref={setCalendarRef}
+                          plugins={[
+                            BootstrapTheme,
+                            timeGridPlugin,
+                            interactionPlugin
+                          ]}
+                          initialView={viewFilter}
+                          slotDuration={"00:30:00"}
+                          slotMinTime={"08:00:00"}
+                          slotMaxTime={"20:00:00"}
+                          handleWindowResize={true}
+                          themeSystem="bootstrap"
+                          height="auto"
+                          contentHeight="auto"
+                          headerToolbar={false} // Disable default toolbar since we have custom one
+                          locale={isSpanish ? esLocale : enLocale}
+                          dayHeaderFormat={isSpanish ? 
+                            { weekday: 'short', day: 'numeric', month: 'numeric' } : 
+                            { weekday: 'short', month: 'numeric', day: 'numeric' }
+                          }
+                          slotLabelFormat={{
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: false
+                          }}
+                          events={events}
+                          editable={true}
+                          droppable={true}
+                          selectable={true}
+                          validRange={undefined}
+                          dateClick={handleDateClick}
+                          eventClick={handleEventClick}
+                          drop={onDrop}
+                          datesSet={handleDatesSet}
+                          eventDrop={handleEventDrop}
+                          eventResize={handleEventResize}
+                          allDaySlot={false}
+                          expandRows={true}
+                          nowIndicator={true}
+                          eventDurationEditable={true}
+                          eventStartEditable={true}
+                          eventOverlap={true}
+                          selectMirror={true}
+                          dayMaxEvents={true}
+                          eventMouseEnter={(info) => {
+                            // Clean up any existing tooltips first
+                            cleanupTooltips();
+                            
+                            // Show tooltip on hover
+                            const event = info.event;
+                            
+                            // Format start and end times
+                            const startTime = event.start ? moment(event.start).format('HH:mm') : '';
+                            const endTime = event.end ? moment(event.end).format('HH:mm') : '';
+                            const timeRange = startTime && endTime ? `${startTime} - ${endTime}` : '';
+                            
+                            const tooltip = document.createElement('div');
+                            tooltip.className = 'fc-tooltip';
+                            tooltip.style.cssText = `
+                              position: absolute;
+                              z-index: 1000;
+                              background: white;
+                              border: 1px solid #ccc;
+                              border-radius: 4px;
+                              padding: 8px;
+                              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                              font-size: 12px;
+                              max-width: 250px;
+                              pointer-events: none;
+                            `;
+                            tooltip.innerHTML = `
+                              <div><strong>${event.title}</strong></div>
+                              ${timeRange ? `<div><i class="ri-time-line"></i> ${timeRange}</div>` : ''}
+                              <div><i class="ri-scissors-cut-line"></i> ${event.extendedProps.service || ''}</div>
+                              <div><i class="ri-user-line"></i> ${event.extendedProps.staff || ''}</div>
+                              <div><span class="badge" style="background-color: ${event.backgroundColor}; color: ${event.textColor || '#ffffff'}">${event.extendedProps.status || ''}</span></div>
+                            `;
+                            document.body.appendChild(tooltip);
+                            (info.el as any).tooltip = tooltip;
+                            
+                            // Position tooltip
+                            const updateTooltipPosition = (e: MouseEvent) => {
+                              if (tooltip && tooltip.parentNode) {
+                                tooltip.style.left = (e.pageX + 10) + 'px';
+                                tooltip.style.top = (e.pageY - 10) + 'px';
                               }
-                            } catch (error) {
-                              console.warn('Error removing tooltip:', error);
+                            };
+                            
+                            // Add mouse move listener
+                            (info.el as any).mouseMoveHandler = updateTooltipPosition;
+                            info.el.addEventListener('mousemove', updateTooltipPosition);
+                            updateTooltipPosition(info.jsEvent);
+                          }}
+                          eventMouseLeave={(info) => {
+                            // Remove tooltip
+                            if ((info.el as any).tooltip) {
+                              try {
+                                if ((info.el as any).tooltip.parentNode) {
+                                  document.body.removeChild((info.el as any).tooltip);
+                                }
+                              } catch (error) {
+                                console.warn('Error removing tooltip:', error);
+                              }
+                              (info.el as any).tooltip = null;
                             }
-                            (info.el as any).tooltip = null;
-                          }
-                          
-                          // Remove mouse move listener
-                          if ((info.el as any).mouseMoveHandler) {
-                            info.el.removeEventListener('mousemove', (info.el as any).mouseMoveHandler);
-                            (info.el as any).mouseMoveHandler = null;
-                          }
-                        }}
-                      />
+                            
+                            // Remove mouse move listener
+                            if ((info.el as any).mouseMoveHandler) {
+                              info.el.removeEventListener('mousemove', (info.el as any).mouseMoveHandler);
+                              (info.el as any).mouseMoveHandler = null;
+                            }
+                          }}
+                        />
+                      )}
                     </CardBody>
                   </Card>
                 </Col>
