@@ -453,6 +453,7 @@
     "common.no": "No",
     "common.bookings": "bookings",
     "common.minutes_short": "min",
+    "common.loading": "Loading...",
     "common.addons": "Add-ons",
     "common.not_available": "Not available",
     "common.select_date": "Select date",
@@ -1011,6 +1012,8 @@
     "calendar.status_cancelled": "Cancelled",
     "calendar.apply_filters": "Apply",
     "calendar.clear_filters": "Clear",
+    "calendar.loading_events": "Loading events...",
+    "calendar.no_staff_available": "No staff available for today",
     
     "calendar.today": "Today",
     "calendar.view_month": "Month",

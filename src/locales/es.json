@@ -205,6 +205,7 @@
   "common.bookings": "reservas",
   "common.addons": "Adicionales:",
   "common.minutes_short": "min",
+  "common.loading": "Cargando...",
   "common.select_date": "Seleccionar fecha",
   "common.page_title_reservations": "Reservas | Nails & Co Midtown - Panel de Administraci\u00f3n",
   "reservations.id.copy_tooltip": "Clic para copiar: {{id}}",
@@ -243,6 +244,8 @@
   "calendar.status_cancelled": "Cancelada",
   "calendar.apply_filters": "Aplicar",
   "calendar.clear_filters": "Limpiar",
+  "calendar.loading_events": "Cargando eventos...",
+  "calendar.no_staff_available": "No hay personal disponible para hoy",
 
   "calendar.today": "Hoy",
   "calendar.view_month": "Mes",

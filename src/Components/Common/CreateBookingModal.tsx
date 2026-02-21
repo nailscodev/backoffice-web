@@ -332,6 +332,52 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     }
   }, [selectedServices, userConfirmedVIPChoice]);
 
+  // Helper: Obtener días laborables de los técnicos asignados
+  const getAvailableWorkingDays = (): number[] => {
+    if (selectedServices.length === 0) {
+      // Si no hay servicios seleccionados, mostrar todos los días (excepto domingos por defecto)
+      return [1, 2, 3, 4, 5, 6]; // Lunes a sábado
+    }
+
+    const workingDaysSet = new Set<number>();
+    
+    selectedServices.forEach(({ staffId }) => {
+      if (staffId && staffId !== 'any') {
+        const staffMember = staff.find(s => s.id === staffId);
+        if (staffMember?.workingDays) {
+          staffMember.workingDays.forEach((day: string) => {
+            // Convertir días de string a números (moment.js format)
+            const dayMap: { [key: string]: number } = {
+              'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+            };
+            const dayNum = dayMap[day];
+            if (dayNum !== undefined) {
+              workingDaysSet.add(dayNum);
+            }
+          });
+        }
+      } else if (staffId === 'any') {
+        // Si hay servicios con 'any', incluir todos los días laborables de todos los técnicos activos
+        staff.forEach(s => {
+          if (s.isActive && s.isAvailable && s.workingDays) {
+            s.workingDays.forEach((day: string) => {
+              const dayMap: { [key: string]: number } = {
+                'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+              };
+              const dayNum = dayMap[day];
+              if (dayNum !== undefined) {
+                workingDaysSet.add(dayNum);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Si no hay días disponibles (error en datos), retornar días laborables por defecto
+    return workingDaysSet.size > 0 ? Array.from(workingDaysSet) : [1, 2, 3, 4, 5, 6];
+  };
+
   // Generar slots de tiempo basados en disponibilidad del backend
   const generateTimeSlots = (): TimeSlot[] => {
     if (loadingSlots || availableSlots.length === 0) {
@@ -1870,7 +1916,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     {/* Generar 7 días desde weekStartDate */}
                     {Array.from({ length: 7 }).map((_, dayOffset) => {
                       const date = moment(weekStartDate).add(dayOffset, 'days');
-                      const isDisabled = date.day() === 0; // Domingo
+                      const availableWorkingDays = getAvailableWorkingDays();
+                      const isWorkingDay = availableWorkingDays.includes(date.day());
+                      const isPastDate = date.isBefore(moment(), 'day');
+                      const isDisabled = !isWorkingDay || isPastDate;
                       const isSelected = selectedDate && moment(selectedDate).isSame(date, 'day');
                       const isToday = date.isSame(moment(), 'day');
                       
@@ -1878,16 +1927,29 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         <Col key={dayOffset} className="text-center mb-2">
                           <button
                             type="button"
-                            className={`calendar-chip${isSelected ? ' selected' : ''}`}
+                            className={`calendar-chip${isSelected ? ' selected' : ''}${isDisabled ? ' disabled' : ''}`}
                             disabled={isDisabled}
                             onClick={() => {
-                              setSelectedDate(date.toDate());
-                              // Solo resetear el tiempo si no viene preseleccionado del calendario
-                              if (!hasPreselectedTime) {
-                                setSelectedTime(null);
+                              if (!isDisabled) {
+                                setSelectedDate(date.toDate());
+                                // Solo resetear el tiempo si no viene preseleccionado del calendario
+                                if (!hasPreselectedTime) {
+                                  setSelectedTime(null);
+                                }
                               }
                             }}
-                            style={{ minHeight: '80px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}
+                            style={{ 
+                              minHeight: '80px', 
+                              width: '100%', 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              padding: '0.5rem 0',
+                              opacity: isDisabled ? 0.5 : 1,
+                              cursor: isDisabled ? 'not-allowed' : 'pointer'
+                            }}
+                            title={isDisabled ? (!isWorkingDay ? 'Día no laborable para el técnico seleccionado' : 'Fecha pasada') : ''}
                           >
                             <span className="text-uppercase small mb-1" style={{ fontSize: '0.7rem' }}>
                               {date.format('ddd')}
@@ -2431,11 +2493,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       </ModalBody>
       <ModalFooter>
         <Button
-          color="secondary"
-          outline
+          color="light"
           onClick={() => {
             setSelectedRemovalIds([]);
             handleRemovalModalContinue();
+          }}
+          style={{ 
+            border: '1px solid #dee2e6',
+            color: '#6c757d'
           }}
         >
           <i className="ri-close-line me-1" />

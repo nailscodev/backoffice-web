@@ -97,19 +97,58 @@ interface CustomDayViewProps {
   onEventMoved: (bookingId: string, newDate: Date, newStaffId: string) => Promise<void>;
   isSpanish: boolean;
   t: any;
+  staffFilter: string;
 }
 
-const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onEventMoved, isSpanish, t }) => {
+const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onEventMoved, isSpanish, t, staffFilter }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [draggedBooking, setDraggedBooking] = useState<any>(null);
+
+  // Helper: Filtrar staff que trabaja en el día seleccionado
+  const getWorkingStaffForDate = (date: Date) => {
+    // Siempre usar formato inglés para los días de la semana, independientemente del idioma
+    const dayOfWeek = moment(date).locale('en').format('ddd'); // Siempre 'Mon', 'Tue', etc.
+    
+    return staff.filter(staffMember => {
+      // Verificar si el staff tiene workingDays definido
+      if (!staffMember.workingDays || !Array.isArray(staffMember.workingDays)) {
+        // Si no tiene workingDays, asumir que trabaja todos los días excepto domingo
+        return dayOfWeek !== 'Sun';
+      }
+      
+      // Verificar si el staff trabaja en este día de la semana
+      return staffMember.workingDays.includes(dayOfWeek);
+    });
+  };
+
+  // Filtrar staff trabajando por filtro de staff seleccionado
+  const getFilteredStaff = () => {
+    const workingStaff = getWorkingStaffForDate(selectedDate);
+    
+    // Si no hay filtro o el filtro está vacío, mostrar todo el staff que trabaja
+    if (!staffFilter || staffFilter.trim() === '') {
+      return workingStaff;
+    }
+    
+    // Filtrar solo el staff seleccionado en el filtro
+    return workingStaff.filter(staffMember => staffMember.id === staffFilter);
+  };
+
+  const filteredStaff = getFilteredStaff();
+  const allWorkingStaff = getWorkingStaffForDate(selectedDate);
 
   // Debug logging
   console.log('📅 CustomDayView rendered with:', {
     selectedDate: selectedDate.toISOString(),
+    dayOfWeek: moment(selectedDate).locale('en').format('ddd'), // Siempre mostrar en inglés para consistencia
     eventsCount: events.length,
-    staffCount: staff.length,
+    totalStaffCount: staff.length,
+    workingStaffCount: allWorkingStaff.length,
+    filteredStaffCount: filteredStaff.length,
     events: events,
-    staff: staff
+    staff: staff,
+    allWorkingStaff: allWorkingStaff,
+    filteredStaff: filteredStaff
   });
 
   // Update current time every minute
@@ -234,11 +273,14 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
       {/* Header */}
       <div style={styles.dayHeader}>
         <h6 className="mb-0">
-          {moment(selectedDate).format(isSpanish ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, MMMM D, YYYY')}
+          {(() => {
+            const formattedDate = moment(selectedDate).format(isSpanish ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, MMMM D, YYYY');
+            return formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+          })()}
         </h6>
         {/* Debug info */}
         <small style={{ color: '#6c757d', fontSize: '0.7rem' }}>
-          Events: {events.length} | Staff: {staff.length}
+          {isSpanish ? 'Eventos' : 'Events'}: {events.length} | {isSpanish ? 'Staff Disponible' : 'Available Staff'}: {filteredStaff.length}/{staff.length}
         </small>
       </div>
       
@@ -262,9 +304,35 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
         
         {/* Staff columns */}
         <div style={styles.staffColumns}>
-          {staff.map((staffMember, index) => {
+          {filteredStaff.length === 0 ? (
+            // Mensaje cuando no hay staff trabajando
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '400px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px',
+              border: '1px dashed #dee2e6',
+              color: '#6c757d',
+              fontSize: '1rem',
+              fontStyle: 'italic',
+              textAlign: 'center' as 'center',
+              padding: '20px'
+            }}>
+              <div>
+                <i className="ri-user-unfollow-line" style={{ fontSize: '2rem', marginBottom: '10px', display: 'block' }}></i>
+                {t('calendar.no_staff_available') || 'No staff available for today'}
+                <br />
+                <small style={{ color: '#adb5bd' }}>
+                  {moment(selectedDate).format(isSpanish ? 'dddd' : 'dddd')}
+                </small>
+              </div>
+            </div>
+          ) : (
+            filteredStaff.map((staffMember: any, index: number) => {
             const staffEvents = getEventsForStaff(staffMember.id);
-            const isLastColumn = index === staff.length - 1;
+            const isLastColumn = index === filteredStaff.length - 1;
             
             console.log(`🧑‍💼 Staff ${staffMember.fullName} events:`, staffEvents);
             
@@ -428,7 +496,8 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                 </div>
               </div>
             );
-          })}
+          })
+          )}
           
           {/* Current time line */}
           {isToday && currentTimePosition && (
@@ -652,7 +721,7 @@ const Calender = () => {
   const [eventName, setEventName] = useState<string>("");
   const [preselectedCategory, setPreselectedCategory] = useState<string>("");
   const lastDateRange = useRef<string>("");
-  const loadingEvents = useRef<boolean>(false);
+  const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
   
   // Filter states
   const [activeTab, setActiveTab] = useState("1");
@@ -824,6 +893,8 @@ const Calender = () => {
       console.log('📅 [CUSTOM DAY] Date changed:', selectedDate);
       console.log('📅 [CUSTOM DAY] Current events in state:', events);
       
+      setLoadingEvents(true);
+      
       const delayReload = setTimeout(() => {
         // Calculate start and end dates for the selected day
         const startDate = moment(selectedDate).format('YYYY-MM-DD');
@@ -861,10 +932,14 @@ const Calender = () => {
         }
         
         console.log('🚀 [CUSTOM DAY] Final filters being sent to backend:', JSON.stringify(filters, null, 2));
-        dispatch(onGetEvents(filters));
-      }, 300); // 300ms debounce
+        dispatch(onGetEvents(filters)).finally(() => {
+          setLoadingEvents(false); // Desactivar spinner cuando termine
+        });
+      }, 100); // Reducir delay para respuesta más rápida
       
-      return () => clearTimeout(delayReload);
+      return () => {
+        clearTimeout(delayReload);
+      };
     }
   }, [selectedDate, viewFilter, staffFilter, statusFilter, user, dispatch]);
   
@@ -1443,9 +1518,9 @@ const Calender = () => {
     const dateRangeKey = `${startDate}-${endDate}`;
     
     // Solo cargar si el rango es diferente al último Y no estamos cargando actualmente
-    if (lastDateRange.current !== dateRangeKey && !loadingEvents.current) {
+    if (lastDateRange.current !== dateRangeKey && !loadingEvents) {
       lastDateRange.current = dateRangeKey;
-      loadingEvents.current = true;
+      setLoadingEvents(true);
       
       // Preparar filtros incluyendo el rango de fechas
       const filters = {
@@ -1467,7 +1542,7 @@ const Calender = () => {
       dispatch(onGetEvents(filters)).finally(() => {
         // Resetear el flag después de un pequeño delay para evitar llamadas duplicadas
         setTimeout(() => {
-          loadingEvents.current = false;
+          setLoadingEvents(false);
         }, 500);
       });
     }
@@ -1534,10 +1609,10 @@ const Calender = () => {
       
       console.log('👆 [MANUAL APPLY] Final filters being sent to backend:', JSON.stringify(filters, null, 2));
       
-      loadingEvents.current = true;
+      setLoadingEvents(true);
       dispatch(onGetEvents(filters)).finally(() => {
         setTimeout(() => {
-          loadingEvents.current = false;
+          setLoadingEvents(false);
         }, 500);
       });
     }
@@ -1586,6 +1661,8 @@ const Calender = () => {
           break;
       }
       
+      // Activar spinner inmediatamente al cambiar fecha en day view
+      setLoadingEvents(true);
       setSelectedDate(newDate);
     } else if (calendarRef) {
       const calendarApi = calendarRef.getApi();
@@ -2023,7 +2100,7 @@ const Calender = () => {
                       <Label className="form-label">{t('calendar.staff_member')}</Label>
                       <Input
                         type="select"
-                        value={user?.role === 'staff' ? user.staffId : staffFilter}
+                        value={user?.role === 'staff' ? user.staffId || user.id : staffFilter}
                         onChange={(e) => setStaffFilter(e.target.value)}
                         className="form-select"
                         disabled={user?.role === 'staff'}
@@ -2127,11 +2204,26 @@ const Calender = () => {
                   </Row>
                 </CardHeader>
                 <CardBody>
-                  <div id="external-events" style={{ display: 'none' }}>
-                    {categories &&
-                      categories.map((category: any) => (
-                        <div
-                          className={`bg-${category.type}-subtle external-event fc-event text-${category.type}`}
+                  {loadingEvents && (
+                    <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+                      <div className="text-center">
+                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                          <span className="visually-hidden">{t('common.loading') || 'Loading...'}</span>
+                        </div>
+                        <div className="mt-3">
+                          <h6 className="text-muted">{t('calendar.loading_events') || 'Loading events...'}</h6>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!loadingEvents && (
+                    <>
+                      <div id="external-events" style={{ display: 'none' }}>
+                        {categories &&
+                          categories.map((category: any) => (
+                            <div
+                              className={`bg-${category.type}-subtle external-event fc-event text-${category.type}`}
                               key={"cat-" + category.id}
                               draggable
                             >
@@ -2149,6 +2241,7 @@ const Calender = () => {
                           onEventMoved={handleEventMoved}
                           isSpanish={isSpanish}
                           t={t}
+                          staffFilter={staffFilter}
                         />
                       ) : (
                         <FullCalendar
@@ -2263,10 +2356,12 @@ const Calender = () => {
                               info.el.removeEventListener('mousemove', (info.el as any).mouseMoveHandler);
                               (info.el as any).mouseMoveHandler = null;
                             }
-                          }}
+                          }}  
                         />
                       )}
-                    </CardBody>
+                    </>
+                  )}
+                </CardBody>
                   </Card>
                 </Col>
           </Row>
