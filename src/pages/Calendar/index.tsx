@@ -3389,8 +3389,44 @@ const Calender = () => {
             toggle={() => setGeneralCreateBreakModal(false)}
             onBreakCreated={() => {
               // Refrescar el calendario después de crear el break
-              applyFilters();
-              dispatch(onGetUpCommingEvent());
+              console.log('🔄 [BREAK CREATED - BUTTON] Reloading calendar data...');
+              
+              // Delay para asegurar que el backend esté actualizado
+              setTimeout(() => {
+                applyFilters();
+                dispatch(onGetUpCommingEvent());
+                
+                // Si estamos en vista de día, forzar recarga específica
+                if (viewFilter === 'timeGridDay') {
+                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
+                  const endDate = moment(selectedDate).format('YYYY-MM-DD');
+                  
+                  let finalStaffId = null;
+                  if (user && user.role === 'staff') {
+                    finalStaffId = user.staffId || user.id;
+                  } else if (staffFilter && staffFilter.trim() !== '') {
+                    finalStaffId = staffFilter;
+                  }
+                  
+                  const filters: any = {
+                    page: 1,
+                    limit: 1000,
+                    startDate,
+                    endDate
+                  };
+                  
+                  if (finalStaffId) {
+                    filters.staffId = finalStaffId;
+                  }
+                  
+                  if (statusFilter && statusFilter.trim() !== '') {
+                    filters.status = statusFilter;
+                  }
+                  
+                  console.log('🔄 [BREAK CREATED - BUTTON] Custom day view - reloading events with filters:', filters);
+                  dispatch(onGetEvents(filters));
+                }
+              }, 500); // 500ms delay para asegurar que el backend esté actualizado
             }}
           />
 
@@ -3403,8 +3439,44 @@ const Calender = () => {
             preselectedStaffId={preselectedBreakStaffId}
             onBreakCreated={() => {
               // Refrescar el calendario después de crear el break
-              applyFilters();
-              dispatch(onGetUpCommingEvent());
+              console.log('🔄 [BREAK CREATED - CALENDAR] Reloading calendar data...');
+              
+              // Delay para asegurar que el backend esté actualizado
+              setTimeout(() => {
+                applyFilters();
+                dispatch(onGetUpCommingEvent());
+                
+                // Si estamos en vista de día, forzar recarga específica
+                if (viewFilter === 'timeGridDay') {
+                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
+                  const endDate = moment(selectedDate).format('YYYY-MM-DD');
+                  
+                  let finalStaffId = null;
+                  if (user && user.role === 'staff') {
+                    finalStaffId = user.staffId || user.id;
+                  } else if (staffFilter && staffFilter.trim() !== '') {
+                    finalStaffId = staffFilter;
+                  }
+                  
+                  const filters: any = {
+                    page: 1,
+                    limit: 1000,
+                    startDate,
+                    endDate
+                  };
+                  
+                  if (finalStaffId) {
+                    filters.staffId = finalStaffId;
+                  }
+                  
+                  if (statusFilter && statusFilter.trim() !== '') {
+                    filters.status = statusFilter;
+                  }
+                  
+                  console.log('🔄 [BREAK CREATED - CALENDAR] Custom day view - reloading events with filters:', filters);
+                  dispatch(onGetEvents(filters));
+                }
+              }, 500); // 500ms delay para asegurar que el backend esté actualizado
             }}
           />
 
