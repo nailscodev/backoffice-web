@@ -45,6 +45,7 @@ import BreadCrumb from "../../Components/Common/BreadCrumb";
 import DeleteModal from "../../Components/Common/DeleteModal";
 import ReservationModal from "../../Components/Common/ReservationModal";
 import CreateBookingModal from "../../Components/Common/CreateBookingModal";
+import CreateBreakModal from "../../Components/Common/CreateBreakModal";
 
 //Simple bar
 import SimpleBar from "simplebar-react";
@@ -94,6 +95,7 @@ interface CustomDayViewProps {
   selectedDate: Date;
   onEventClick: (event: any) => void;
   onSlotClick: (date: Date, staffId: string) => void;
+  onSlotRightClick?: (e: React.MouseEvent, date: Date, staffId: string) => void;
   onEventMoved: (bookingId: string, newDate: Date, newStaffId: string) => Promise<void>;
   onEventResized: (bookingId: string, newStartTime: string, newEndTime: string) => Promise<void>;
   isSpanish: boolean;
@@ -101,7 +103,7 @@ interface CustomDayViewProps {
   staffFilter: string;
 }
 
-const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onEventMoved, onEventResized, isSpanish, t, staffFilter }) => {
+const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onSlotRightClick, onEventMoved, onEventResized, isSpanish, t, staffFilter }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [draggedBooking, setDraggedBooking] = useState<any>(null);
   const [resizing, setResizing] = useState<{ bookingId: string; side: 'top' | 'bottom'; originalHeight: number; originalTop: number; startY: number } | null>(null);
@@ -309,7 +311,12 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                 ...(timeSlot.endsWith('00') ? styles.timeSlotHour : {})
               }}
             >
-              {timeSlot.endsWith('00') ? moment(timeSlot, 'HH:mm').format('h A') : ''}
+              {timeSlot.endsWith('00') ? 
+                moment(timeSlot, 'HH:mm').format('h A') : 
+                timeSlot.endsWith('30') ? 
+                  moment(timeSlot, 'HH:mm').format('h:mm') : 
+                  ''
+              }
             </div>
           ))}
         </div>
@@ -424,7 +431,12 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                           ...(timeSlot.endsWith('00') ? styles.slotHour : {}),
                           ...(isPast ? styles.slotPast : {})
                         }}
-                        onClick={() => !isPast && handleSlotClick(timeSlot, staffMember.id)}
+                        onClick={() => !isPast && onSlotClick(slotDate, staffMember.id)}
+                        onContextMenu={(e) => {
+                          if (!isPast && onSlotRightClick) {
+                            onSlotRightClick(e, slotDate, staffMember.id);
+                          }
+                        }}
                         onMouseEnter={(e) => {
                           if (!isPast) {
                             e.currentTarget.style.backgroundColor = draggedBooking ? 'rgba(55, 136, 216, 0.2)' : 'rgba(55, 136, 216, 0.1)';
@@ -962,6 +974,13 @@ const Calender = () => {
   // Estado para CreateBookingModal normal (desde botón de filtros)
   const [generalCreateBookingModal, setGeneralCreateBookingModal] = useState<boolean>(false);
   
+  // Estados para CreateBreakModal
+  const [generalCreateBreakModal, setGeneralCreateBreakModal] = useState<boolean>(false);
+  const [createBreakModal, setCreateBreakModal] = useState<boolean>(false);
+  const [preselectedBreakDate, setPreselectedBreakDate] = useState<Date | undefined>(undefined);
+  const [preselectedBreakTime, setPreselectedBreakTime] = useState<string | undefined>(undefined);
+  const [preselectedBreakStaffId, setPreselectedBreakStaffId] = useState<string | undefined>(undefined);
+  
   // Service editing data
   const [allServices, setAllServices] = useState<Service[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -1267,6 +1286,28 @@ const Calender = () => {
     
     // Abrir CreateBookingModal
     setCreateBookingModal(true);
+  };
+
+  /**
+   * Handle right click on slot for break creation
+   */
+  const handleSlotRightClick = (e: React.MouseEvent, date: Date, staffId: string) => {
+    e.preventDefault();
+    const now = new Date();
+    
+    // Verificar si la fecha/hora ya pasó
+    if (date < now) {
+      return; // No permitir crear breaks en el pasado
+    }
+    
+    // Configurar valores preseleccionados para CreateBreakModal
+    const timeString = moment(date).format('HH:mm');
+    setPreselectedBreakDate(date);
+    setPreselectedBreakTime(timeString);
+    setPreselectedBreakStaffId(staffId);
+    
+    // Abrir CreateBreakModal
+    setCreateBreakModal(true);
   };
 
   const str_dt = function formatDate(date: any) {
@@ -2386,9 +2427,14 @@ const Calender = () => {
                       </Nav>
                     </Col>
                     <Col xs="auto">
-                      <Button color="success" onClick={() => setGeneralCreateBookingModal(true)}>
-                        <i className="ri-add-line align-bottom me-1"></i> {t('reservations.create_reservation')}
-                      </Button>
+                      <div className="d-flex gap-2">
+                        <Button color="success" onClick={() => setGeneralCreateBookingModal(true)}>
+                          <i className="ri-add-line align-bottom me-1"></i> {t('reservations.create_reservation')}
+                        </Button>
+                        <Button color="warning" onClick={() => setGeneralCreateBreakModal(true)}>
+                          <i className="ri-time-line align-bottom me-1"></i> {t('calendar.create_break') || 'Create Break'}
+                        </Button>
+                      </div>
                     </Col>
                   </Row>
                 </CardHeader>
@@ -2537,6 +2583,7 @@ const Calender = () => {
                           selectedDate={selectedDate}
                           onEventClick={handleEventClick}
                           onSlotClick={handleSlotClick}
+                          onSlotRightClick={handleSlotRightClick}
                           onEventMoved={handleEventMoved}
                           onEventResized={handleEventResized}
                           isSpanish={isSpanish}
@@ -3331,6 +3378,31 @@ const Calender = () => {
             toggle={() => setGeneralCreateBookingModal(false)}
             onBookingCreated={() => {
               // Refrescar el calendario después de crear la reserva
+              applyFilters();
+              dispatch(onGetUpCommingEvent());
+            }}
+          />
+
+          {/* CreateBreakModal normal desde botón de filtros */}
+          <CreateBreakModal
+            isOpen={generalCreateBreakModal}
+            toggle={() => setGeneralCreateBreakModal(false)}
+            onBreakCreated={() => {
+              // Refrescar el calendario después de crear el break
+              applyFilters();
+              dispatch(onGetUpCommingEvent());
+            }}
+          />
+
+          {/* CreateBreakModal desde calendario */}
+          <CreateBreakModal
+            isOpen={createBreakModal}
+            toggle={() => setCreateBreakModal(false)}
+            preselectedDate={preselectedBreakDate}
+            preselectedTime={preselectedBreakTime}
+            preselectedStaffId={preselectedBreakStaffId}
+            onBreakCreated={() => {
+              // Refrescar el calendario después de crear el break
               applyFilters();
               dispatch(onGetUpCommingEvent());
             }}
