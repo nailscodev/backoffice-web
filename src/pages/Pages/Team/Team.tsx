@@ -97,6 +97,172 @@ const mapStaffToTeam = (staff: Staff) => ({
     _staffData: staff
 });
 
+// Time format utilities for AM/PM conversion
+const convert24to12 = (time24: string): { time: string, period: string } => {
+    if (!time24) return { time: '09:00', period: 'AM' };
+    
+    const [hours, minutes] = time24.split(':').map(Number);
+    let period = 'AM';
+    let hour12 = hours;
+    
+    if (hours === 0) {
+        hour12 = 12;
+    } else if (hours === 12) {
+        period = 'PM';
+    } else if (hours > 12) {
+        hour12 = hours - 12;
+        period = 'PM';
+    }
+    
+    const formattedHour = hour12.toString().padStart(2, '0');
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+    
+    return { 
+        time: `${formattedHour}:${formattedMinutes}`, 
+        period 
+    };
+};
+
+const convert12to24 = (time12: string, period: string): string => {
+    const [hours, minutes] = time12.split(':').map(Number);
+    let hour24 = hours;
+    
+    if (period === 'AM' && hours === 12) {
+        hour24 = 0;
+    } else if (period === 'PM' && hours !== 12) {
+        hour24 = hours + 12;
+    }
+    
+    return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+// Custom Time Picker Component with AM/PM format
+interface TimePickerProps {
+    id: string;
+    name: string;
+    value: string;
+    onChange: (value: string) => void;
+    className?: string;
+    isInvalid?: boolean;
+}
+
+// Helper functions for formatting working days and shifts
+const formatWorkingDays = (workingDays: string[], t: (key: string) => string): string => {
+    if (!workingDays || workingDays.length === 0) return 'No set';
+    
+    // Detect language based on a translation
+    const isSpanish = t('team.days.monday').toLowerCase().includes('lun') || t('team.days.monday') === 'Lunes';
+    
+    const dayMap: { [key: string]: string } = isSpanish ? {
+        'Mon': 'Lun',
+        'Tue': 'Mar', 
+        'Wed': 'Mié',
+        'Thu': 'Jue',
+        'Fri': 'Vie',
+        'Sat': 'Sáb',
+        'Sun': 'Dom'
+    } : {
+        'Mon': 'Mon',
+        'Tue': 'Tue', 
+        'Wed': 'Wed',
+        'Thu': 'Thu',
+        'Fri': 'Fri',
+        'Sat': 'Sat',
+        'Sun': 'Sun'
+    };
+    
+    return workingDays.map(day => dayMap[day] || day).join(', ');
+};
+
+const formatShiftTimes = (shifts: Array<{ shiftStart: string; shiftEnd: string }>): string => {
+    if (!shifts || shifts.length === 0) return 'No shifts';
+    
+    const formatShift = (shift: { shiftStart: string; shiftEnd: string }) => {
+        const { time: startTime, period: startPeriod } = convert24to12(shift.shiftStart);
+        const { time: endTime, period: endPeriod } = convert24to12(shift.shiftEnd);
+        
+        // Remove leading zeros and show full format
+        const formatTime = (time: string, period: string) => {
+            const cleanTime = time.replace(/^0/, ''); // Remove leading zero from hour
+            return `${cleanTime}${period}`;
+        };
+        
+        const start = formatTime(startTime, startPeriod);
+        const end = formatTime(endTime, endPeriod);
+        
+        return `${start} - ${end}`;
+    };
+    
+    if (shifts.length === 1) {
+        return formatShift(shifts[0]);
+    }
+    
+    // Multiple shifts - show all shifts on separate lines
+    return shifts.map(shift => formatShift(shift)).join('\n');
+};
+
+const TimePicker: React.FC<TimePickerProps> = ({ id, name, value, onChange, className, isInvalid }) => {
+    const { time, period } = convert24to12(value);
+    const [currentTime, setCurrentTime] = useState(time);
+    const [currentPeriod, setCurrentPeriod] = useState(period);
+
+    React.useEffect(() => {
+        const { time: newTime, period: newPeriod } = convert24to12(value);
+        setCurrentTime(newTime);
+        setCurrentPeriod(newPeriod);
+    }, [value]);
+
+    const handleTimeChange = (newTime: string, newPeriod: string) => {
+        const time24 = convert12to24(newTime, newPeriod);
+        onChange(time24);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newTime = e.target.value;
+        setCurrentTime(newTime);
+        handleTimeChange(newTime, currentPeriod);
+    };
+
+    const handlePeriodChange = (newPeriod: string) => {
+        setCurrentPeriod(newPeriod);
+        handleTimeChange(currentTime, newPeriod);
+    };
+
+    return (
+        <div className="d-flex">
+            <Input
+                type="time"
+                id={id}
+                name={name}
+                value={currentTime}
+                onChange={handleInputChange}
+                className={`form-control ${className || ''} ${isInvalid ? 'is-invalid' : ''}`}
+                style={{ flex: 1, marginRight: '8px' }}
+            />
+            <div className="btn-group" role="group">
+                <Button
+                    type="button"
+                    color={currentPeriod === 'AM' ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => handlePeriodChange('AM')}
+                    style={{ minWidth: '45px' }}
+                >
+                    AM
+                </Button>
+                <Button
+                    type="button"
+                    color={currentPeriod === 'PM' ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => handlePeriodChange('PM')}
+                    style={{ minWidth: '45px' }}
+                >
+                    PM
+                </Button>
+            </div>
+        </div>
+    );
+};
+
 const Team = () => {
     const { t, i18n } = useTranslation();
     document.title = `${t('team.page.title')} | Nails & Co Midtown - Admin Panel`;
@@ -326,6 +492,13 @@ const Team = () => {
             userImage: (teamMem && teamMem.userImage) || '',
             serviceIds: (teamMem && teamMem.services) ? teamMem.services.map((s: any) => s.id) : [],
             workingDays: (teamMem && teamMem._staffData?.workingDays) || [],
+            shifts: (teamMem && teamMem._staffData?.shifts?.length > 0 && 
+                     Array.isArray(teamMem._staffData.shifts) &&
+                     teamMem._staffData.shifts.every((shift: any) => 
+                         shift && typeof shift === 'object' && shift.shiftStart && shift.shiftEnd
+                     )) 
+                     ? teamMem._staffData.shifts 
+                     : [{ shiftStart: '09:00', shiftEnd: '17:00' }],
             // commissionPercentage: (teamMem && teamMem._staffData?.commissionPercentage) || '',
             // hourlyRate: (teamMem && teamMem._staffData?.hourlyRate) || '',
         },
@@ -336,6 +509,25 @@ const Team = () => {
             phone: Yup.string(),
             serviceIds: Yup.array().min(1, t('team.validation.services_required')),
             workingDays: Yup.array().min(1, t('team.validation.working_days_required')),
+            shifts: Yup.array()
+                .min(1, t('team.validation.shifts_required'))
+                .of(
+                    Yup.object().shape({
+                        shiftStart: Yup.string()
+                            .required(t('team.validation.shift_start_required'))
+                            .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, t('team.validation.shift_time_format')),
+                        shiftEnd: Yup.string()
+                            .required(t('team.validation.shift_end_required'))
+                            .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, t('team.validation.shift_time_format'))
+                            .test('is-after-start', t('team.validation.shift_end_after_start'), function(value: any) {
+                                const { shiftStart } = this.parent;
+                                if (!shiftStart || !value) return true;
+                                const startTime = new Date(`1970-01-01 ${shiftStart}`);
+                                const endTime = new Date(`1970-01-01 ${value}`);
+                                return endTime > startTime;
+                            })
+                    })
+                ),
         }),
         onSubmit: async (values: any) => {
             try {
@@ -348,10 +540,18 @@ const Team = () => {
                     role: StaffRole.TECHNICIAN,
                     serviceIds: values.serviceIds,
                     workingDays: values.workingDays.length > 0 ? values.workingDays : undefined,
+                    shifts: values.shifts && values.shifts.length > 0 ? values.shifts : undefined,
                     // commissionPercentage: values.commissionPercentage ? parseFloat(values.commissionPercentage) : undefined,
                     // hourlyRate: values.hourlyRate ? parseFloat(values.hourlyRate) : undefined,
                     avatarUrl: values.userImage || undefined
                 };
+
+                // Debug logging to verify shifts data
+                console.log('Submitting staff data:', {
+                    ...staffData,
+                    shifts: staffData.shifts
+                });
+                console.log('Raw form values shifts:', values.shifts);
 
                 if (isEdit && teamMem) {
                     await updateStaff(teamMem.id, staffData);
@@ -449,9 +649,9 @@ const Team = () => {
                                                                     <i className="ri-more-fill fs-17"></i>
                                                                 </DropdownToggle>
                                                                 <DropdownMenu>
-                                                                    <DropdownItem className="dropdown-item" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}>
+                                                                    {/* <DropdownItem className="dropdown-item" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}>
                                                                         <i className="ri-user-line me-2 align-bottom text-muted"></i>{t('team.card.view_profile')}
-                                                                    </DropdownItem>
+                                                                    </DropdownItem> */}
                                                                     <DropdownItem className="dropdown-item edit-list" href="#addmemberModal" onClick={() => handleTeamClick(item)}>
                                                                         <i className="ri-pencil-line me-2 align-bottom text-muted"></i>{t('team.dropdown.edit')}
                                                                     </DropdownItem>
@@ -528,13 +728,13 @@ const Team = () => {
                                                         <div className="team-stats-wrapper">
                                                             <Col lg={12} className="col">
                                                                 <Row className="text-muted text-center mb-3">
-                                                                    <Col xs={6} className="border-end border-end-dashed">
-                                                                        <h5 className="mb-1">{item.projectCount}</h5>
-                                                                        <p className="text-muted mb-0">Pending</p>
+                                                                    <Col xs={12} className="mb-2">
+                                                                        <h6 className="mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.2' }}>{formatWorkingDays(item._staffData?.workingDays || [], t)}</h6>
+                                                                        <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>Working Days</p>
                                                                     </Col>
-                                                                    <Col xs={6}>
-                                                                        <h5 className="mb-1">{item.taskCount}</h5>
-                                                                        <p className="text-muted mb-0">Completed</p>
+                                                                    <Col xs={12}>
+                                                                        <h6 className="mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.2', whiteSpace: 'pre-line' }}>{formatShiftTimes(item._staffData?.shifts || [])}</h6>
+                                                                        <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>Schedule</p>
                                                                     </Col>
                                                                 </Row>
                                                             </Col>
@@ -753,6 +953,108 @@ const Team = () => {
                                                                 ) : null}
                                                             </div>
 
+                                                            {/* Shifts Section */}
+                                                            <div className="mb-3">
+                                                                <Label className="form-label">{t('team.form.shifts')} *</Label>
+                                                                <div className="border rounded p-3">
+                                                                    {(validation.values.shifts || []).map((shift: any, index: number) => (
+                                                                        <div key={index} className={`shift-row ${index > 0 ? 'mt-3 pt-3 border-top' : ''}`}>
+                                                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                                <h6 className="mb-0">{t('team.form.shift_number', { number: index + 1 })}</h6>
+                                                                                {(validation.values.shifts || []).length > 1 && (
+                                                                                    <Button
+                                                                                        type="button"
+                                                                                        color="danger"
+                                                                                        size="sm"
+                                                                                        onClick={() => {
+                                                                                            const newShifts = [...(validation.values.shifts || [])];
+                                                                                            newShifts.splice(index, 1);
+                                                                                            validation.setFieldValue('shifts', newShifts);
+                                                                                        }}
+                                                                                    >
+                                                                                        <i className="ri-delete-bin-line"></i>
+                                                                                    </Button>
+                                                                                )}
+                                                                            </div>
+                                                                            <Row>
+                                                                                <Col md={6}>
+                                                                                    <div className="mb-3">
+                                                                                        <Label htmlFor={`shiftStart-${index}`} className="form-label">{t('team.form.shift_start')}</Label>
+                                                                                        <TimePicker
+                                                                                            id={`shiftStart-${index}`}
+                                                                                            name={`shifts[${index}].shiftStart`}
+                                                                                            value={shift?.shiftStart || ''}
+                                                                                            onChange={(value) => {
+                                                                                                const newShifts = [...(validation.values.shifts || [])];
+                                                                                                // Ensure the shift object exists with proper structure
+                                                                                                const currentShift = newShifts[index] || { shiftStart: '', shiftEnd: '' };
+                                                                                                newShifts[index] = {
+                                                                                                    ...currentShift,
+                                                                                                    shiftStart: value
+                                                                                                };
+                                                                                                validation.setFieldValue('shifts', newShifts);
+                                                                                            }}
+                                                                                            className="form-control"
+                                                                                            isInvalid={!!(validation.touched.shifts?.[index]?.shiftStart && validation.errors.shifts?.[index]?.shiftStart)}
+                                                                                        />
+                                                                                        {validation.touched.shifts?.[index]?.shiftStart && validation.errors.shifts?.[index]?.shiftStart ? (
+                                                                                            <div className="invalid-feedback d-block">{validation.errors.shifts[index].shiftStart}</div>
+                                                                                        ) : null}
+                                                                                    </div>
+                                                                                </Col>
+                                                                                <Col md={6}>
+                                                                                    <div className="mb-3">
+                                                                                        <Label htmlFor={`shiftEnd-${index}`} className="form-label">{t('team.form.shift_end')}</Label>
+                                                                                        <TimePicker
+                                                                                            id={`shiftEnd-${index}`}
+                                                                                            name={`shifts[${index}].shiftEnd`}
+                                                                                            value={shift?.shiftEnd || ''}
+                                                                                            onChange={(value) => {
+                                                                                                const newShifts = [...(validation.values.shifts || [])];
+                                                                                                // Ensure the shift object exists with proper structure
+                                                                                                const currentShift = newShifts[index] || { shiftStart: '', shiftEnd: '' };
+                                                                                                newShifts[index] = {
+                                                                                                    ...currentShift,
+                                                                                                    shiftEnd: value
+                                                                                                };
+                                                                                                validation.setFieldValue('shifts', newShifts);
+                                                                                            }}
+                                                                                            className="form-control"
+                                                                                            isInvalid={!!(validation.touched.shifts?.[index]?.shiftEnd && validation.errors.shifts?.[index]?.shiftEnd)}
+                                                                                        />
+                                                                                        {validation.touched.shifts?.[index]?.shiftEnd && validation.errors.shifts?.[index]?.shiftEnd ? (
+                                                                                            <div className="invalid-feedback d-block">{validation.errors.shifts[index].shiftEnd}</div>
+                                                                                        ) : null}
+                                                                                    </div>
+                                                                                </Col>
+                                                                            </Row>
+                                                                        </div>
+                                                                    ))}
+                                                                    
+                                                                    <div className="text-center mt-3">
+                                                                        <Button
+                                                                            type="button"
+                                                                            color="success"
+                                                                            size="sm"
+                                                                            onClick={() => {
+                                                                                const newShifts = [...(validation.values.shifts || [])];
+                                                                                newShifts.push({ 
+                                                                                    shiftStart: '09:00', 
+                                                                                    shiftEnd: '17:00' 
+                                                                                });
+                                                                                validation.setFieldValue('shifts', newShifts);
+                                                                            }}
+                                                                        >
+                                                                            <i className="ri-add-line me-1"></i>
+                                                                            {t('team.form.add_shift')}
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                                {validation.touched.shifts && validation.errors.shifts && typeof validation.errors.shifts === 'string' ? (
+                                                                    <div className="invalid-feedback d-block">{validation.errors.shifts}</div>
+                                                                ) : null}
+                                                            </div>
+
                                                             {/* <Row>
                                                                 <Col lg={6}>
                                                                     <div className="mb-3">
@@ -891,16 +1193,12 @@ const Team = () => {
                                             </div>
                                         </div>
                                         <Row className="g-0 text-center">
-                                            <Col xs={6}>
+                                            <Col xs={12}>
                                                 <div className="p-3 border border-dashed border-start-0">
-                                                    <h5 className="mb-1 profile-project">{sideBar.projectCount || "0"}</h5>
-                                                    <p className="text-muted mb-0">Pending</p>
-                                                </div>
-                                            </Col>
-                                            <Col xs={6}>
-                                                <div className="p-3 border border-dashed border-start-0">
-                                                    <h5 className="mb-1 profile-task">{sideBar.taskCount || "0"}</h5>
-                                                    <p className="text-muted mb-0">Completed</p>
+                                                    <h6 className="mb-1 profile-project" style={{ fontSize: '0.85rem', lineHeight: '1.3' }}>{formatWorkingDays(sideBar._staffData?.workingDays || [], t)}</h6>
+                                                    <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>Working Days</p>
+                                                    <h6 className="mb-1 profile-task" style={{ fontSize: '0.85rem', lineHeight: '1.3', whiteSpace: 'pre-line' }}>{formatShiftTimes(sideBar._staffData?.shifts || [])}</h6>
+                                                    <p className="text-muted mb-0" style={{ fontSize: '0.75rem' }}>Schedule</p>
                                                 </div>
                                             </Col>
                                         </Row>
@@ -1012,7 +1310,7 @@ const Team = () => {
                                     </OffcanvasBody>
                                     <div className="offcanvas-foorter border p-3 hstack gap-3 text-center position-relative">
                                         <button className="btn btn-light w-100"><i className="ri-question-answer-fill align-bottom ms-1"></i> {t('team.offcanvas.send_message')}</button>
-                                        <Link to="/pages-profile" className="btn btn-primary w-100"><i className="ri-user-3-fill align-bottom ms-1"></i> {t('team.card.view_profile')}</Link>
+                                        {/* <Link to="/pages-profile" className="btn btn-primary w-100"><i className="ri-user-3-fill align-bottom ms-1"></i> {t('team.card.view_profile')}</Link> */}
                                     </div>
                                 </Offcanvas>
                             </div>

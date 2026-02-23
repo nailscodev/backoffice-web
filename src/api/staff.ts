@@ -18,6 +18,12 @@ export enum StaffStatus {
   SICK_LEAVE = 'SICK_LEAVE',
 }
 
+// Shift interface for working hours
+export interface Shift {
+  shiftStart: string; // Format: "HH:mm" (e.g., "09:00")
+  shiftEnd: string;   // Format: "HH:mm" (e.g., "18:00")
+}
+
 // Interfaces matching backend DTOs
 export interface Staff {
   id: string;
@@ -32,6 +38,7 @@ export interface Staff {
   isAvailable: boolean;
   specialties?: string[];
   workingDays?: string[];
+  shifts?: Shift[];
   commissionPercentage?: number;
   hourlyRate?: number;
   hireDate?: string;
@@ -90,6 +97,7 @@ export interface CreateStaffDto {
   isAvailable?: boolean;
   specialties?: string[];
   workingDays?: string[];
+  shifts?: Shift[];
   commissionPercentage?: number;
   hourlyRate?: number;
   hireDate?: string;
