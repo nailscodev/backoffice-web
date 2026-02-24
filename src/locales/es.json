@@ -246,6 +246,7 @@
   "calendar.clear_filters": "Limpiar",
   "calendar.loading_events": "Cargando eventos...",
   "calendar.no_staff_available": "No hay personal disponible para hoy",
+  "calendar.staff_not_working": "El técnico no trabaja a esta hora",
 
   "calendar.today": "Hoy",
   "calendar.view_month": "Mes",

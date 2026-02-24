@@ -1024,6 +1024,7 @@
     "calendar.clear_filters": "Clear",
     "calendar.loading_events": "Loading events...",
     "calendar.no_staff_available": "No staff available for today",
+    "calendar.staff_not_working": "Staff not working at this time",
     
     "calendar.today": "Today",
     "calendar.view_month": "Month",

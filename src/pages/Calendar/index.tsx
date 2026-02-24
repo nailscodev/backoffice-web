@@ -177,6 +177,52 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
     return slots;
   };
 
+  // Generate time slots for specific staff based on their shifts
+  const generateTimeSlotsForStaff = (staffMember: any) => {
+    if (!staffMember.shifts || staffMember.shifts.length === 0) {
+      // If no shifts defined, use default full schedule
+      return generateTimeSlots();
+    }
+
+    const availableSlots: string[] = [];
+    
+    // Process each shift for the staff member
+    staffMember.shifts.forEach((shift: any) => {
+      const startTime = moment(shift.shiftStart, 'HH:mm');
+      const endTime = moment(shift.shiftEnd, 'HH:mm');
+      
+      // Generate 30-minute slots for this shift
+      let currentTime = moment(startTime);
+      while (currentTime.isBefore(endTime)) {
+        const timeSlot = currentTime.format('HH:mm');
+        if (!availableSlots.includes(timeSlot)) {
+          availableSlots.push(timeSlot);
+        }
+        currentTime.add(30, 'minutes');
+      }
+    });
+
+    return availableSlots.sort();
+  };
+
+  // Check if a time slot is available for specific staff
+  const isSlotAvailableForStaff = (timeSlot: string, staffMember: any) => {
+    if (!staffMember.shifts || staffMember.shifts.length === 0) {
+      // If no shifts defined, all slots are available (default 8AM-8PM)
+      const hour = parseInt(timeSlot.split(':')[0]);
+      return hour >= 8 && hour < 20;
+    }
+
+    const slotTime = moment(timeSlot, 'HH:mm');
+    
+    // Check if the slot falls within any of the staff's shifts
+    return staffMember.shifts.some((shift: any) => {
+      const shiftStart = moment(shift.shiftStart, 'HH:mm');
+      const shiftEnd = moment(shift.shiftEnd, 'HH:mm');
+      return slotTime.isSameOrAfter(shiftStart) && slotTime.isBefore(shiftEnd);
+    });
+  };
+
   const timeSlots = generateTimeSlots();
   console.log('⏰ Generated time slots:', timeSlots);
 
@@ -408,6 +454,12 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                       // Don't allow dropping in the past
                       if (newDate < new Date()) return;
                       
+                      // Don't allow dropping outside staff working hours
+                      if (!isSlotAvailableForStaff(newTimeSlot, staffMember)) {
+                        toast.error(t('calendar.staff_not_working') || 'Staff not working at this time');
+                        return;
+                      }
+                      
                       try {
                         await onEventMoved(draggedBooking.id, newDate, staffMember.id);
                       } catch (error) {
@@ -422,6 +474,8 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                     const slotDate = new Date(selectedDate);
                     slotDate.setHours(hour, minute, 0, 0);
                     const isPast = slotDate < new Date();
+                    const isStaffAvailable = isSlotAvailableForStaff(timeSlot, staffMember);
+                    const isClickable = !isPast && isStaffAvailable;
                     
                     return (
                       <div 
@@ -429,24 +483,26 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                         style={{
                           ...styles.slot,
                           ...(timeSlot.endsWith('00') ? styles.slotHour : {}),
-                          ...(isPast ? styles.slotPast : {})
+                          ...(isPast ? styles.slotPast : {}),
+                          ...(!isStaffAvailable && !isPast ? styles.slotUnavailable : {})
                         }}
-                        onClick={() => !isPast && onSlotClick(slotDate, staffMember.id)}
+                        onClick={() => isClickable && onSlotClick(slotDate, staffMember.id)}
                         onContextMenu={(e) => {
-                          if (!isPast && onSlotRightClick) {
+                          if (isClickable && onSlotRightClick) {
                             onSlotRightClick(e, slotDate, staffMember.id);
                           }
                         }}
                         onMouseEnter={(e) => {
-                          if (!isPast) {
+                          if (isClickable) {
                             e.currentTarget.style.backgroundColor = draggedBooking ? 'rgba(55, 136, 216, 0.2)' : 'rgba(55, 136, 216, 0.1)';
                           }
                         }}
                         onMouseLeave={(e) => {
-                          if (!isPast) {
-                            e.currentTarget.style.backgroundColor = 'transparent';
+                          if (isClickable) {
+                            e.currentTarget.style.backgroundColor = !isStaffAvailable && !isPast ? 'rgba(255, 0, 0, 0.05)' : 'transparent';
                           }
                         }}
+                        title={!isStaffAvailable && !isPast ? t('calendar.staff_not_working') || 'Staff not working at this time' : undefined}
                       ></div>
                     );
                   })}
@@ -818,6 +874,12 @@ const styles = {
   slotPast: {
     backgroundColor: '#f8f9fa',
     cursor: 'not-allowed',
+  },
+  slotUnavailable: {
+    backgroundColor: 'rgba(255, 0, 0, 0.05)',
+    cursor: 'not-allowed',
+    opacity: 0.6,
+    position: 'relative' as 'relative',
   },
   appointmentCard: {
     position: 'absolute' as 'absolute',
