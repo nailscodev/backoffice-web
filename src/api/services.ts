@@ -200,12 +200,20 @@ export const getIncompatibleCategories = async (categoryIds: string[]): Promise<
 /**
  * Get removal add-ons for specific services
  * @param serviceIds Array of service UUIDs
+ * @param lang Language code (EN or ES)
  */
-export const getRemovalAddonsByServices = async (serviceIds: string[]): Promise<any> => {
+export const getRemovalAddonsByServices = async (serviceIds: string[], lang?: string): Promise<any> => {
   if (!serviceIds || serviceIds.length === 0) {
     return [];
   }
-  const serviceIdsParam = serviceIds.join(',');
-  const response = await api.get(`${url.SERVICES}/removal-addons/by-services?serviceIds=${serviceIdsParam}`, null);
+  const params: any = {
+    serviceIds: serviceIds.join(',')
+  };
+  
+  if (lang) {
+    params.lang = lang;
+  }
+  
+  const response = await api.get(`${url.SERVICES}/removal-addons/by-services`, params);
   return response;
 };

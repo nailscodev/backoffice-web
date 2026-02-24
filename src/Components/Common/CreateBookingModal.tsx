@@ -1183,8 +1183,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       try {
         setLoadingRemovals(true);
         const serviceIds = selectedServices.map(s => s.service.id);
-        console.log('📞 Calling getRemovalAddonsByServices with:', serviceIds);
-        const response = await getRemovalAddonsByServices(serviceIds);
+        const currentLang = i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN';
+        console.log('📞 Calling getRemovalAddonsByServices with:', serviceIds, 'lang:', currentLang);
+        const response = await getRemovalAddonsByServices(serviceIds, currentLang);
         console.log('📦 Raw response:', response);
         console.log('🔍 Removals loaded:', response);
         setRemovalAddOns(response || []);
@@ -1198,7 +1199,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     };
     
     loadRemovalAddOns();
-  }, [selectedServices]);
+  }, [selectedServices, i18n.language]);
 
   // Cargar incompatibilidades de removals cuando cambia la selección
   useEffect(() => {
@@ -1881,17 +1882,20 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 <div className="mb-2">
                   <strong>{t('booking.summary.services', { count: selectedServices.length })}</strong>
                   <ul className="mb-0 mt-1">
-                    {selectedServices.map(({ service, addOns, staffName }, idx) => (
+                    {selectedServices.map(({ service, addOns, staffName }, idx) => {
+                      const addOnsDuration = addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
+                      return (
                       <li key={service.id}>
                         {service.name} - {t('booking.summary.duration', { duration: service.duration })}
                         {addOns.length > 0 && (
-                          <span className="text-muted small"> + {t('booking.summary.addons', { count: addOns.length })}</span>
+                          <span className="text-muted small"> + {t('booking.summary.addons', { count: addOns.length })} ({addOnsDuration} min)</span>
                         )}
                         {staffName && (
                           <span className="text-success small"> - {staffName}</span>
                         )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </div>
                 {selectedRemovalIds.length > 0 && (
@@ -2277,7 +2281,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                       </p>
                       {serviceAddOns.length > 0 && (
                         <p className="mb-1 ms-3">
-                          {t('booking.confirm.addons')}: {serviceAddOns.map(a => a.name).join(', ')}
+                          {t('booking.confirm.addons')}: {serviceAddOns.map(a => `${a.name} (+${a.additionalTime || 0} min)`).join(', ')}
                         </p>
                       )}
                       <p className="mb-0 ms-3">
