@@ -345,6 +345,7 @@
   "booking.summary.total_price": "Precio Total:",
   "booking.datetime.prev_week": "Semana Anterior",
   "booking.datetime.next_week": "Semana Siguiente",
+  "booking.datetime.select_staff_required": "Por favor seleccione un técnico (específico o \"Any Available\") para cada servicio en el paso anterior.",
   "booking.datetime.select_specific_staff": "Por favor seleccione un técnico específico para cada servicio en el paso anterior para ver los horarios disponibles.",
   "booking.datetime.loading_slots": "Cargando horarios disponibles...",
   "booking.datetime.summary_title": "Resumen del Horario:",

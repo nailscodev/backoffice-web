@@ -1216,6 +1216,7 @@
     "booking.vip_combo_badge": "VIP COMBO",
     "booking.step.customer": "Customer",
     "booking.step.services": "Services",
+    "booking.step.staff": "Staff",
     "booking.step.datetime": "Date/Time",
     "booking.step.confirm": "Confirm",
     
@@ -1374,6 +1375,7 @@
     "booking.summary.total_price": "Total Price:",
     "booking.datetime.prev_week": "Previous Week",
     "booking.datetime.next_week": "Next Week",
+    "booking.datetime.select_staff_required": "Please select a technician (specific or \"Any Available\") for each service in the previous step.",
     "booking.datetime.select_specific_staff": "Please select a specific technician for each service in the previous step to view available times.",
     "booking.datetime.loading_slots": "Loading available times...",
     "booking.datetime.summary_title": "Schedule Summary:",

@@ -133,6 +133,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Variable para saber si el tiempo viene preseleccionado del calendario
   const [hasPreselectedTime, setHasPreselectedTime] = useState(false);
   
+  // Control mejorado de días válidos basado en intersección de horarios reales
+  const [validWorkingDays, setValidWorkingDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [loadingValidDays, setLoadingValidDays] = useState(false);
+  
   // Combos VIP y validación avanzada
   const [isVIPCombo, setIsVIPCombo] = useState(false);
   const [userConfirmedVIPChoice, setUserConfirmedVIPChoice] = useState(false); // Track if user made explicit VIP choice
@@ -308,7 +312,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     return grouped;
   }, [services, preselectedStaffId, staff]);
 
-  // Detectar si es elegible para VIP Combo (2+ servicios de diferente técnico)
+  // Detectar si es elegible para VIP Combo (2+ servicios)
   // IMPORTANT: Only auto-set VIP when user hasn't made explicit choice yet
   useEffect(() => {
     // If user already made their choice (passed through vipcombo step), respect it
@@ -317,22 +321,30 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     }
     
     if (selectedServices.length >= 2) {
-      // Verificar si todos los servicios tienen staff asignado y son diferentes
-      const staffIds = selectedServices
-        .map(s => s.staffId)
-        .filter(id => id !== undefined && id !== '');
-      
-      const uniqueStaffIds = new Set(staffIds);
-      
-      // Auto-detect VIP Combo only if user hasn't made explicit choice
-      // Es VIP Combo si hay 2+ servicios y tienen diferentes técnicos asignados
-      setIsVIPCombo(staffIds.length >= 2 && uniqueStaffIds.size >= 2);
+      // Por defecto, NO es VIP combo hasta que el usuario lo seleccione explícitamente
+      // setIsVIPCombo(false); // Mantener valor actual si no ha confirmado
     } else {
       setIsVIPCombo(false);
       // Reset user choice when services change to less than 2
       setUserConfirmedVIPChoice(false);
     }
   }, [selectedServices, userConfirmedVIPChoice]);
+
+  // Validar fecha seleccionada cuando cambia el modo VIP/Consecutivo o los días válidos
+  useEffect(() => {
+    if (selectedDate && selectedServices.length > 1) {
+      const selectedDayOfWeek = moment(selectedDate).day();
+      
+      // Si la fecha seleccionada ya no está disponible en los días válidos calculados
+      if (!validWorkingDays.includes(selectedDayOfWeek)) {
+        console.log(`⚠️ Selected date no longer available in ${isVIPCombo ? 'VIP' : 'Consecutive'} mode, resetting...`);
+        setSelectedDate(null);
+        setSelectedTime(null);
+        setSlotVerified(false);
+        toast.info(`Fecha resetada - no disponible en modo ${isVIPCombo ? 'VIP Combo' : 'Consecutivo'}`);
+      }
+    }
+  }, [isVIPCombo, selectedServices, selectedDate, validWorkingDays]);
 
   // Helper: Obtener días laborables de los técnicos asignados
   const getAvailableWorkingDays = (): number[] => {
@@ -341,43 +353,192 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       return [1, 2, 3, 4, 5, 6]; // Lunes a sábado
     }
 
-    const workingDaysSet = new Set<number>();
-    
-    selectedServices.forEach(({ staffId }) => {
+    const dayMap: { [key: string]: number } = {
+      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    };
+
+    // Para un solo servicio, lógica simple
+    if (selectedServices.length === 1) {
+      const { service, staffId } = selectedServices[0];
+      const serviceDaysSet = new Set<number>();
+      
       if (staffId && staffId !== 'any') {
         const staffMember = staff.find(s => s.id === staffId);
         if (staffMember?.workingDays) {
           staffMember.workingDays.forEach((day: string) => {
-            // Convertir días de string a números (moment.js format)
-            const dayMap: { [key: string]: number } = {
-              'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-            };
             const dayNum = dayMap[day];
             if (dayNum !== undefined) {
-              workingDaysSet.add(dayNum);
+              serviceDaysSet.add(dayNum);
             }
           });
         }
-      } else if (staffId === 'any') {
-        // Si hay servicios con 'any', incluir todos los días laborables de todos los técnicos activos
+      } else {
+        // Para 'any' staff: días donde hay técnicos que pueden hacer este servicio
         staff.forEach(s => {
           if (s.isActive && s.isAvailable && s.workingDays) {
-            s.workingDays.forEach((day: string) => {
-              const dayMap: { [key: string]: number } = {
-                'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-              };
-              const dayNum = dayMap[day];
-              if (dayNum !== undefined) {
-                workingDaysSet.add(dayNum);
-              }
-            });
+            const canDoService = s.services?.some(svc => svc.id === service.id);
+            if (canDoService) {
+              s.workingDays.forEach((day: string) => {
+                const dayNum = dayMap[day];
+                if (dayNum !== undefined) {
+                  serviceDaysSet.add(dayNum);
+                }
+              });
+            }
           }
         });
       }
-    });
 
-    // Si no hay días disponibles (error en datos), retornar días laborables por defecto
-    return workingDaysSet.size > 0 ? Array.from(workingDaysSet) : [1, 2, 3, 4, 5, 6];
+      const finalDays: number[] = serviceDaysSet.size > 0 ? Array.from(serviceDaysSet) : [1, 2, 3, 4, 5, 6];
+      console.log(`✅ Single service available days:`, finalDays.map((d: number) => Object.keys(dayMap)[d]));
+      return finalDays;
+    }
+
+    // Para múltiples servicios: considerar modo VIP o consecutivo
+    console.log(`🎯 Multiple services mode: ${isVIPCombo ? 'VIP COMBO (PARALLEL)' : 'CONSECUTIVE'}`);
+
+    if (isVIPCombo) {
+      // VIP COMBO (PARALELO): Necesitamos técnicos diferentes disponibles EL MISMO DÍA
+      console.log('🔄 VIP Mode: Finding days where ALL services can run simultaneously');
+      
+      let availableDays: Set<number> | null = null;
+      
+      selectedServices.forEach(({ service, staffId }, serviceIndex) => {
+        const serviceDaysSet = new Set<number>();
+        
+        if (staffId && staffId !== 'any') {
+          // Staff específico asignado
+          const staffMember = staff.find(s => s.id === staffId);
+          if (staffMember?.workingDays) {
+            staffMember.workingDays.forEach((day: string) => {
+              const dayNum = dayMap[day];
+              if (dayNum !== undefined) {
+                serviceDaysSet.add(dayNum);
+              }
+            });
+          }
+        } else {
+          // Para 'any': días donde hay técnicos disponibles para este servicio específico
+          staff.forEach(s => {
+            if (s.isActive && s.isAvailable && s.workingDays) {
+              const canDoService = s.services?.some(svc => svc.id === service.id);
+              if (canDoService) {
+                s.workingDays.forEach((day: string) => {
+                  const dayNum = dayMap[day];
+                  if (dayNum !== undefined) {
+                    serviceDaysSet.add(dayNum);
+                  }
+                });
+              }
+            }
+          });
+        }
+
+        // Para VIP: intersección - solo días donde TODOS los servicios pueden ser atendidos simultáneamente
+        if (availableDays === null) {
+          availableDays = new Set(serviceDaysSet);
+        } else {
+          availableDays = new Set(
+            Array.from(availableDays).filter(day => serviceDaysSet.has(day))
+          );
+        }
+
+        console.log(`🗓️ VIP Service ${serviceIndex + 1} (${service.name}) days:`, 
+          Array.from(serviceDaysSet).map(d => Object.keys(dayMap)[d]));
+        console.log(`🗓️ VIP intersection so far:`, 
+          availableDays ? Array.from(availableDays).map(d => Object.keys(dayMap)[d]) : 'none');
+      });
+
+      const finalDays: number[] = availableDays && (availableDays as Set<number>).size > 0 
+        ? Array.from(availableDays as Set<number>) 
+        : [1, 2, 3, 4, 5, 6];
+
+      console.log(`✅ VIP Combo final days:`, finalDays.map((d: number) => Object.keys(dayMap)[d]));
+      return finalDays;
+    } else {
+      // CONSECUTIVO: Más flexible - un técnico puede hacer múltiples servicios O técnicos diferentes
+      console.log('🔄 Consecutive Mode: Finding days for sequential services');
+      
+      const allPossibleDays = new Set<number>();
+      
+      selectedServices.forEach(({ service, staffId }, serviceIndex) => {
+        const serviceDaysSet = new Set<number>();
+        
+        if (staffId && staffId !== 'any') {
+          // Staff específico
+          const staffMember = staff.find(s => s.id === staffId);
+          if (staffMember?.workingDays) {
+            staffMember.workingDays.forEach((day: string) => {
+              const dayNum = dayMap[day];
+              if (dayNum !== undefined) {
+                serviceDaysSet.add(dayNum);
+              }
+            });
+          }
+        } else {
+          // Para 'any': buscar técnicos que puedan hacer este servicio
+          staff.forEach(s => {
+            if (s.isActive && s.isAvailable && s.workingDays) {
+              const canDoService = s.services?.some(svc => svc.id === service.id);
+              if (canDoService) {
+                s.workingDays.forEach((day: string) => {
+                  const dayNum = dayMap[day];
+                  if (dayNum !== undefined) {
+                    serviceDaysSet.add(dayNum);
+                  }
+                });
+              }
+            }
+          });
+        }
+
+        // Para consecutivo: unión de días + verificar si hay superposición con otros servicios
+        serviceDaysSet.forEach(day => allPossibleDays.add(day));
+        
+        console.log(`🗓️ Consecutive Service ${serviceIndex + 1} (${service.name}) days:`, 
+          Array.from(serviceDaysSet).map(d => Object.keys(dayMap)[d]));
+      });
+
+      // Para consecutivo, buscar días donde al menos haya técnicos que puedan cubrir la secuencia
+      const viableDays = new Set<number>();
+      
+      Array.from(allPossibleDays).forEach(daynum => {
+        const dayName = Object.keys(dayMap)[daynum] as string;
+        let canCoverAllServices = true;
+        
+        // Verificar si para cada servicio hay al menos un técnico disponible este día
+        for (const { service, staffId } of selectedServices) {
+          let hasStaffForService = false;
+          
+          if (staffId && staffId !== 'any') {
+            const staffMember = staff.find(s => s.id === staffId);
+            hasStaffForService = staffMember?.workingDays?.includes(dayName) || false;
+          } else {
+            // Buscar si hay algún técnico que pueda hacer este servicio en este día
+            hasStaffForService = staff.some(s => 
+              s.isActive && 
+              s.isAvailable && 
+              s.workingDays?.includes(dayName) &&
+              s.services?.some(svc => svc.id === service.id)
+            );
+          }
+          
+          if (!hasStaffForService) {
+            canCoverAllServices = false;
+            break;
+          }
+        }
+        
+        if (canCoverAllServices) {
+          viableDays.add(daynum);
+        }
+      });
+
+      const finalDays: number[] = viableDays.size > 0 ? Array.from(viableDays) : [1, 2, 3, 4, 5, 6];
+      
+      console.log(`✅ Consecutive final days:`, finalDays.map((d: number) => Object.keys(dayMap)[d]));
+      return finalDays;
+    }
   };
 
   // Helper function to normalize time format for comparison
@@ -389,6 +550,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     }
     // If time has format HH:mm:ss, keep as is
     return time;
+  };
+
+  // Helper function to check if a date is available (uses validWorkingDays for better accuracy)
+  const isDateAvailable = (date: Date): boolean => {
+    const dayOfWeek = moment(date).day();
+    const daysToCheck = selectedServices.length > 1 ? validWorkingDays : getAvailableWorkingDays();
+    return daysToCheck.includes(dayOfWeek);
   };
   const generateTimeSlots = (): TimeSlot[] => {
     if (loadingSlots || availableSlots.length === 0) {
@@ -453,7 +621,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       });
 
       setStaffWorkloads(workloads);
-      setAvailableStaff(staff.filter(s => s.isActive && s.isAvailable));
+      
+      // Filtrar staff que esté activo, disponible Y que trabaje en el día seleccionado
+      const selectedDayName = moment(date).format('ddd'); // Mon, Tue, Wed, etc.
+      setAvailableStaff(staff.filter(s => 
+        s.isActive && 
+        s.isAvailable && 
+        s.workingDays?.includes(selectedDayName)
+      ));
     } catch (err) {
       console.error('Error calculating staff workload:', err);
     }
@@ -487,7 +662,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         return;
       }
 
-      // Verificar que todos los servicios tengan staff asignado (puede ser 'any' para staff automático)
+      // Verificar que todos los servicios tengan staff asignado (específico o 'any')
       const hasUnassignedStaff = selectedServices.some(s => !s.staffId);
       if (hasUnassignedStaff) {
         // No cargar slots hasta que se asigne staff (específico o 'any')
@@ -501,47 +676,237 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         setSlotVerified(false);
         const dateStr = moment(selectedDate).format('YYYY-MM-DD');
 
-        // Preparar servicios en el nuevo formato CON staff específico o 'any'
-        const services = selectedServices.map(({ service, addOns, staffId }) => ({
-          serviceId: service.id,
-          duration: service.duration,
-          bufferTime: service.bufferTime || 0,
-          staffId: staffId === 'any' ? 'any' : staffId, // Enviar 'any' o el staff ID específico
-          addons: addOns.map(addon => ({
-            id: addon.id,
-            duration: addon.additionalTime || 0,
-          })),
-        }));
+        // Verificar si hay servicios con 'any' staff
+        const servicesWithAny = selectedServices.filter(s => s.staffId === 'any');
+        const hasAnyStaff = servicesWithAny.length > 0;
 
-        // Preparar removals
-        const removals = removalAddOns
-          .filter(r => selectedRemovalIds.includes(r.id))
-          .map(removal => ({
-            id: removal.id,
-            duration: removal.additionalTime || 0,
+        if (hasAnyStaff) {
+          console.log('🔍 Loading slots for services with "Any Available" staff...');
+          
+          if (isMultipleServicesFlow) {
+            // Para múltiples servicios con 'any': Cargar disponibilidad individual para cada servicio con 'any'
+            // y luego combinar con los servicios que tienen staff específico
+            console.log('🔄 Multiple services flow with any staff detected');
+            
+            const allSlotsPromises = selectedServices.map(async ({ service, addOns, staffId }, serviceIndex) => {
+              const getServiceAvailabilitySlots = async (targetStaffId: string) => {
+                try {
+                  const servicesForStaff = [{
+                    serviceId: service.id,
+                    duration: service.duration,
+                    bufferTime: service.bufferTime || 0,
+                    staffId: targetStaffId,
+                    addons: addOns.map(addon => ({
+                      id: addon.id,
+                      duration: addon.additionalTime || 0,
+                    })),
+                  }];
+
+                  // Solo el primer servicio incluye removals
+                  const removals = serviceIndex === 0 
+                    ? removalAddOns
+                        .filter(r => selectedRemovalIds.includes(r.id))
+                        .map(removal => ({
+                          id: removal.id,
+                          duration: removal.additionalTime || 0,
+                        }))
+                    : [];
+
+                  const timezoneOffset = new Date().getTimezoneOffset();
+                  const response = await getBackofficeAvailability(servicesForStaff, removals, dateStr, false, timezoneOffset);
+                  return response.data || response || [];
+                } catch (error) {
+                  console.error(`Error fetching slots for service ${service.name} with staff ${targetStaffId}:`, error);
+                  return [];
+                }
+              };
+
+              if (staffId === 'any') {
+                // Para servicios con 'any', obtener slots de todos los técnicos que pueden hacer este servicio
+                // y que trabajen en el día seleccionado
+                const selectedDayName = moment(selectedDate).format('ddd'); // Mon, Tue, Wed, etc.
+                const eligibleStaff = staff.filter(staffMember => 
+                  staffMember.isActive &&
+                  staffMember.isAvailable &&
+                  staffMember.services?.some(svc => svc.id === service.id) &&
+                  staffMember.workingDays?.includes(selectedDayName)
+                );
+
+                const allServiceSlotsPromises = eligibleStaff.map(staffMember => 
+                  getServiceAvailabilitySlots(staffMember.id)
+                );
+                
+                const allServiceResults = await Promise.all(allServiceSlotsPromises);
+                const serviceTimes = new Set<string>();
+                
+                allServiceResults.forEach(slots => {
+                  slots.forEach((slot: any) => {
+                    serviceTimes.add(slot.startTime);
+                  });
+                });
+
+                return Array.from(serviceTimes);
+              } else {
+                // Para servicios con staff específico, obtener slots de ese staff
+                if (!staffId) {
+                  console.error('Staff ID is undefined for specific staff service');
+                  return [];
+                }
+                const slots = await getServiceAvailabilitySlots(staffId);
+                return slots.map((slot: any) => slot.startTime);
+              }
+            });
+
+            const allServiceResults = await Promise.all(allSlotsPromises);
+            
+            // Para múltiples servicios, encontrar intersección de disponibilidades
+            // (horarios donde todos los servicios pueden ser atendidos)
+            console.log('📊 Service availability results:', allServiceResults.map((times, idx) => `Service ${idx + 1}: ${times.length} slots`));
+            
+            if (allServiceResults.length === 0) {
+              setAvailableSlots([]);
+              return;
+            }
+
+            // Comenzar con los slots del primer servicio
+            let commonTimes = new Set<string>(allServiceResults[0]);
+            
+            // Intersección: mantener solo los horarios disponibles para TODOS los servicios
+            for (let i = 1; i < allServiceResults.length; i++) {
+              const serviceTimes = new Set<string>(allServiceResults[i]);
+              commonTimes = new Set<string>(Array.from(commonTimes).filter(time => serviceTimes.has(time)));
+            }
+
+            // Crear slots combinados
+            const combinedSlots = Array.from(commonTimes)
+              .sort()
+              .map(startTime => ({
+                startTime,
+                available: true
+              }));
+
+            console.log(`✅ Combined slots for multiple services (intersection): ${combinedSlots.length}`);
+            setAvailableSlots(combinedSlots);
+          } else {
+            // Para un solo servicio con 'any': buscar staff que pueda hacer este servicio específico
+            let allAvailableStaffIds = new Set<string>();
+            
+            const selectedDayName = moment(selectedDate).format('ddd'); // Mon, Tue, Wed, etc.
+            
+            selectedServices.forEach(({ service }) => {
+              staff.forEach(staffMember => {
+                if (
+                  staffMember.isActive &&
+                  staffMember.isAvailable &&
+                  staffMember.services?.some(svc => svc.id === service.id) &&
+                  staffMember.workingDays?.includes(selectedDayName)
+                ) {
+                  allAvailableStaffIds.add(staffMember.id);
+                }
+              });
+            });
+
+            const staffIds = Array.from(allAvailableStaffIds);
+            console.log('👥 Staff members to check for single service:', staffIds);
+
+            if (staffIds.length === 0) {
+              console.log('❌ No staff members available for selected service');
+              setAvailableSlots([]);
+              return;
+            }
+
+            // Hacer llamadas paralelas para cada staff member
+            const allSlotsPromises = staffIds.map(async (staffId) => {
+              try {
+                const servicesForStaff = selectedServices.map(({ service, addOns }) => ({
+                  serviceId: service.id,
+                  duration: service.duration,
+                  bufferTime: service.bufferTime || 0,
+                  staffId: staffId,
+                  addons: addOns.map(addon => ({
+                    id: addon.id,
+                    duration: addon.additionalTime || 0,
+                  })),
+                }));
+
+                const removals = removalAddOns
+                  .filter(r => selectedRemovalIds.includes(r.id))
+                  .map(removal => ({
+                    id: removal.id,
+                    duration: removal.additionalTime || 0,
+                  }));
+
+                const timezoneOffset = new Date().getTimezoneOffset();
+                const response = await getBackofficeAvailability(servicesForStaff, removals, dateStr, false, timezoneOffset);
+                return response.data || response || [];
+              } catch (error) {
+                console.error(`Error fetching slots for staff ${staffId}:`, error);
+                return [];
+              }
+            });
+
+            const allResults = await Promise.all(allSlotsPromises);
+            
+            // Combinar todos los slots únicos (UNIÓN de disponibilidades)
+            const availableTimes = new Set<string>();
+            allResults.forEach(slots => {
+              slots.forEach((slot: any) => {
+                availableTimes.add(slot.startTime);
+              });
+            });
+
+            // Crear slots combinados
+            const combinedSlots = Array.from(availableTimes)
+              .sort()
+              .map(startTime => ({
+                startTime,
+                available: true
+              }));
+
+            console.log('✅ Combined slots for single service:', combinedSlots.length);
+            setAvailableSlots(combinedSlots);
+          }
+        } else {
+          // Lógica original para staff específicos
+          const services = selectedServices.map(({ service, addOns, staffId }) => ({
+            serviceId: service.id,
+            duration: service.duration,
+            bufferTime: service.bufferTime || 0,
+            staffId: staffId!, // Ya validamos que todos tienen staff asignado
+            addons: addOns.map(addon => ({
+              id: addon.id,
+              duration: addon.additionalTime || 0,
+            })),
           }));
 
-        // Get timezone offset in minutes (UTC-3 = -180)
-        const timezoneOffset = new Date().getTimezoneOffset();
+          const removals = removalAddOns
+            .filter(r => selectedRemovalIds.includes(r.id))
+            .map(removal => ({
+              id: removal.id,
+              duration: removal.additionalTime || 0,
+            }));
 
-        console.log('🔍 Fetching available slots for specific staff:', {
-          date: dateStr,
-          servicesCount: services.length,
-          removalsCount: removals.length,
-          isVIPCombo,
-          staffIds: services.map(s => s.staffId),
-          timezoneOffset,
-        });
+          const timezoneOffset = new Date().getTimezoneOffset();
 
-        const response = await getBackofficeAvailability(services, removals, dateStr, isVIPCombo, timezoneOffset);
-        const slots = response.data || response || [];
-        
-        console.log('✅ Available slots loaded:', slots.length);
-        setAvailableSlots(slots);
+          console.log('🔍 Fetching available slots for specific staff:', {
+            date: dateStr,
+            servicesCount: services.length,
+            removalsCount: removals.length,
+            isVIPCombo,
+            staffIds: services.map(s => s.staffId),
+            timezoneOffset,
+          });
+
+          const response = await getBackofficeAvailability(services, removals, dateStr, isVIPCombo, timezoneOffset);
+          const slots = response.data || response || [];
+          
+          console.log('✅ Available slots loaded:', slots.length);
+          setAvailableSlots(slots);
+        }
       } catch (error) {
         console.error('Error loading available slots:', error);
         toast.error('Error al cargar horarios disponibles');
-          toast.error(t('booking.toast.load_slots_error'));
+        toast.error(t('booking.toast.load_slots_error'));
         setAvailableSlots([]);
       } finally {
         setLoadingSlots(false);
@@ -631,39 +996,58 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     // Si está restringido a un solo servicio (desde calendario), reemplazar el servicio existente
     if (restrictToOneService && selectedServices.length >= 1) {
       toast.info(t('booking.toast.service_replaced_single_mode'));
-      // Auto-asignar staff con menor workload que pueda hacer el servicio
-      const autoStaffId = preselectedStaffId || autoAssignStaff(service);
-      const autoStaff = staff.find(s => s.id === autoStaffId);
+      const staffId = preselectedStaffId || undefined;
+      const staffMember = preselectedStaffId ? staff.find(s => s.id === preselectedStaffId) : undefined;
 
       setSelectedServices([
         {
           service,
           addOns: [],
-          staffId: autoStaffId,
-          staffName: autoStaff ? `${autoStaff.firstName} ${autoStaff.lastName}` : undefined,
+          staffId: staffId,
+          staffName: staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : undefined,
         }
       ]);
       return;
     }
 
-    // Auto-asignar staff con menor workload que pueda hacer el servicio
-    const autoStaffId = preselectedStaffId || autoAssignStaff(service);
-    const autoStaff = staff.find(s => s.id === autoStaffId);
+    // Para múltiples servicios: El segundo servicio automáticamente va con 'any' staff
+    const isFirstService = selectedServices.length === 0;
+    const isSecondService = selectedServices.length === 1;
+    
+    const newService = {
+      service,
+      addOns: [],
+      // Primer servicio: usar preseleccionado del calendario o dejar sin asignar para selección manual
+      // Segundo servicio: automáticamente 'any'
+      staffId: isFirstService 
+        ? (preselectedStaffId || undefined) 
+        : 'any',
+      staffName: isFirstService && preselectedStaffId 
+        ? `${staff.find(s => s.id === preselectedStaffId)?.firstName || ''} ${staff.find(s => s.id === preselectedStaffId)?.lastName || ''}`.trim()
+        : isSecondService 
+          ? 'Any Available Technician' 
+          : undefined,
+    };
 
-    setSelectedServices([
-      ...selectedServices,
-      {
-        service,
-        addOns: [],
-        staffId: autoStaffId,
-        staffName: autoStaff ? `${autoStaff.firstName} ${autoStaff.lastName}` : undefined,
-      },
-    ]);
+    const newSelectedServices = [...selectedServices, newService];
+    
+    // Para el segundo servicio, resetear tiempo porque ahora hay dos técnicos diferentes
+    if (isSecondService) {
+      setSelectedTime(null);
+      setSlotVerified(false);
+    }
+    
+    setSelectedServices(newSelectedServices);
   };
 
   // Remover servicio
   const removeService = (serviceId: string) => {
-    setSelectedServices(selectedServices.filter(s => s.service.id !== serviceId));
+    const newSelectedServices = selectedServices.filter(s => s.service.id !== serviceId);
+    setSelectedServices(newSelectedServices);
+    
+    // Resetear tiempo cuando cambian los servicios porque la disponibilidad puede cambiar
+    setSelectedTime(null);
+    setSlotVerified(false);
   };
 
   // Agregar addon a un servicio
@@ -684,16 +1068,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     );
   };
 
-  // Asignar staff a un servicio
+  // Asignar staff a un servicio específico
   const assignStaff = (serviceId: string, staffId: string) => {
     const staffMember = staff.find(s => s.id === staffId);
     // Resetear la verificación cuando cambia el staff
     setSlotVerified(false);
-    // Siempre resetear el tiempo cuando se cambia staff, independientemente de la preselección
-    // porque la disponibilidad del horario puede cambiar con diferente staff
+    // Resetear el tiempo cuando se cambia staff porque la disponibilidad cambia
     setSelectedTime(null);
-    setHasPreselectedTime(false); // Quitar la bandera porque ya no es válida la preselección
+    setHasPreselectedTime(false);
     
+    // Asignar staff solo al servicio específico (en múltiples servicios, solo el primero es seleccionable)
     setSelectedServices(
       selectedServices.map(s => {
         if (s.service.id === serviceId) {
@@ -703,7 +1087,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             staffName: staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : undefined,
           };
         }
-        return s;
+        return s; // Mantener otros servicios sin cambios
       })
     );
   };
@@ -776,10 +1160,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       return;
     }
 
-    // Verificar que todos los servicios tengan staff asignado Y que no sea 'any'
+    // Verificar que todos los servicios tengan staff asignado (específico, no 'any')
     const missingStaff = selectedServices.filter(s => !s.staffId || s.staffId === 'any');
     if (missingStaff.length > 0) {
-      toast.error(`Debe seleccionar un técnico específico para: ${missingStaff.map(s => s.service.name).join(', ')}`);
+      toast.error(`Servicios con "Any staff": ${missingStaff.map(s => s.service.name).join(', ')}. Por favor verifique los horarios primero para asignar técnicos automáticamente.`);
       return;
     }
 
@@ -932,66 +1316,169 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     // Resetear verificación cuando cambia el horario
     setSlotVerified(false);
 
-    // Si hay servicios con "any" staff, auto-asignar
-    const servicesWithAny = selectedServices.filter(s => s.staffId === 'any' || !s.staffId);
+    // Si hay servicios con "any" staff, auto-asignar con técnico óptimo
+    const servicesWithAny = selectedServices.filter(s => s.staffId === 'any');
     
     if (servicesWithAny.length > 0 && selectedDate) {
       try {
-        const api = new APIClient();
         const formattedDate = moment(selectedDate).format('YYYY-MM-DD');
-        // Formatear tiempo a HH:mm (sin segundos)
         const formattedTime = time.length > 5 ? time.substring(0, 5) : time;
 
-        console.log('🔄 Auto-assigning staff for services:', servicesWithAny.map(s => s.service.name));
+        console.log('🔄 Auto-assigning optimal staff for services:', servicesWithAny.map(s => s.service.name));
 
-        // Auto-asignar cada servicio con "any"
-        const updatedServices = await Promise.all(
-          selectedServices.map(async ({ service, addOns, staffId, staffName }, index) => {
-            if (staffId === 'any' || !staffId) {
-              // Calcular duración total incluyendo add-ons y removals (solo primer servicio)
-              const addOnsDuration = addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
-              const removalsDuration = index === 0
-                ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
-                : 0;
-              const totalDuration = service.duration + addOnsDuration + removalsDuration;
+        // Función helper para encontrar el técnico óptimo para un servicio específico
+        const findOptimalStaff = async (service: any, addOns: any[], totalDuration: number) => {
+          // Obtener el día de la semana de la fecha seleccionada
+          const selectedDayName = moment(selectedDate).format('ddd'); // Mon, Tue, Wed, etc.
+          console.log(`📅 Selected day: ${selectedDayName} (${moment(selectedDate).format('YYYY-MM-DD')})`);
+          
+          // 1. Obtener técnicos que pueden hacer este servicio Y trabajan en el día seleccionado
+          const eligibleStaff = staff.filter(staffMember => {
+            const canDoService = staffMember.services?.some(svc => svc.id === service.id);
+            const worksOnDay = staffMember.workingDays?.includes(selectedDayName);
+            
+            console.log(`👨‍💼 ${staffMember.firstName} ${staffMember.lastName}:`, {
+              isActive: staffMember.isActive,
+              isAvailable: staffMember.isAvailable,
+              canDoService,
+              worksOnDay,
+              workingDays: staffMember.workingDays
+            });
+            
+            return staffMember.isActive &&
+              staffMember.isAvailable &&
+              canDoService &&
+              worksOnDay;
+          });
 
-              console.log(`🔄 Calling assign-optimal-staff for "${service.name}" (${totalDuration} min)`);
+          if (eligibleStaff.length === 0) {
+            console.log(`❌ No staff available for service: ${service.name}`);
+            return null;
+          }
 
-              // Llamar al endpoint de auto-asignación usando APIClient
-              const result: any = await api.create('/api/v1/bookings/assign-optimal-staff', {
-                date: formattedDate,
-                time: formattedTime,
-                duration: totalDuration
-              });
+          console.log(`👥 Eligible staff for "${service.name}":`, eligibleStaff.map(s => `${s.firstName} ${s.lastName}`));
 
-              console.log(`✅ Received assignment:`, result);
+          // 2. Verificar disponibilidad en el horario específico y obtener workload
+          const availableStaffWithWorkload = [];
+          
+          for (const staffMember of eligibleStaff) {
+            // Verificar si está disponible en el horario específico
+            const isAvailable = await isStaffAvailableAtTime(
+              staffMember.id,
+              formattedTime + ':00',
+              moment(formattedTime, 'HH:mm').add(totalDuration, 'minutes').format('HH:mm:ss'),
+              formattedDate
+            );
 
-              // El backend devuelve { success, data: { success, staffId, staffName, ... }, timestamp }
-              const assignmentData = result.data || result;
+            if (isAvailable) {
+              // Obtener workload del técnico para el día
+              const workload = staffWorkloads.find(w => w.id === staffMember.id);
+              const workloadMinutes = workload?.workloadMinutes || 0;
               
-              if (assignmentData.success && assignmentData.staffId) {
-                toast.success(`${service.name}: Asignado a ${assignmentData.staffName}`);
-                return {
-                  service,
-                  addOns,
-                  staffId: assignmentData.staffId,
-                  staffName: assignmentData.staffName
-                };
-              } else {
-                console.error('❌ Assignment failed:', assignmentData);
-                toast.error(`No se pudo asignar técnico automáticamente para ${service.name}`);
-                return { service, addOns, staffId, staffName };
-              }
+              availableStaffWithWorkload.push({
+                staff: staffMember,
+                workloadMinutes,
+              });
+              
+              console.log(`✅ ${staffMember.firstName} ${staffMember.lastName}: disponible, workload ${workloadMinutes} min`);
+            } else {
+              console.log(`❌ ${staffMember.firstName} ${staffMember.lastName}: No disponible en ${formattedTime}`);
             }
+          }
 
-            return { service, addOns, staffId, staffName };
-          })
-        );
+          if (availableStaffWithWorkload.length === 0) {
+            console.log(`❌ No staff available at time ${formattedTime} for service: ${service.name}`);
+            return null;
+          }
 
-        setSelectedServices(updatedServices);
-        console.log('✅ Services updated with auto-assigned staff');
+          // 3. Seleccionar el técnico con menor carga de trabajo
+          const optimalStaff = availableStaffWithWorkload.reduce((min, current) => {
+            return current.workloadMinutes < min.workloadMinutes ? current : min;
+          });
+
+          console.log(`🎯 Optimal staff selected: ${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName} (${optimalStaff.workloadMinutes} min workload)`);
+          
+          return {
+            staffId: optimalStaff.staff.id,
+            staffName: `${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName}`,
+            workloadMinutes: optimalStaff.workloadMinutes
+          };
+        };
+
+        if (isMultipleServicesFlow) {
+          // Para múltiples servicios: auto-asignar individualmente cada servicio con 'any'
+          const updatedServices = await Promise.all(
+            selectedServices.map(async ({ service, addOns, staffId, staffName }, index) => {
+              if (staffId === 'any') {
+                const addOnsDuration = addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
+                const removalsDuration = index === 0
+                  ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
+                  : 0;
+                const totalDuration = service.duration + addOnsDuration + removalsDuration;
+
+                console.log(`🔄 Finding optimal staff for "${service.name}" (${totalDuration} min)`);
+
+                const optimalAssignment = await findOptimalStaff(service, addOns, totalDuration);
+                
+                if (optimalAssignment) {
+                  toast.success(`${service.name}: Asignado a ${optimalAssignment.staffName} (${optimalAssignment.workloadMinutes} min workload)`);
+                  return {
+                    service,
+                    addOns,
+                    staffId: optimalAssignment.staffId,
+                    staffName: optimalAssignment.staffName
+                  };
+                } else {
+                  toast.error(`No se pudo asignar técnico para ${service.name} en horario ${formattedTime}`);
+                  return { service, addOns, staffId, staffName };
+                }
+              }
+
+              // Mantener servicios que no son 'any'
+              return { service, addOns, staffId, staffName };
+            })
+          );
+
+          setSelectedServices(updatedServices);
+          console.log('✅ Services updated individually with optimal staff assignments');
+        } else {
+          // Para un solo servicio: lógica original con selección óptima
+          const updatedServices = await Promise.all(
+            selectedServices.map(async ({ service, addOns, staffId, staffName }, index) => {
+              if (staffId === 'any') {
+                const addOnsDuration = addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
+                const removalsDuration = index === 0
+                  ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
+                  : 0;
+                const totalDuration = service.duration + addOnsDuration + removalsDuration;
+
+                console.log(`🔄 Finding optimal staff for "${service.name}" (${totalDuration} min)`);
+
+                const optimalAssignment = await findOptimalStaff(service, addOns, totalDuration);
+                
+                if (optimalAssignment) {
+                  toast.success(`${service.name}: Asignado a ${optimalAssignment.staffName} (${optimalAssignment.workloadMinutes} min workload)`);
+                  return {
+                    service,
+                    addOns,
+                    staffId: optimalAssignment.staffId,
+                    staffName: optimalAssignment.staffName
+                  };
+                } else {
+                  toast.error(`No se pudo asignar técnico para ${service.name} en horario ${formattedTime}`);
+                  return { service, addOns, staffId, staffName };
+                }
+              }
+
+              return { service, addOns, staffId, staffName };
+            })
+          );
+
+          setSelectedServices(updatedServices);
+          console.log('✅ Services updated with optimal staff assignment');
+        }
       } catch (error) {
-        console.error('❌ Error auto-assigning staff:', error);
+        console.error('❌ Error auto-assigning optimal staff:', error);
         toast.error('Error al asignar técnicos automáticamente. Por favor seleccione manualmente.');
         toast.error(t('booking.toast.auto_assign_error'));
       }
@@ -1049,9 +1536,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     return hasManicure && hasPedicure;
   }, [selectedServices]);
 
-  // Helper: verificar si se necesita paso de staff (todos los servicios necesitan staff)
+  // Helper: verificar si se necesita paso de staff
   const requiresStaffStep = useMemo(() => {
     return selectedServices.length > 0;
+  }, [selectedServices]);
+
+  // Helper: verificar si es selección de múltiples servicios (técnicos diferentes)
+  const isMultipleServicesFlow = useMemo(() => {
+    return selectedServices.length > 1;
   }, [selectedServices]);
 
   // Navegar entre pasos
@@ -1067,9 +1559,17 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       return;
     }
     if (step === 'staff' && requiresStaffStep) {
-      const missingStaff = selectedServices.filter(s => !s.staffId);
+      // Para múltiples servicios: solo verificar que el primer servicio tenga staff asignado
+      // El segundo servicio siempre debe ser 'any'
+      const missingStaff = isMultipleServicesFlow 
+        ? selectedServices.filter((s, idx) => idx === 0 && !s.staffId) // Solo verificar primer servicio
+        : selectedServices.filter(s => !s.staffId); // Para un solo servicio, verificar normal
+      
       if (missingStaff.length > 0) {
-        toast.warning(t('booking.toast.assign_staff_missing', { services: missingStaff.map(s => s.service.name).join(', ') }));
+        toast.warning(isMultipleServicesFlow 
+          ? 'Por favor seleccione un técnico para el primer servicio'
+          : t('booking.toast.assign_staff_missing', { services: missingStaff.map(s => s.service.name).join(', ') })
+        );
         return;
       }
     }
@@ -1201,6 +1701,234 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     loadRemovalAddOns();
   }, [selectedServices, i18n.language]);
 
+  // Calcular días válidos basado en intersección real de horarios disponibles
+  const calculateValidWorkingDays = async () => {
+    if (selectedServices.length <= 1) {
+      // Para un solo servicio o ninguno, usar lógica original
+      const originalDays = getAvailableWorkingDays();
+      setValidWorkingDays(originalDays);
+      return;
+    }
+
+    try {
+      setLoadingValidDays(true);
+      console.log('🔄 Calculating valid working days with REAL availability intersection...');
+      console.log('📋 This validation checks:');
+      console.log('  ✅ Staff working days');
+      console.log('  ✅ Existing bookings/conflicts');
+      console.log('  ✅ Real time slot availability');
+      console.log('  ✅ Service sequence viability');
+
+      // Obtener días base donde ambos técnicos trabajan
+      const baseDays = getAvailableWorkingDays();
+      console.log('📅 Base working days:', baseDays.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]));
+
+      if (baseDays.length === 0) {
+        setValidWorkingDays([]);
+        return;
+      }
+
+      const validDays: number[] = [];
+      const dayMap: { [key: string]: number } = {
+        'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+      };
+
+      // Para cada día base, verificar si hay intersección real de horarios DISPONIBLES
+      for (const dayNumber of baseDays) {
+        const dayName = Object.keys(dayMap)[dayNumber] as string;
+        console.log(`🗓️ Validating ${dayName} with REAL booking conflicts...`);
+
+        // Usar fechas reales: próximas 4 semanas para este día de la semana
+        const testDates = [];
+        for (let week = 0; week < 4; week++) {
+          let testDate = moment().day(dayNumber).add(week, 'week');
+          if (testDate.isBefore(moment(), 'day')) {
+            continue; // Saltar fechas pasadas
+          }
+          testDates.push(testDate);
+          if (testDates.length >= 2) break; // Solo necesitamos algunas muestras
+        }
+
+        if (testDates.length === 0) {
+          console.log(`⚠️ ${dayName}: No future dates available for testing`);
+          continue;
+        }
+
+        let dayIsValid = false;
+
+        // Probar cada fecha de muestra
+        for (const testDate of testDates) {
+          const testDateStr = testDate.format('YYYY-MM-DD');
+          console.log(`  🧪 Testing ${dayName} on ${testDateStr}...`);
+
+          try {
+            // Obtener disponibilidad REAL para cada servicio en este día específico
+            const serviceAvailabilities = await Promise.all(
+              selectedServices.map(async ({ service, addOns, staffId }) => {
+                if (!staffId || staffId === 'any') {
+                  // Para 'any' staff, buscar todos los técnicos que pueden hacer el servicio
+                  const eligibleStaff = staff.filter(s => 
+                    s.isActive &&
+                    s.isAvailable &&
+                    s.workingDays?.includes(dayName) &&
+                    s.services?.some(svc => svc.id === service.id)
+                  );
+
+                  if (eligibleStaff.length === 0) {
+                    console.log(`    ❌ No eligible staff for ${service.name}`);
+                    return [];
+                  }
+
+                  // Obtener slots REALES de todos los técnicos elegibles
+                  const allStaffSlots = await Promise.all(
+                    eligibleStaff.map(async (staffMember) => {
+                      try {
+                        const servicesForStaff = [{
+                          serviceId: service.id,
+                          duration: service.duration,
+                          bufferTime: service.bufferTime || 0,
+                          staffId: staffMember.id,
+                          addons: addOns.map(addon => ({
+                            id: addon.id,
+                            duration: addon.additionalTime || 0,
+                          })),
+                        }];
+
+                        const timezoneOffset = new Date().getTimezoneOffset();
+                        // ⭐ CLAVE: getBackofficeAvailability considera bookings existentes
+                        const response = await getBackofficeAvailability(servicesForStaff, [], testDateStr, false, timezoneOffset);
+                        const slots = response.data || response || [];
+                        return slots.map((slot: any) => slot.startTime);
+                      } catch (error) {
+                        console.log(`    ❌ Error getting REAL availability for ${staffMember.firstName}: ${error}`);
+                        return [];
+                      }
+                    })
+                  );
+
+                  // Combinar slots únicos
+                  const allTimes = new Set<string>();
+                  allStaffSlots.forEach(slots => {
+                    slots.forEach((time: string) => allTimes.add(time));
+                  });
+                  const availableTimes = Array.from(allTimes);
+                  console.log(`    📊 ${service.name} (any staff): ${availableTimes.length} REAL available slots`);
+                  return availableTimes;
+
+                } else {
+                  // Para staff específico
+                  try {
+                    const servicesForStaff = [{
+                      serviceId: service.id,
+                      duration: service.duration,
+                      bufferTime: service.bufferTime || 0,
+                      staffId: staffId,
+                      addons: addOns.map(addon => ({
+                        id: addon.id,
+                        duration: addon.additionalTime || 0,
+                      })),
+                    }];
+
+                    const timezoneOffset = new Date().getTimezoneOffset();
+                    // ⭐ CLAVE: getBackofficeAvailability considera bookings existentes
+                    const response = await getBackofficeAvailability(servicesForStaff, [], testDateStr, false, timezoneOffset);
+                    const slots = response.data || response || [];
+                    const availableTimes = slots.map((slot: any) => slot.startTime);
+                    console.log(`    📊 ${service.name} (${staffId}): ${availableTimes.length} REAL available slots`);
+                    return availableTimes;
+                  } catch (error) {
+                    console.log(`    ❌ Error getting REAL availability for specific staff ${staffId}: ${error}`);
+                    return [];
+                  }
+                }
+              })
+            );
+
+            console.log(`    📊 ${dayName} ${testDateStr} REAL availability:`, 
+              serviceAvailabilities.map((times, idx) => `Service ${idx + 1}: ${times.length} real slots`));
+
+            // Verificar si hay secuencias viables basadas en disponibilidad REAL
+            if (!isVIPCombo) {
+              // Para consecutivos: verificar si hay horarios donde se pueda hacer la secuencia REAL
+              let hasValidSequence = false;
+
+              for (const startTime1 of serviceAvailabilities[0]) {
+                // Calcular cuándo termina el primer servicio REALMENTE
+                const service1 = selectedServices[0];
+                const duration1 = service1.service.duration + 
+                  service1.addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
+                const buffer1 = service1.service.bufferTime || 15;
+                const endTime1 = moment(startTime1, 'HH:mm:ss').add(duration1 + buffer1, 'minutes');
+
+                // Verificar si hay slots REALES del segundo servicio después
+                for (const startTime2 of serviceAvailabilities[1]) {
+                  const start2 = moment(startTime2, 'HH:mm:ss');
+                  if (start2.isSameOrAfter(endTime1)) {
+                    hasValidSequence = true;
+                    console.log(`    ✅ Valid REAL sequence found: ${startTime1} → ${startTime2}`);
+                    break;
+                  }
+                }
+
+                if (hasValidSequence) break;
+              }
+
+              if (hasValidSequence) {
+                dayIsValid = true;
+                break; // No necesitamos probar más fechas para este día
+              }
+            } else {
+              // Para VIP: intersección REAL - necesitan estar disponibles al mismo tiempo
+              const intersection = serviceAvailabilities[0].filter((time: string) =>
+                serviceAvailabilities.every(availability => availability.includes(time))
+              );
+
+              if (intersection.length > 0) {
+                dayIsValid = true;
+                console.log(`    ✅ ${intersection.length} REAL VIP intersections found`);
+                break; // No necesitamos probar más fechas para este día
+              }
+            }
+
+          } catch (error) {
+            console.log(`    ❌ Error testing ${dayName} ${testDateStr}:`, error);
+          }
+        }
+
+        if (dayIsValid) {
+          validDays.push(dayNumber);
+          console.log(`✅ ${dayName}: VALIDATED with real booking availability`);
+        } else {
+          console.log(`❌ ${dayName}: No viable sequences in real availability`);
+        }
+      }
+
+      console.log('🎯 Final REAL valid working days:', validDays.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]));
+      console.log('💡 These days have been validated against:');
+      console.log('   ✅ Existing bookings/conflicts');
+      console.log('   ✅ Real staff availability');
+      console.log('   ✅ Viable service sequences');
+      setValidWorkingDays(validDays);
+
+    } catch (error) {
+      console.error('Error calculating REAL valid working days:', error);
+      // En caso de error, usar días básicos
+      setValidWorkingDays(getAvailableWorkingDays());
+    } finally {
+      setLoadingValidDays(false);
+    }
+  };
+
+  // Ejecutar cálculo cuando cambien servicios o modo VIP
+  useEffect(() => {
+    if (selectedServices.length > 1) {
+      calculateValidWorkingDays();
+    } else {
+      // Para un solo servicio, usar lógica original
+      setValidWorkingDays(getAvailableWorkingDays());
+    }
+  }, [selectedServices, isVIPCombo, staff]);
+
   // Cargar incompatibilidades de removals cuando cambia la selección
   useEffect(() => {
     const loadRemovalIncompatibilities = async () => {
@@ -1255,11 +1983,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           <Badge color={step === 'services' ? 'primary' : 'light'} className="me-1" style={{ color: step === 'services' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
             2. {t('booking.step.services')}
           </Badge>
+          {requiresStaffStep && (
+            <Badge color={step === 'staff' ? 'primary' : 'light'} className="me-1" style={{ color: step === 'staff' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
+              3. {t('booking.step.staff') || 'Staff'}
+            </Badge>
+          )}
           <Badge color={step === 'datetime' ? 'primary' : 'light'} className="me-1" style={{ color: step === 'datetime' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
-            3. {t('booking.step.datetime')}
+            {requiresStaffStep ? '4' : '3'}. {t('booking.step.datetime')}
           </Badge>
           <Badge color={step === 'confirm' ? 'primary' : 'light'} style={{ color: step === 'confirm' ? 'white' : '#6c757d', border: '1px solid #dee2e6' }}>
-            4. {t('booking.step.confirm')}
+            {requiresStaffStep ? '5' : '4'}. {t('booking.step.confirm')}
           </Badge>
         </div>
       </ModalHeader>
@@ -1749,9 +2482,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             <Row className="mt-4">
               <Col md={6} className="mb-2">
                 <Button
-                  color="secondary"
-                  outline
+                  color="light"
                   block
+                  style={{ 
+                    border: '2px solid #6c757d', 
+                    color: '#6c757d',
+                    backgroundColor: '#f8f9fa'
+                  }}
                   onClick={() => {
                     setIsVIPCombo(false);
                     setUserConfirmedVIPChoice(true); // User made explicit choice
@@ -1779,92 +2516,172 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           </div>
         )}
 
-        {/* PASO 5: STAFF SELECTION (para todos los servicios) */}
+        {/* PASO 5: STAFF SELECTION */}
         {step === 'staff' && !loading && requiresStaffStep && (
           <div>
             <h5 className="mb-3">{t('booking.staff.title') || 'Select Professional'}</h5>
             
-            {selectedServices.map(({ service, addOns: serviceAddOns, staffId, staffName }, idx) => {
-              
-              // Calcular duración total incluyendo add-ons y removals (solo para el primer servicio)
-              const addOnsDuration = serviceAddOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
-              const removalsDuration = idx === 0 
-                ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
-                : 0;
-              const totalDuration = service.duration + addOnsDuration + removalsDuration;
-              
-              return (
-                <Card key={service.id} className="border mb-3">
-                  <CardBody>
-                    <div className="d-flex align-items-center mb-3">
-                      <Badge color="info" className="me-2">{idx + 1}</Badge>
-                      <div className="flex-grow-1">
-                        <h6 className="mb-0">{service.name}</h6>
-                        <small className="text-muted">
-                          {totalDuration} min 
-                          {(addOnsDuration > 0 || removalsDuration > 0) && (
-                            <span>
-                              ({service.duration}
-                              {addOnsDuration > 0 && ` + ${addOnsDuration} add-ons`}
-                              {removalsDuration > 0 && ` + ${removalsDuration} removal`})
-                            </span>
-                          )} - ${service.price}
-                        </small>
-                      </div>
-                      {staffName && (
-                        <Badge color="success">
-                          <i className="ri-check-line me-1"></i>
-                          {t('booking.staff.assigned') || 'Assigned'}
-                        </Badge>
-                      )}
-                    </div>
+            {isMultipleServicesFlow ? (
+              // Para múltiples servicios: Selector solo para el primer servicio
+              <div>
+                <Alert color="info" className="mb-3">
+                  <i className="ri-information-line me-2"></i>
+                  <strong>Múltiples Servicios Detectados</strong><br />
+                  • <strong>Primer servicio</strong>: Seleccione el técnico de su preferencia<br />
+                  • <strong>Segundo servicio</strong>: Automáticamente asignado a "Any Available"
+                </Alert>
 
-                    <FormGroup className="mb-0">
-                      <Label>{t('booking.staff.select_professional') || 'Select Professional'}: *</Label>
-                      <Input
-                        type="select"
-                        value={staffId || ''}
-                        onChange={(e) => assignStaff(service.id, e.target.value)}
-                      >
-                        <option value="">{t('booking.staff.select_option') || 'Select a professional...'}</option>
-                        <option value="any">
-                          {t('booking.staff.any_available') || 'Any Available Technician'}
-                        </option>
-                        {staff
-                          .filter(s => 
-                            s.isActive && 
-                            s.isAvailable && 
-                            s.services?.some(svc => svc.id === service.id)
-                          )
-                          .map(s => {
-                            const workload = staffWorkloads.find(w => w.id === s.id);
-                            const workloadText = workload 
-                              ? ` (${workload.workloadMinutes} ${t('booking.minutes') || 'min'} ${t('booking.staff.busy') || 'busy'})` 
-                              : '';
-                            return (
-                              <option key={s.id} value={s.id}>
-                                {s.firstName} {s.lastName}{workloadText}
-                              </option>
-                            );
-                          })}
-                      </Input>
-                      {staffName && (
-                        <small className="text-success mt-2 d-block">
-                          <i className="ri-check-line me-1"></i>
-                          {staffName}
-                        </small>
-                      )}
-                    </FormGroup>
+                <Card className="border mb-3">
+                  <CardHeader>
+                    <h6 className="mb-0">Asignación de Técnicos</h6>
+                  </CardHeader>
+                  <CardBody>
+                    {selectedServices.map(({ service, staffId, staffName }, idx) => {
+                      const isFirstService = idx === 0;
+                      const availableStaffForService = staff.filter(s => 
+                        s.isActive && 
+                        s.isAvailable && 
+                        s.services?.some(svc => svc.id === service.id)
+                      );
+
+                      return (
+                        <div key={service.id} className="mb-3">
+                          <div className="d-flex align-items-center mb-2">
+                            <Badge color="light" className="me-2">{idx + 1}</Badge>
+                            <span className="flex-grow-1">{service.name}</span>
+                            <Badge 
+                              color={staffId ? 'success' : 'warning'} 
+                              className="ms-2"
+                            >
+                              {staffId === 'any' 
+                                ? 'Any Available' 
+                                : staffName || 'Sin asignar'
+                              }
+                            </Badge>
+                          </div>
+                          
+                          {isFirstService ? (
+                            // Solo el primer servicio permite selección manual
+                            <FormGroup>
+                              <Label className="small text-muted">Seleccionar técnico para {service.name}:</Label>
+                              <Input
+                                type="select"
+                                value={staffId || ''}
+                                onChange={(e) => assignStaff(service.id, e.target.value)}
+                                bsSize="sm"
+                              >
+                                <option value="">{t('booking.staff.select_option') || 'Select a professional...'}</option>
+                                <option value="any">
+                                  {t('booking.staff.any_available') || 'Any Available Technician'}
+                                </option>
+                                {availableStaffForService.map(s => {
+                                  const workload = staffWorkloads.find(w => w.id === s.id);
+                                  return (
+                                    <option key={s.id} value={s.id}>
+                                      {s.firstName} {s.lastName}
+                                      {workload && ` (${Math.floor(workload.workloadMinutes / 60)}h ${workload.workloadMinutes % 60}m)`}
+                                    </option>
+                                  );
+                                })}
+                              </Input>
+                            </FormGroup>
+                          ) : (
+                            // Segundo servicio siempre "Any Available" - Solo informativo
+                            <div className="small text-muted">
+                              <i className="ri-user-settings-line me-1"></i>
+                              Automáticamente asignado a "Any Available Technician"
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </CardBody>
                 </Card>
-              );
-            })}
+              </div>
+            ) : (
+              // Para un solo servicio: selector individual normal
+              selectedServices.map(({ service, addOns: serviceAddOns, staffId, staffName }, idx) => {
+                const addOnsDuration = serviceAddOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
+                const removalsDuration = idx === 0 
+                  ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
+                  : 0;
+                const totalDuration = service.duration + addOnsDuration + removalsDuration;
+                
+                return (
+                  <Card key={service.id} className="border mb-3">
+                    <CardBody>
+                      <div className="d-flex align-items-center mb-3">
+                        <Badge color="info" className="me-2">{idx + 1}</Badge>
+                        <div className="flex-grow-1">
+                          <h6 className="mb-0">{service.name}</h6>
+                          <small className="text-muted">
+                            {totalDuration} min 
+                            {(addOnsDuration > 0 || removalsDuration > 0) && (
+                              <span>
+                                ({service.duration}
+                                {addOnsDuration > 0 && ` + ${addOnsDuration} add-ons`}
+                                {removalsDuration > 0 && ` + ${removalsDuration} removal`})
+                              </span>
+                            )} - ${service.price}
+                          </small>
+                        </div>
+                        {staffName && (
+                          <Badge color="success">
+                            <i className="ri-check-line me-1"></i>
+                            {t('booking.staff.assigned') || 'Assigned'}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <FormGroup className="mb-0">
+                        <Label>{t('booking.staff.select_professional') || 'Select Professional'}: *</Label>
+                        <Input
+                          type="select"
+                          value={staffId || ''}
+                          onChange={(e) => assignStaff(service.id, e.target.value)}
+                        >
+                          <option value="">{t('booking.staff.select_option') || 'Select a professional...'}</option>
+                          <option value="any">
+                            {t('booking.staff.any_available') || 'Any Available Technician'}
+                          </option>
+                          {staff
+                            .filter(s => 
+                              s.isActive && 
+                              s.isAvailable && 
+                              s.services?.some(svc => svc.id === service.id)
+                            )
+                            .map(s => {
+                              const workload = staffWorkloads.find(w => w.id === s.id);
+                              const workloadText = workload 
+                                ? ` (${workload.workloadMinutes} ${t('booking.minutes') || 'min'} ${t('booking.staff.busy') || 'busy'})` 
+                                : '';
+                              return (
+                                <option key={s.id} value={s.id}>
+                                  {s.firstName} {s.lastName}{workloadText}
+                                </option>
+                              );
+                            })}
+                        </Input>
+                        {staffName && (
+                          <small className="text-success mt-2 d-block">
+                            <i className="ri-check-line me-1"></i>
+                            {staffName}
+                          </small>
+                        )}
+                      </FormGroup>
+                    </CardBody>
+                  </Card>
+                );
+              })
+            )}
 
             <Alert color="info" className="small">
               <i className="ri-information-line me-2"></i>
-              {isVIPCombo 
-                ? (t('booking.staff.vip_note') || 'For VIP Combo, select different professionals for each service to enable simultaneous execution')
-                : 'Asigne un técnico a cada servicio. Los servicios se realizarán de forma consecutiva.'
+              {isMultipleServicesFlow
+                ? (isVIPCombo 
+                    ? '🌟 VIP Combo: Los servicios se realizarán simultáneamente con técnicos diferentes.'
+                    : '⏭️ Consecutivo: Los servicios se realizarán uno después del otro con técnicos diferentes.')
+                : 'Seleccione un técnico específico o "Any Available" para asignación automática.'
               }
             </Alert>
           </div>
@@ -1917,6 +2734,32 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               </CardBody>
             </Card>
 
+            {/* Información sobre días válidos para múltiples servicios */}
+            {selectedServices.length > 1 && (
+              <Alert color={loadingValidDays ? "info" : "success"} className="mb-3">
+                {loadingValidDays ? (
+                  <div className="d-flex align-items-center">
+                    <Spinner size="sm" className="me-2" />
+                    <div>
+                      🔄 Validando disponibilidad real con turnos existentes...
+                      <br />
+                      <small className="text-muted">
+                        Verificando: días de trabajo + turnos existentes + horarios disponibles para {selectedServices.map(s => s.staffName || 'técnico disponible').join(' y ')} en modo {isVIPCombo ? 'simultáneo' : 'consecutivo'}
+                      </small>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    ✅ <strong>Días validados con disponibilidad real:</strong> {validWorkingDays.length > 0 ? validWorkingDays.map(d => ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d]).join(', ') : 'Ninguno disponible'}
+                    <br />
+                    <small className="text-success">
+                      ✓ <strong>Validación completa:</strong> días de trabajo, turnos existentes, horarios reales para <strong>{isVIPCombo ? 'servicios simultáneos (VIP)' : 'servicios consecutivos'}</strong>
+                    </small>
+                  </div>
+                )}
+              </Alert>
+            )}
+
             <Card className="border mb-3">
               <CardHeader className="bg-light">
                 <h6 className="mb-0">
@@ -1931,10 +2774,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     {/* Generar 7 días desde weekStartDate */}
                     {Array.from({ length: 7 }).map((_, dayOffset) => {
                       const date = moment(weekStartDate).add(dayOffset, 'days');
-                      const availableWorkingDays = getAvailableWorkingDays();
-                      const isWorkingDay = availableWorkingDays.includes(date.day());
+                      const isWorkingDay = isDateAvailable(date.toDate());
                       const isPastDate = date.isBefore(moment(), 'day');
-                      const isDisabled = !isWorkingDay || isPastDate;
+                      const isDisabled = !isWorkingDay || isPastDate || loadingValidDays;
                       const isSelected = selectedDate && moment(selectedDate).isSame(date, 'day');
                       const isToday = date.isSame(moment(), 'day');
                       
@@ -1964,7 +2806,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                               opacity: isDisabled ? 0.5 : 1,
                               cursor: isDisabled ? 'not-allowed' : 'pointer'
                             }}
-                            title={isDisabled ? (!isWorkingDay ? 'Día no laborable para el técnico seleccionado' : 'Fecha pasada') : ''}
+                            title={isDisabled ? (
+                              loadingValidDays ? 'Calculando días válidos...' :
+                              !isWorkingDay ? 'Día no disponible para los servicios seleccionados' : 
+                              'Fecha pasada'
+                            ) : ''}
                           >
                             <span className="text-uppercase small mb-1" style={{ fontSize: '0.7rem' }}>
                               {date.format('ddd')}
@@ -1997,7 +2843,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           }
                         }
                       }}
-                      disabled={moment(weekStartDate).subtract(7, 'days').isBefore(moment(), 'day')}
+                      disabled={moment(weekStartDate).subtract(7, 'days').isBefore(moment(), 'day') || loadingValidDays}
                     >
                       <i className="ri-arrow-left-s-line"></i> {t('booking.datetime.prev_week')}
                     </Button>
@@ -2016,6 +2862,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           setSelectedTime(null);
                         }
                       }}
+                      disabled={loadingValidDays}
                     >
                       {t('booking.datetime.next_week')} <i className="ri-arrow-right-s-line"></i>
                     </Button>
@@ -2040,15 +2887,15 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   </h6>
                 </CardHeader>
                 <CardBody>
-                  {selectedServices.some(s => !s.staffId || s.staffId === 'any') ? (
+                  {selectedServices.some(s => !s.staffId) ? (
                     <Alert color="info" className="mb-0">
                       <i className="ri-information-line me-1"></i>
-                      {t('booking.datetime.select_specific_staff')}
+                      {t('booking.datetime.select_staff_required') || 'Por favor seleccione un técnico (específico o "Any Available") para cada servicio en el paso anterior.'}
                     </Alert>
                   ) : loadingSlots ? (
                     <div className="text-center py-4">
                       <Spinner color="primary" size="sm" className="me-2" />
-                      <span>{t('booking.datetime.loading_slots')}</span>
+                      <span>{t('booking.datetime.loading_slots') || 'Cargando horarios disponibles...'}</span>
                     </div>
                   ) : timeSlots.length === 0 ? (
                     <Alert color="warning" className="mb-0">
