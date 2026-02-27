@@ -268,7 +268,7 @@ const Team = () => {
     document.title = `${t('team.page.title')} | Nails & Co Midtown - Admin Panel`;
 
     // Get current language for API calls
-    const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
+    const currentLang = (i18n.language === 'sp' || i18n.language === 'es') ? 'ES' : 'EN';
 
     const [team, setTeam] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);

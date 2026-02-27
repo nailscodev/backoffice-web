@@ -156,7 +156,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const currentLang = i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN';
+      const currentLang = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
+
       const [customersData, servicesData, categoriesData, addOnsData, staffData] = await Promise.all([
         getCustomers(),
         getServices(1, 100, undefined, undefined, true, currentLang),
@@ -164,6 +165,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         getAddOns(1, 100, true, undefined, undefined, currentLang),
         getStaffList(),
       ]);
+
+
 
       console.log('Customers loaded:', customersData);
       setCustomers(Array.isArray(customersData) ? customersData : []);
@@ -222,7 +225,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         toast.success(t('booking.toast.customer_created'));
       } catch (err) {
         console.error('Error creating customer:', err);
-        toast.error('Error al crear cliente');
+        toast.error(t('booking.toast.customer_created_error'));
       } finally {
         setLoading(false);
       }
@@ -341,7 +344,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         setSelectedDate(null);
         setSelectedTime(null);
         setSlotVerified(false);
-        toast.info(`Fecha resetada - no disponible en modo ${isVIPCombo ? 'VIP Combo' : 'Consecutivo'}`);
+        toast.info(t(isVIPCombo ? 'booking.toast.date_reset_not_available_vip' : 'booking.toast.date_reset_not_available_consecutive'));
       }
     }
   }, [isVIPCombo, selectedServices, selectedDate, validWorkingDays]);
@@ -390,7 +393,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       }
 
       const finalDays: number[] = serviceDaysSet.size > 0 ? Array.from(serviceDaysSet) : [1, 2, 3, 4, 5, 6];
-      console.log(`✅ Single service available days:`, finalDays.map((d: number) => Object.keys(dayMap)[d]));
+
       return finalDays;
     }
 
@@ -453,7 +456,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         ? Array.from(availableDays as Set<number>) 
         : [1, 2, 3, 4, 5, 6];
 
-      console.log(`✅ VIP Combo final days:`, finalDays.map((d: number) => Object.keys(dayMap)[d]));
+
       return finalDays;
     } else {
       // CONSECUTIVO: Más flexible - un técnico puede hacer múltiples servicios O técnicos diferentes
@@ -536,7 +539,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       const finalDays: number[] = viableDays.size > 0 ? Array.from(viableDays) : [1, 2, 3, 4, 5, 6];
       
-      console.log(`✅ Consecutive final days:`, finalDays.map((d: number) => Object.keys(dayMap)[d]));
+
       return finalDays;
     }
   };
@@ -615,7 +618,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         const staffMember = staff.find(s => s.id === id);
         return {
           id,
-          name: staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : 'Unknown',
+          name: staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : t('booking.staff.unknown'),
           workloadMinutes: minutes,
         };
       });
@@ -623,7 +626,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       setStaffWorkloads(workloads);
       
       // Filtrar staff que esté activo, disponible Y que trabaje en el día seleccionado
-      const selectedDayName = moment(date).format('ddd'); // Mon, Tue, Wed, etc.
+      const selectedDayName = moment(date).locale('en').format('ddd');
       setAvailableStaff(staff.filter(s => 
         s.isActive && 
         s.isAvailable && 
@@ -652,12 +655,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Cargar slots disponibles cuando cambia la fecha o los servicios
   useEffect(() => {
     const loadAvailableSlots = async () => {
+
+      
       // Solo cargar si estamos en el paso de datetime o después
       if (step !== 'datetime' && step !== 'confirm') {
+
         return;
       }
 
       if (!selectedDate || selectedServices.length === 0) {
+
         setAvailableSlots([]);
         return;
       }
@@ -665,6 +672,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       // Verificar que todos los servicios tengan staff asignado (específico o 'any')
       const hasUnassignedStaff = selectedServices.some(s => !s.staffId);
       if (hasUnassignedStaff) {
+
         // No cargar slots hasta que se asigne staff (específico o 'any')
         setAvailableSlots([]);
         return;
@@ -681,14 +689,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         const hasAnyStaff = servicesWithAny.length > 0;
 
         if (hasAnyStaff) {
-          console.log('🔍 Loading slots for services with "Any Available" staff...');
+
           
           if (isMultipleServicesFlow) {
             // Para múltiples servicios con 'any': Cargar disponibilidad individual para cada servicio con 'any'
             // y luego combinar con los servicios que tienen staff específico
-            console.log('🔄 Multiple services flow with any staff detected');
+
             
             const allSlotsPromises = selectedServices.map(async ({ service, addOns, staffId }, serviceIndex) => {
+
+
               const getServiceAvailabilitySlots = async (targetStaffId: string) => {
                 try {
                   const servicesForStaff = [{
@@ -711,9 +721,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           duration: removal.additionalTime || 0,
                         }))
                     : [];
-
                   const timezoneOffset = new Date().getTimezoneOffset();
+
                   const response = await getBackofficeAvailability(servicesForStaff, removals, dateStr, false, timezoneOffset);
+
                   return response.data || response || [];
                 } catch (error) {
                   console.error(`Error fetching slots for service ${service.name} with staff ${targetStaffId}:`, error);
@@ -724,7 +735,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               if (staffId === 'any') {
                 // Para servicios con 'any', obtener slots de todos los técnicos que pueden hacer este servicio
                 // y que trabajen en el día seleccionado
-                const selectedDayName = moment(selectedDate).format('ddd'); // Mon, Tue, Wed, etc.
+                const selectedDayName = moment(selectedDate).locale('en').format('ddd');
+
+
+
+                
                 const eligibleStaff = staff.filter(staffMember => 
                   staffMember.isActive &&
                   staffMember.isAvailable &&
@@ -732,20 +747,20 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   staffMember.workingDays?.includes(selectedDayName)
                 );
 
+
+
+
+
                 const allServiceSlotsPromises = eligibleStaff.map(staffMember => 
                   getServiceAvailabilitySlots(staffMember.id)
                 );
+                  
+                  const allServiceResults = await Promise.all(allServiceSlotsPromises);
+                  const serviceTimes = new Set<string>();
                 
-                const allServiceResults = await Promise.all(allServiceSlotsPromises);
-                const serviceTimes = new Set<string>();
-                
-                allServiceResults.forEach(slots => {
-                  slots.forEach((slot: any) => {
-                    serviceTimes.add(slot.startTime);
-                  });
-                });
 
-                return Array.from(serviceTimes);
+
+
               } else {
                 // Para servicios con staff específico, obtener slots de ese staff
                 if (!staffId) {
@@ -759,9 +774,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
             const allServiceResults = await Promise.all(allSlotsPromises);
             
-            // Para múltiples servicios, encontrar intersección de disponibilidades
-            // (horarios donde todos los servicios pueden ser atendidos)
-            console.log('📊 Service availability results:', allServiceResults.map((times, idx) => `Service ${idx + 1}: ${times.length} slots`));
+
             
             if (allServiceResults.length === 0) {
               setAvailableSlots([]);
@@ -785,13 +798,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 available: true
               }));
 
-            console.log(`✅ Combined slots for multiple services (intersection): ${combinedSlots.length}`);
+
             setAvailableSlots(combinedSlots);
           } else {
             // Para un solo servicio con 'any': buscar staff que pueda hacer este servicio específico
             let allAvailableStaffIds = new Set<string>();
             
-            const selectedDayName = moment(selectedDate).format('ddd'); // Mon, Tue, Wed, etc.
+            const selectedDayName = moment(selectedDate).locale('en').format('ddd');
             
             selectedServices.forEach(({ service }) => {
               staff.forEach(staffMember => {
@@ -807,17 +820,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             });
 
             const staffIds = Array.from(allAvailableStaffIds);
-            console.log('👥 Staff members to check for single service:', staffIds);
 
-            if (staffIds.length === 0) {
-              console.log('❌ No staff members available for selected service');
-              setAvailableSlots([]);
-              return;
-            }
+
+
 
             // Hacer llamadas paralelas para cada staff member
             const allSlotsPromises = staffIds.map(async (staffId) => {
               try {
+
                 const servicesForStaff = selectedServices.map(({ service, addOns }) => ({
                   serviceId: service.id,
                   duration: service.duration,
@@ -838,6 +848,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
                 const timezoneOffset = new Date().getTimezoneOffset();
                 const response = await getBackofficeAvailability(servicesForStaff, removals, dateStr, false, timezoneOffset);
+
                 return response.data || response || [];
               } catch (error) {
                 console.error(`Error fetching slots for staff ${staffId}:`, error);
@@ -863,7 +874,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 available: true
               }));
 
-            console.log('✅ Combined slots for single service:', combinedSlots.length);
+
             setAvailableSlots(combinedSlots);
           }
         } else {
@@ -888,24 +899,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
           const timezoneOffset = new Date().getTimezoneOffset();
 
-          console.log('🔍 Fetching available slots for specific staff:', {
-            date: dateStr,
-            servicesCount: services.length,
-            removalsCount: removals.length,
-            isVIPCombo,
-            staffIds: services.map(s => s.staffId),
-            timezoneOffset,
-          });
+
 
           const response = await getBackofficeAvailability(services, removals, dateStr, isVIPCombo, timezoneOffset);
           const slots = response.data || response || [];
           
-          console.log('✅ Available slots loaded:', slots.length);
+
           setAvailableSlots(slots);
         }
       } catch (error) {
         console.error('Error loading available slots:', error);
-        toast.error('Error al cargar horarios disponibles');
         toast.error(t('booking.toast.load_slots_error'));
         setAvailableSlots([]);
       } finally {
@@ -944,12 +947,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
         // Check overlap
         if (requestStart.isBefore(bookingEnd) && requestEnd.isAfter(bookingStart)) {
-          console.log(`❌ Staff ${staffId} ocupado: ${bookingStart.format('HH:mm')} - ${bookingEnd.format('HH:mm')}`);
+
           return false;
         }
       }
 
-      console.log(`✅ Staff ${staffId} disponible`);
+
       return true;
     } catch (err) {
       console.error('Error checking staff availability:', err);
@@ -1025,7 +1028,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       staffName: isFirstService && preselectedStaffId 
         ? `${staff.find(s => s.id === preselectedStaffId)?.firstName || ''} ${staff.find(s => s.id === preselectedStaffId)?.lastName || ''}`.trim()
         : isSecondService 
-          ? 'Any Available Technician' 
+          ? t('booking.staff.any_available') 
           : undefined,
     };
 
@@ -1107,7 +1110,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       // Para consecutivo: cada uno empieza después del anterior
       for (const { service, addOns: serviceAddOns, staffId } of selectedServices) {
         if (!staffId) {
-          toast.error(`Falta asignar técnico para ${service.name}`);
+          toast.error(t('booking.toast.staff_missing_service', { service: service.name }));
           return false;
         }
 
@@ -1128,7 +1131,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         );
 
         if (!isAvailable) {
-          toast.error(`El técnico para ${service.name} no está disponible en este horario`);
+          toast.error(t('booking.toast.staff_not_available', { service: service.name }));
           return false;
         }
 
@@ -1140,13 +1143,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       }
 
       setSlotVerified(true);
-      toast.success('✅ Horarios verificados y disponibles');
-        toast.success(t('booking.toast.slots_verified'));
+      toast.success(t('booking.toast.slots_verified'));
       return true;
     } catch (err) {
       console.error('Error verifying slots:', err);
-      toast.error('Error al verificar disponibilidad');
-        toast.error(t('booking.toast.verify_slots_error'));
+      toast.error(t('booking.toast.verify_slots_error'));
       return false;
     } finally {
       setVerifying(false);
@@ -1163,7 +1164,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     // Verificar que todos los servicios tengan staff asignado (específico, no 'any')
     const missingStaff = selectedServices.filter(s => !s.staffId || s.staffId === 'any');
     if (missingStaff.length > 0) {
-      toast.error(`Servicios con "Any staff": ${missingStaff.map(s => s.service.name).join(', ')}. Por favor verifique los horarios primero para asignar técnicos automáticamente.`);
+      toast.error(t('booking.toast.any_staff_verify_first', { services: missingStaff.map(s => s.service.name).join(', ') }));
       return;
     }
 
@@ -1210,7 +1211,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           serviceName: service.name,
           customerId: selectedCustomer.id,
           staffId: staffId!,
-          staffName: staffName || 'Staff',
+          staffName: staffName || t('booking.staff.default_name'),
           appointmentDate,
           startTime: serviceStartTime.format('HH:mm:ss'),
           endTime: serviceEndTime.format('HH:mm:ss'),
@@ -1219,8 +1220,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           status: 'in_progress', // Marcar como "en progreso" para reflejar que el servicio está activo desde el inicio
           totalPrice: index === selectedServices.length - 1 ? totals.totalPrice : service.price,
           notes: index === 0 
-            ? (notes || (isVIPCombo ? 'VIP Combo booking' : '')) 
-            : (isVIPCombo ? `VIP Combo - Parte ${index + 1}` : `Parte ${index + 1} de ${selectedServices.length}`),
+            ? (notes || (isVIPCombo ? t('booking.notes.vip_combo') : '')) 
+            : (isVIPCombo ? t('booking.notes.vip_combo_part', { index: index + 1 }) : t('booking.notes.consecutive_part', { index: index + 1, total: selectedServices.length })),
           web: false,
         });
 
@@ -1274,13 +1275,16 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             web: booking.web,
           });
 
-          console.log(`✅ Created successfully`);
+
           createdBookings.push(response);
         }
 
         console.log(`\n🎉 SUCCESS: All ${createdBookings.length} bookings created!`);
         toast.success(
-          `${createdBookings.length} booking(s) creado(s) exitosamente${isVIPCombo ? ' (VIP Combo)' : ''}`
+          t('booking.toast.booking_created_count', { 
+            count: createdBookings.length, 
+            combo: isVIPCombo ? ' (VIP Combo)' : '' 
+          })
         );
         onBookingCreated?.();
         handleClose();
@@ -1293,7 +1297,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           
           // TODO: Implementar deleteBooking cuando esté disponible
           toast.error(
-            `Error al crear booking. ${createdBookings.length} booking(s) podrían necesitar eliminación manual.`
+            t('booking.toast.rollback_warning', { count: createdBookings.length })
           );
         }
 
@@ -1301,7 +1305,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       }
     } catch (err: any) {
       console.error('Error creating booking:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Error al crear el booking';
+      const errorMsg = err.response?.data?.message || err.message || t('booking.notes.default_error');
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -1324,13 +1328,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         const formattedDate = moment(selectedDate).format('YYYY-MM-DD');
         const formattedTime = time.length > 5 ? time.substring(0, 5) : time;
 
-        console.log('🔄 Auto-assigning optimal staff for services:', servicesWithAny.map(s => s.service.name));
+
 
         // Función helper para encontrar el técnico óptimo para un servicio específico
         const findOptimalStaff = async (service: any, addOns: any[], totalDuration: number) => {
           // Obtener el día de la semana de la fecha seleccionada
-          const selectedDayName = moment(selectedDate).format('ddd'); // Mon, Tue, Wed, etc.
-          console.log(`📅 Selected day: ${selectedDayName} (${moment(selectedDate).format('YYYY-MM-DD')})`);
+          const selectedDayName = moment(selectedDate).locale('en').format('ddd'); // Force English: Mon, Tue, Wed, etc.
+
           
           // 1. Obtener técnicos que pueden hacer este servicio Y trabajan en el día seleccionado
           const eligibleStaff = staff.filter(staffMember => {
@@ -1352,11 +1356,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           });
 
           if (eligibleStaff.length === 0) {
-            console.log(`❌ No staff available for service: ${service.name}`);
+
             return null;
           }
 
-          console.log(`👥 Eligible staff for "${service.name}":`, eligibleStaff.map(s => `${s.firstName} ${s.lastName}`));
+
 
           // 2. Verificar disponibilidad en el horario específico y obtener workload
           const availableStaffWithWorkload = [];
@@ -1380,14 +1384,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 workloadMinutes,
               });
               
-              console.log(`✅ ${staffMember.firstName} ${staffMember.lastName}: disponible, workload ${workloadMinutes} min`);
+
             } else {
-              console.log(`❌ ${staffMember.firstName} ${staffMember.lastName}: No disponible en ${formattedTime}`);
+
             }
           }
 
           if (availableStaffWithWorkload.length === 0) {
-            console.log(`❌ No staff available at time ${formattedTime} for service: ${service.name}`);
+
             return null;
           }
 
@@ -1396,7 +1400,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             return current.workloadMinutes < min.workloadMinutes ? current : min;
           });
 
-          console.log(`🎯 Optimal staff selected: ${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName} (${optimalStaff.workloadMinutes} min workload)`);
+
           
           return {
             staffId: optimalStaff.staff.id,
@@ -1421,7 +1425,6 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 const optimalAssignment = await findOptimalStaff(service, addOns, totalDuration);
                 
                 if (optimalAssignment) {
-                  toast.success(`${service.name}: Asignado a ${optimalAssignment.staffName} (${optimalAssignment.workloadMinutes} min workload)`);
                   return {
                     service,
                     addOns,
@@ -1429,7 +1432,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     staffName: optimalAssignment.staffName
                   };
                 } else {
-                  toast.error(`No se pudo asignar técnico para ${service.name} en horario ${formattedTime}`);
+                  toast.error(t('booking.toast.staff_assignment_failed', { service: service.name, time: formattedTime }));
                   return { service, addOns, staffId, staffName };
                 }
               }
@@ -1440,7 +1443,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           );
 
           setSelectedServices(updatedServices);
-          console.log('✅ Services updated individually with optimal staff assignments');
+
         } else {
           // Para un solo servicio: lógica original con selección óptima
           const updatedServices = await Promise.all(
@@ -1457,7 +1460,6 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 const optimalAssignment = await findOptimalStaff(service, addOns, totalDuration);
                 
                 if (optimalAssignment) {
-                  toast.success(`${service.name}: Asignado a ${optimalAssignment.staffName} (${optimalAssignment.workloadMinutes} min workload)`);
                   return {
                     service,
                     addOns,
@@ -1465,7 +1467,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     staffName: optimalAssignment.staffName
                   };
                 } else {
-                  toast.error(`No se pudo asignar técnico para ${service.name} en horario ${formattedTime}`);
+                  toast.error(t('booking.toast.staff_assignment_failed', { service: service.name, time: formattedTime }));
                   return { service, addOns, staffId, staffName };
                 }
               }
@@ -1475,11 +1477,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           );
 
           setSelectedServices(updatedServices);
-          console.log('✅ Services updated with optimal staff assignment');
+
         }
       } catch (error) {
         console.error('❌ Error auto-assigning optimal staff:', error);
-        toast.error('Error al asignar técnicos automáticamente. Por favor seleccione manualmente.');
         toast.error(t('booking.toast.auto_assign_error'));
       }
     }
@@ -1510,15 +1511,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       s.service.categoryId === MANICURE_CATEGORY_ID || 
       s.service.categoryId === PEDICURE_CATEGORY_ID
     );
-    console.log('🎯 requiresRemovalModal calculated:', {
-      result,
-      selectedServices: selectedServices.map(s => ({
-        name: s.service.name,
-        categoryId: s.service.categoryId,
-        isManicure: s.service.categoryId === MANICURE_CATEGORY_ID,
-        isPedicure: s.service.categoryId === PEDICURE_CATEGORY_ID
-      }))
-    });
+
     return result;
   }, [selectedServices]);
 
@@ -1549,13 +1542,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   // Navegar entre pasos
   const goToNextStep = () => {
     if (step === 'customer' && !selectedCustomer) {
-      toast.warning('Por favor seleccione o cree un cliente');
-        toast.warning(t('booking.toast.select_or_create_customer'));
+      toast.warning(t('booking.toast.select_or_create_customer'));
       return;
     }
     if (step === 'services' && selectedServices.length === 0) {
-      toast.warning('Por favor seleccione al menos un servicio');
-        toast.warning(t('booking.toast.select_at_least_one_service'));
+      toast.warning(t('booking.toast.select_at_least_one_service'));
       return;
     }
     if (step === 'staff' && requiresStaffStep) {
@@ -1567,7 +1558,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       
       if (missingStaff.length > 0) {
         toast.warning(isMultipleServicesFlow 
-          ? 'Por favor seleccione un técnico para el primer servicio'
+          ? t('booking.toast.assign_first_service_staff')
           : t('booking.toast.assign_staff_missing', { services: missingStaff.map(s => s.service.name).join(', ') })
         );
         return;
@@ -1597,7 +1588,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           selectedServices: selectedServices.length
         });
         setShowRemovalModal(true);
-        console.log('✅ setShowRemovalModal(true) called');
+
         return; // No cambiar de paso aún, el modal continuará cuando se cierre
       } else if (shouldShowVIPCombo) {
         setShowVIPComboSuggestion(true);
@@ -1619,8 +1610,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     } else if (step === 'datetime') {
       // VALIDACIÓN OBLIGATORIA: Debe verificar disponibilidad antes de confirmar
       if (!slotVerified) {
-        toast.warning('⚠️ Debe verificar la disponibilidad antes de continuar');
-          toast.warning(t('booking.toast.verify_availability_first'));
+        toast.warning(t('booking.toast.verify_availability_first'));
         return;
       }
       setStep('confirm');
@@ -1683,13 +1673,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       try {
         setLoadingRemovals(true);
         const serviceIds = selectedServices.map(s => s.service.id);
-        const currentLang = i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN';
+        const currentLang = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
         console.log('📞 Calling getRemovalAddonsByServices with:', serviceIds, 'lang:', currentLang);
         const response = await getRemovalAddonsByServices(serviceIds, currentLang);
         console.log('📦 Raw response:', response);
-        console.log('🔍 Removals loaded:', response);
+
         setRemovalAddOns(response || []);
-        console.log('✅ setRemovalAddOns called with:', response?.length || 0, 'items');
+
       } catch (error) {
         console.error('Error loading removal add-ons:', error);
         setRemovalAddOns([]);
@@ -1713,11 +1703,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     try {
       setLoadingValidDays(true);
       console.log('🔄 Calculating valid working days with REAL availability intersection...');
-      console.log('📋 This validation checks:');
-      console.log('  ✅ Staff working days');
-      console.log('  ✅ Existing bookings/conflicts');
-      console.log('  ✅ Real time slot availability');
-      console.log('  ✅ Service sequence viability');
+
+
 
       // Obtener días base donde ambos técnicos trabajan
       const baseDays = getAvailableWorkingDays();
@@ -1775,7 +1762,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   );
 
                   if (eligibleStaff.length === 0) {
-                    console.log(`    ❌ No eligible staff for ${service.name}`);
+
                     return [];
                   }
 
@@ -1903,7 +1890,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         }
       }
 
-      console.log('🎯 Final REAL valid working days:', validDays.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]));
+
       console.log('💡 These days have been validated against:');
       console.log('   ✅ Existing bookings/conflicts');
       console.log('   ✅ Real staff availability');
@@ -1949,7 +1936,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     loadRemovalIncompatibilities();
   }, [selectedRemovalIds]);
 
-  // Debug: Log removal modal state changes
+
   useEffect(() => {
     if (showRemovalModal) {
       console.log('🔍 REMOVAL MODAL OPENED:', {
@@ -2526,14 +2513,14 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               <div>
                 <Alert color="info" className="mb-3">
                   <i className="ri-information-line me-2"></i>
-                  <strong>Múltiples Servicios Detectados</strong><br />
-                  • <strong>Primer servicio</strong>: Seleccione el técnico de su preferencia<br />
-                  • <strong>Segundo servicio</strong>: Automáticamente asignado a "Any Available"
+                  <strong>{t('booking.staff.multiple_services_detected')}</strong><br />
+                  • <strong>{t('booking.staff.first_service_instruction')}</strong><br />
+                  • <strong>{t('booking.staff.second_service_instruction')}</strong>
                 </Alert>
 
                 <Card className="border mb-3">
                   <CardHeader>
-                    <h6 className="mb-0">Asignación de Técnicos</h6>
+                    <h6 className="mb-0">{t('booking.staff.assignment_title')}</h6>
                   </CardHeader>
                   <CardBody>
                     {selectedServices.map(({ service, staffId, staffName }, idx) => {
@@ -2589,7 +2576,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                             // Segundo servicio siempre "Any Available" - Solo informativo
                             <div className="small text-muted">
                               <i className="ri-user-settings-line me-1"></i>
-                              Automáticamente asignado a "Any Available Technician"
+                              {t('booking.staff.auto_assigned_to')} "{t('booking.staff.any_available')}"
                             </div>
                           )}
                         </div>
@@ -2681,7 +2668,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 ? (isVIPCombo 
                     ? '🌟 VIP Combo: Los servicios se realizarán simultáneamente con técnicos diferentes.'
                     : '⏭️ Consecutivo: Los servicios se realizarán uno después del otro con técnicos diferentes.')
-                : 'Seleccione un técnico específico o "Any Available" para asignación automática.'
+                : t('booking.staff.select_instruction')
               }
             </Alert>
           </div>
@@ -2741,10 +2728,13 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   <div className="d-flex align-items-center">
                     <Spinner size="sm" className="me-2" />
                     <div>
-                      🔄 Validando disponibilidad real con turnos existentes...
+                      🔄 {t('booking.datetime.validating_real_availability')}
                       <br />
                       <small className="text-muted">
-                        Verificando: días de trabajo + turnos existentes + horarios disponibles para {selectedServices.map(s => s.staffName || 'técnico disponible').join(' y ')} en modo {isVIPCombo ? 'simultáneo' : 'consecutivo'}
+                        {t('booking.datetime.verifying_status', { 
+                          technicians: selectedServices.map(s => s.staffName || t('booking.staff.available_technician')).join(' y '), 
+                          mode: isVIPCombo ? t('booking.datetime.mode_simultaneous') : t('booking.datetime.mode_consecutive') 
+                        })}
                       </small>
                     </div>
                   </div>
@@ -2813,7 +2803,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                             ) : ''}
                           >
                             <span className="text-uppercase small mb-1" style={{ fontSize: '0.7rem' }}>
-                              {date.format('ddd')}
+                              {date.locale('en').format('ddd')}
                             </span>
                             <span className="h4 mb-0">
                               {date.format('D')}

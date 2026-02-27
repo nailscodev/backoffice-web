@@ -54,7 +54,7 @@ const AddOns = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Get current language for API calls
-  const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
+  const currentLang = (i18n.language === 'sp' || i18n.language === 'es') ? 'ES' : 'EN';
   // Load add-ons and services on mount
   useEffect(() => {
     loadAddOns();
