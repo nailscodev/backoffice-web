@@ -42,6 +42,21 @@ import config from '../../config';
 const MANICURE_CATEGORY_ID = 'c1a2b3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
 const PEDICURE_CATEGORY_ID = 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f';
 
+// VIP Combo eligible service names (exact match, case-insensitive trim)
+// Only these 8 services qualify — all 16 valid mani+pedi combinations
+const VIP_ELIGIBLE_MANI_NAMES = [
+  'Basic Manicure',
+  'Gel Basic Manicure',
+  'Regular Polish Change (Mani)',
+  'Gel Polish Change (Mani)',
+];
+const VIP_ELIGIBLE_PEDI_NAMES = [
+  'Basic Spa Pedicure',
+  'Gel Basic Pedicure',
+  'Regular Polish Change (Pedi)',
+  'Gel Polish Change (Pedi)',
+];
+
 interface CreateBookingModalProps {
   isOpen: boolean;
   toggle: () => void;
@@ -286,7 +301,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     const grouped: Record<string, Service[]> = {};
     
     // Si hay staff preseleccionado del calendario, filtrar solo sus servicios
-    let filteredServices = services;
+    let filteredServices: Service[] = services || [];
     if (preselectedStaffId) {
       const preselectedStaff = staff.find(s => s.id === preselectedStaffId);
       if (preselectedStaff?.services) {
@@ -1035,11 +1050,30 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     return result;
   }, [selectedServices]);
 
-  // Helper: verificar si se debe mostrar VIP Combo (manicura Y pedicura)
+  // Helper: verificar si se debe mostrar VIP Combo
+  // Solo se muestra para las 16 combinaciones válidas de mani+pedi elegibles.
+  // Exclusiones: otros servicios de mani/pedi, Nails Enhancements, combos existentes, solo mani o solo pedi.
   const shouldShowVIPCombo = useMemo(() => {
-    const hasManicure = selectedServices.some(s => s.service.categoryId === MANICURE_CATEGORY_ID);
-    const hasPedicure = selectedServices.some(s => s.service.categoryId === PEDICURE_CATEGORY_ID);
-    return hasManicure && hasPedicure;
+    const normalize = (name: string) => name.trim().toLowerCase();
+    const eligibleManiNames = VIP_ELIGIBLE_MANI_NAMES.map(normalize);
+    const eligiblePediNames = VIP_ELIGIBLE_PEDI_NAMES.map(normalize);
+
+    const maniEligible = selectedServices.filter(s =>
+      eligibleManiNames.includes(normalize(s.service.name))
+    );
+    const pediEligible = selectedServices.filter(s =>
+      eligiblePediNames.includes(normalize(s.service.name))
+    );
+
+    // ALL selected services must be eligible (no extras allowed)
+    const allServicesAreEligible =
+      selectedServices.length === maniEligible.length + pediEligible.length;
+
+    return (
+      maniEligible.length >= 1 &&
+      pediEligible.length >= 1 &&
+      allServicesAreEligible
+    );
   }, [selectedServices]);
 
   // Helper: verificar si hay múltiples categorías (para removal: checkboxes vs radio)
@@ -1752,27 +1786,28 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   color="secondary"
                   outline
                   block
+                  style={{ minHeight: '48px', border: '1.5px solid', textTransform: 'uppercase' }}
                   onClick={() => {
                     setIsVIPCombo(false);
                     setUserConfirmedVIPChoice(true); // User made explicit choice
                     goToNextStep();
                   }}
                 >
-                  {t('booking.vipcombo.no_consecutive') || 'No, Consecutive'}
+                  {t('booking.vipcombo.no_consecutive') || 'NO, SEPARATELY'}
                 </Button>
               </Col>
               <Col md={6}>
                 <Button
                   color="warning"
                   block
+                  style={{ minHeight: '48px', textTransform: 'uppercase' }}
                   onClick={() => {
                     setIsVIPCombo(true);
                     setUserConfirmedVIPChoice(true); // User made explicit choice
                     goToNextStep();
                   }}
                 >
-                  <i className="ri-star-fill me-2"></i>
-                  {t('booking.vipcombo.yes_combo') || 'Yes, VIP Combo'}
+                  {t('booking.vipcombo.yes_combo') || 'YES, ADD COMBO'}
                 </Button>
               </Col>
             </Row>
@@ -2357,19 +2392,32 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       <ModalFooter>
         {step !== 'customer' && (
-          <Button color="secondary" onClick={goToPreviousStep} disabled={loading || verifying}>
-            <i className="ri-arrow-left-line me-1" />
+          <Button
+            color="secondary"
+            onClick={goToPreviousStep}
+            disabled={loading || verifying}
+            style={{ minHeight: '44px', border: '1.5px solid' }}
+          >
             {t('booking.button.back')}
           </Button>
         )}
 
         {step !== 'confirm' ? (
-          <Button color="primary" onClick={goToNextStep} disabled={loading || verifying}>
+          <Button
+            color="primary"
+            onClick={goToNextStep}
+            disabled={loading || verifying}
+            style={{ minHeight: '48px' }}
+          >
             {t('booking.button.next')}
-            <i className="ri-arrow-right-line ms-1" />
           </Button>
         ) : (
-          <Button color="success" onClick={handleCreateBooking} disabled={loading || verifying}>
+          <Button
+            color="success"
+            onClick={handleCreateBooking}
+            disabled={loading || verifying}
+            style={{ minHeight: '48px' }}
+          >
             {loading ? (
               <>
                 <Spinner size="sm" className="me-1" />
@@ -2377,14 +2425,19 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               </>
             ) : (
               <>
-                <i className="ri-check-line me-1" />
                 {t('booking.confirm.create_button')} {isVIPCombo && '(VIP Combo)'}
               </>
             )}
           </Button>
         )}
 
-        <Button color="danger" outline onClick={handleClose} disabled={loading || verifying}>
+        <Button
+          color="danger"
+          outline
+          onClick={handleClose}
+          disabled={loading || verifying}
+          style={{ minHeight: '44px', border: '1.5px solid' }}
+        >
           {t('booking.button.cancel')}
         </Button>
       </ModalFooter>
@@ -2514,16 +2567,19 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             handleRemovalModalContinue();
           }}
           style={{ 
-            border: '1px solid #dee2e6',
-            color: '#6c757d'
+            border: '1.5px solid #dee2e6',
+            color: '#6c757d',
+            minHeight: '44px'
           }}
         >
-          <i className="ri-close-line me-1" />
           {t('booking.removal.no_removal_needed') || 'NO REMOVAL NEEDED'}
         </Button>
-        <Button color="primary" onClick={handleRemovalModalContinue}>
-          {t('booking.button.continue') || 'Continue'}
-          <i className="ri-arrow-right-line ms-1" />
+        <Button
+          color="primary"
+          onClick={handleRemovalModalContinue}
+          style={{ minHeight: '48px' }}
+        >
+          {t('booking.button.continue') || 'CONTINUE'}
         </Button>
       </ModalFooter>
     </Modal>

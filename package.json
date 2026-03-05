@@ -19,6 +19,7 @@
     "@south-paw/react-vector-maps": "^3.2.0",
     "@tanstack/match-sorter-utils": "^8.19.4",
     "@tanstack/react-table": "^8.21.3",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -121,6 +122,18 @@
     "autoprefixer": "10.4.5"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
     "@types/feather-icons": "^4.29.4"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^axios$": "<rootDir>/node_modules/axios/dist/node/axios.cjs"
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(feather-icons-react)/)"
+    ],
+    "testMatch": [
+      "<rootDir>/src/__tests__/**/*.{ts,tsx,js,jsx}"
+    ]
   }
 }
