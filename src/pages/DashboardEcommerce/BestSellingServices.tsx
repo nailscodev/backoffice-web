@@ -24,7 +24,7 @@ const BestSellingServices: React.FC<BestSellingServicesProps> = ({ dateRange }) 
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
     // Get current language for API calls
-    const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
+    const currentLang = (i18n.language === 'sp' || i18n.language === 'es') ? 'ES' : 'EN';
     const fetchBestSellingServices = useCallback(async () => {
         if (!dateRange || dateRange.length < 2) return;
         

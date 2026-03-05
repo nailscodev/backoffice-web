@@ -53,7 +53,7 @@ const ServicesList = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Get current language for API calls
-  const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
+  const currentLang = (i18n.language === 'sp' || i18n.language === 'es') ? 'ES' : 'EN';
 
   // Load services and categories on mount
   useEffect(() => {

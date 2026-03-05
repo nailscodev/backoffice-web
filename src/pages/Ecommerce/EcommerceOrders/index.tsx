@@ -671,9 +671,9 @@ const EcommerceOrders = () => {
       try {
         const [staffData, servicesData, categoriesData, addonsData] = await Promise.all([
           getStaffList(),
-          getServices(1, 100, undefined, undefined, true, i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN'),
-          getCategories(i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN'),
-          getAddOns(1, 100, true, undefined, undefined, i18n.language?.toUpperCase() === 'SP' ? 'ES' : 'EN')
+          getServices(1, 100, undefined, undefined, true, (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN'),
+          getCategories((i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN'),
+          getAddOns(1, 100, true, undefined, undefined, (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN')
         ]);
         
         setStaff(staffData);

@@ -74,7 +74,7 @@ const InvoiceList = () => {
   const { t, i18n } = useTranslation();
 
   // Get current language for API calls
-  const currentLang = i18n.language === 'sp' ? 'ES' : 'EN';
+  const currentLang = (i18n.language === 'sp' || i18n.language === 'es') ? 'ES' : 'EN';
   // Backend data state
   const [dashboardStats, setDashboardStats] = useState({ 
     cash: 0, 
