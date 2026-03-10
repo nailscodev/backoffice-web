@@ -24,6 +24,9 @@ const Sidebar = ({ layoutType } : any) => {
       });
     }
 
+    // Force dark theme for sidebar always
+    document.documentElement.setAttribute('data-sidebar', 'dark');
+
     // Check if sidebar is minimized
     const checkSidebarSize = () => {
       const sidebarSize = document.documentElement.getAttribute('data-sidebar-size');
@@ -32,11 +35,18 @@ const Sidebar = ({ layoutType } : any) => {
 
     checkSidebarSize();
     
-    // Observer to detect changes in sidebar size
-    const observer = new MutationObserver(checkSidebarSize);
+    // Observer to detect changes in sidebar size and force dark theme
+    const observer = new MutationObserver(() => {
+      checkSidebarSize();
+      // Ensure sidebar stays dark even if theme changes
+      if (document.documentElement.getAttribute('data-sidebar') !== 'dark') {
+        document.documentElement.setAttribute('data-sidebar', 'dark');
+      }
+    });
+    
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-sidebar-size']
+      attributeFilter: ['data-sidebar-size', 'data-sidebar']
     });
 
     return () => observer.disconnect();
