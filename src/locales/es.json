@@ -199,6 +199,8 @@
   "reservations.validation.amount_min": "El monto debe ser 0 o mayor",
   "reservations.validation.notes_required_for_amount_change": "Las notas son requeridas cuando se modifica el monto",
 
+  "reservations.success.updated": "Reserva actualizada exitosamente",
+
   "common.not_available": "N/D",
   "common.no_customer": "Sin Cliente",
   "common.no_date": "Sin Fecha",

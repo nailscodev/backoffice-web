@@ -161,8 +161,8 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
         // No serviceId or customerId - backend will treat as break
         staffId: values.staffId,
         appointmentDate: moment(values.date).format('YYYY-MM-DD'),
-        startTime: values.startTime,
-        endTime: values.endTime,
+        startTime: values.startTime + ':00', // Convert HH:mm to HH:MM:SS format
+        endTime: values.endTime + ':00',     // Convert HH:mm to HH:MM:SS format
         status: 'in_progress', // Status requirement per user
         totalPrice: 0, // Free to avoid affecting accounts
         notes: `[BREAK] ${values.title || breakTypes.find(bt => bt.value === values.type)?.label || 'Break'}\n\n${values.notes || ''}`.trim(),

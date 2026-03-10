@@ -977,6 +977,8 @@
     "reservations.validation.amount_min": "Amount must be 0 or greater",
     "reservations.validation.notes_required_for_amount_change": "Notes are required when amount is modified",
 
+    "reservations.success.updated": "Reservation updated successfully",
+
     "common.not_available": "N/A",
     "common.no_customer": "No Customer", 
     "common.no_date": "No Date",

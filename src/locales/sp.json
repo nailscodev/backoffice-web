@@ -853,6 +853,8 @@
     "reservations.validation.payment_required": "Por favor ingrese el método de pago",
     "reservations.validation.status_required": "Por favor ingrese el estado",
 
+    "reservations.success.updated": "Reserva actualizada exitosamente",
+
     "calendar.title": "Calendario de Reservas",
     "calendar.breadcrumb": "Calendario",
     "calendar.create_reservation": "Crear Nueva Reserva",
