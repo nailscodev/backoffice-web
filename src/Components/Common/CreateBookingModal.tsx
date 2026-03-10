@@ -21,6 +21,7 @@ import {
   CardHeader,
 } from 'reactstrap';
 import Select from 'react-select';
+import Flatpickr from 'react-flatpickr';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import moment from 'moment';
@@ -35,6 +36,7 @@ import { getStaffList, Staff } from '../../api/staff';
 import { createBooking, getBookingsList, getBackofficeAvailability } from '../../api/bookings';
 import { getCategories, Category } from '../../api/categories';
 import { APIClient } from '../../helpers/api_helper';
+import config from '../../config';
 
 // Category IDs constants
 const MANICURE_CATEGORY_ID = 'c1a2b3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
@@ -168,7 +170,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       console.log('Customers loaded:', customersData);
       setCustomers(Array.isArray(customersData) ? customersData : []);
-      setServices(Array.isArray(servicesData) ? servicesData : []);
+      setServices(servicesData);
       setCategories(Array.isArray(categoriesData) ? categoriesData.filter((c: Category) => c.isActive) : []);
       setAddOns(addOnsData);
       setStaff(staffData);
@@ -291,18 +293,18 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     const grouped: Record<string, Service[]> = {};
     
     // Si hay staff preseleccionado del calendario, filtrar solo sus servicios
-    let filteredServices = Array.isArray(services) ? services : [];
+    let filteredServices = services;
     if (preselectedStaffId) {
       const preselectedStaff = staff.find(s => s.id === preselectedStaffId);
       if (preselectedStaff?.services) {
         // Filtrar solo los servicios que puede brindar el staff preseleccionado
-        filteredServices = (Array.isArray(services) ? services : []).filter(service => 
+        filteredServices = services.filter(service => 
           preselectedStaff.services?.some(staffService => staffService.id === service.id)
         );
       }
     }
     
-    (Array.isArray(filteredServices) ? filteredServices : []).forEach(service => {
+    filteredServices.forEach(service => {
       const categoryId = service.categoryId;
       if (!grouped[categoryId]) {
         grouped[categoryId] = [];
@@ -686,7 +688,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         const servicesWithAny = selectedServices.filter(s => s.staffId === 'any');
         const hasAnyStaff = servicesWithAny.length > 0;
 
-        if (hasAnyStaff) {
+        if (hasAnyStaff && !isVIPCombo && !isMultipleServicesFlow) {
+          // Lógica para servicios con 'any' staff (solo en modo no-VIP)
 
           
           if (isMultipleServicesFlow) {
@@ -876,12 +879,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             setAvailableSlots(combinedSlots);
           }
         } else {
-          // Lógica original para staff específicos
+          // Lógica optimizada para múltiples servicios (VIP combo, consecutivos, o staff específicos)
           const services = selectedServices.map(({ service, addOns, staffId }) => ({
             serviceId: service.id,
             duration: service.duration,
             bufferTime: service.bufferTime || 0,
-            staffId: staffId!, // Ya validamos que todos tienen staff asignado
+            staffId: staffId || 'any', // Permitir 'any' para asignación automática
             addons: addOns.map(addon => ({
               id: addon.id,
               duration: addon.additionalTime || 0,
@@ -3219,7 +3222,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           </Button>
         )}
 
-        <Button color="danger" outline onClick={handleClose} disabled={verifying}>
+        <Button color="danger" outline onClick={handleClose} disabled={loading || verifying}>
           {t('booking.button.cancel')}
         </Button>
       </ModalFooter>
