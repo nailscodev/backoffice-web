@@ -22,6 +22,7 @@ import {
   StaffStatus
 } from '../../../api/staff';
 import { getServices, Service } from '../../../api/services';
+import { getCategories, Category } from '../../../api/categories';
 import * as Yup from "yup";
 import { useFormik } from "formik";
 
@@ -79,6 +80,27 @@ const gridViewStyles = `
 }
 .team-box.inactive .card-body {
     background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Category buttons styling */
+.category-button {
+    color: #000 !important;
+}
+.category-button.btn-success {
+    background-color: #198754;
+    border-color: #198754;
+    color: #000 !important;
+}
+.category-button.btn-outline-secondary {
+    color: #000 !important;
+    border-color: #6c757d;
+}
+.category-button.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: #000 !important;
+}
+.category-button .badge {
+    color: #000 !important;
 }
 `;
 
@@ -276,6 +298,7 @@ const Team = () => {
     const [allTeamData, setAllTeamData] = useState<any>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [availableServices, setAvailableServices] = useState<Service[]>([]);
+    const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
 
     //Modal  
     const [teamMem, setTeamMem] = useState<any>('');
@@ -312,6 +335,7 @@ const Team = () => {
     useEffect(() => {
         fetchStaffData();
         fetchServices();
+        fetchCategories();
     }, [currentLang]);
 
     const fetchServices = async () => {
@@ -321,6 +345,16 @@ const Team = () => {
         } catch (error) {
             console.error('Error fetching services:', error);
             toast.error('Error al cargar los servicios');
+        }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const response = await getCategories(currentLang);
+            setAvailableCategories(response || []);
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+            toast.error('Error al cargar las categorías');
         }
     };
 
@@ -594,6 +628,40 @@ const Team = () => {
     };
     reader.readAsDataURL(file);
   };
+
+    // Helper function to add all services from a category
+    const addServicesFromCategory = (categoryId: string) => {
+        const categoryServices = availableServices.filter((service: Service) => service.categoryId === categoryId);
+        const categoryServiceIds = categoryServices.map((service: Service) => service.id);
+        const currentServiceIds = validation.values.serviceIds || [];
+        
+        // Combine current services with new ones, removing duplicates
+        const combined = [...currentServiceIds, ...categoryServiceIds];
+        const newServiceIds = combined.filter((item: string, index: number) => combined.indexOf(item) === index);
+        validation.setFieldValue('serviceIds', newServiceIds);
+        
+        toast.success(`Se agregaron ${categoryServices.length} servicios de la categoría`);
+    };
+
+    // Helper function to remove all services from a category
+    const removeServicesFromCategory = (categoryId: string) => {
+        const categoryServices = availableServices.filter((service: Service) => service.categoryId === categoryId);
+        const categoryServiceIds = categoryServices.map((service: Service) => service.id);
+        const currentServiceIds = validation.values.serviceIds || [];
+        
+        // Remove category services from current selection
+        const newServiceIds = currentServiceIds.filter((id: string) => !categoryServiceIds.includes(id));
+        validation.setFieldValue('serviceIds', newServiceIds);
+        
+        toast.success(`Se removieron los servicios de la categoría`);
+    };
+
+    // Check if a category is fully selected
+    const isCategoryFullySelected = (categoryId: string) => {
+        const categoryServices = availableServices.filter((service: Service) => service.categoryId === categoryId);
+        const currentServiceIds = validation.values.serviceIds || [];
+        return categoryServices.length > 0 && categoryServices.every((service: Service) => currentServiceIds.includes(service.id));
+    };
 
 
     return (
@@ -888,6 +956,32 @@ const Team = () => {
                                                             </Row>
                                                         </Col>
                                                         <Col lg={12}>
+                                                            <div className="mb-3">
+                                                                <Label htmlFor="categories" className="form-label">{t('team.form.categories')} <small className="text-muted">({t('team.form.categories_subtitle')})</small></Label>
+                                                                <div className="d-flex flex-wrap gap-2">
+                                                                    {(availableCategories || []).map((category) => {
+                                                                        const isSelected = isCategoryFullySelected(category.id);
+                                                                        const categoryServices = availableServices.filter(service => service.categoryId === category.id);
+                                                                        return (
+                                                                            <Button
+                                                                                key={category.id}
+                                                                                size="sm"
+                                                                                color={isSelected ? "success" : "outline-secondary"}
+                                                                                className="category-button"
+                                                                                onClick={() => isSelected ? removeServicesFromCategory(category.id) : addServicesFromCategory(category.id)}
+                                                                                disabled={categoryServices.length === 0}
+                                                                                title={`${category.name} (${categoryServices.length} servicios)`}
+                                                                            >
+                                                                                {isSelected && <i className="ri-check-line me-1"></i>}
+                                                                                {category.name}
+                                                                                <span className="badge bg-light text-dark ms-2">{categoryServices.length}</span>
+                                                                            </Button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                                <small className="text-muted">{t('team.form.categories_help')}</small>
+                                                            </div>
+                                                            
                                                             <div className="mb-3">
                                                                 <Label htmlFor="serviceIds" className="form-label">{t('team.form.services')} *</Label>
                                                                 <Select
