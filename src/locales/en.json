@@ -148,6 +148,8 @@
     "team.form.categories": "Complete Categories",
     "team.form.categories_subtitle": "Select entire category",
     "team.form.categories_help": "Click on a category to add/remove all its services",
+    "team.form.web_visible": "Web Visible",
+    "team.form.web_visible_help": "If checked, this staff member will be visible to clients on the web",
     "team.form.working_days": "Working Days",
     "team.form.first_name_placeholder": "Enter first name",
     "team.form.last_name_placeholder": "Enter last name",

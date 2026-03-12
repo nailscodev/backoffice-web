@@ -450,6 +450,8 @@
   "team.form.categories": "Categorías Completas",
   "team.form.categories_subtitle": "Seleccionar categoría completa",
   "team.form.categories_help": "Haz clic en una categoría para agregar/quitar todos sus servicios",
+  "team.form.web_visible": "Visible en la web",
+  "team.form.web_visible_help": "Si está marcado, este miembro del staff será visible para los clientes en la web",
   "team.form.working_days": "Días Laborables",
   "team.form.first_name_placeholder": "Ingresa el nombre",
   "team.form.last_name_placeholder": "Ingresa el apellido",

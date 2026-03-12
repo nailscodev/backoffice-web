@@ -36,6 +36,8 @@ export interface Staff {
   status: StaffStatus;
   isActive: boolean;
   isAvailable: boolean;
+  isBookable?: boolean;
+  isWebVisible?: boolean;
   specialties?: string[];
   workingDays?: string[];
   shifts?: Shift[];
@@ -95,6 +97,8 @@ export interface CreateStaffDto {
   status?: StaffStatus;
   isActive?: boolean;
   isAvailable?: boolean;
+  isBookable?: boolean;
+  isWebVisible?: boolean;
   specialties?: string[];
   workingDays?: string[];
   shifts?: Shift[];

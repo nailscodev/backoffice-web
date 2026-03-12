@@ -525,6 +525,7 @@ const Team = () => {
             phone: (teamMem && teamMem._staffData?.phone) || '',
             userImage: (teamMem && teamMem.userImage) || '',
             serviceIds: (teamMem && teamMem.services) ? teamMem.services.map((s: any) => s.id) : [],
+            isWebVisible: (teamMem && teamMem._staffData?.isWebVisible !== undefined) ? teamMem._staffData.isWebVisible : true,
             workingDays: (teamMem && teamMem._staffData?.workingDays) || [],
             shifts: (teamMem && teamMem._staffData?.shifts?.length > 0 && 
                      Array.isArray(teamMem._staffData.shifts) &&
@@ -573,6 +574,7 @@ const Team = () => {
                     phone: values.phone || undefined,
                     role: StaffRole.TECHNICIAN,
                     serviceIds: values.serviceIds,
+                    isWebVisible: values.isWebVisible !== undefined ? values.isWebVisible : true,
                     workingDays: values.workingDays.length > 0 ? values.workingDays : undefined,
                     shifts: values.shifts && values.shifts.length > 0 ? values.shifts : undefined,
                     // commissionPercentage: values.commissionPercentage ? parseFloat(values.commissionPercentage) : undefined,
@@ -956,6 +958,24 @@ const Team = () => {
                                                             </Row>
                                                         </Col>
                                                         <Col lg={12}>
+                                                            <div className="mb-3">
+                                                                <div className="form-check">
+                                                                    <Input 
+                                                                        type="checkbox" 
+                                                                        className="form-check-input" 
+                                                                        id="isWebVisible"
+                                                                        name="isWebVisible"
+                                                                        onChange={validation.handleChange}
+                                                                        onBlur={validation.handleBlur}
+                                                                        checked={validation.values.isWebVisible || false}
+                                                                    />
+                                                                    <Label htmlFor="isWebVisible" className="form-check-label">
+                                                                        {t('team.form.web_visible')}
+                                                                    </Label>
+                                                                </div>
+                                                                <small className="text-muted">{t('team.form.web_visible_help')}</small>
+                                                            </div>
+
                                                             <div className="mb-3">
                                                                 <Label htmlFor="categories" className="form-label">{t('team.form.categories')} <small className="text-muted">({t('team.form.categories_subtitle')})</small></Label>
                                                                 <div className="d-flex flex-wrap gap-2">
