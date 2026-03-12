@@ -108,6 +108,8 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
   const [draggedBooking, setDraggedBooking] = useState<any>(null);
   const [resizing, setResizing] = useState<{ bookingId: string; side: 'top' | 'bottom'; originalHeight: number; originalTop: number; startY: number } | null>(null);
   const [resizePreview, setResizePreview] = useState<{ bookingId: string; newStartTime: string; newEndTime: string; position: { top: number; left: number } } | null>(null);
+  const staffColumnsRef = useRef<HTMLDivElement>(null);
+  const [staffAreaWidth, setStaffAreaWidth] = useState(1200);
 
   // Helper: Filtrar staff que trabaja en el día seleccionado
   const getWorkingStaffForDate = (date: Date) => {
@@ -126,7 +128,7 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
     });
   };
 
-  // Filtrar staff trabajando por filtro de staff seleccionado
+                  // Filtrar staff trabajando por filtro de staff seleccionado
   const getFilteredStaff = () => {
     const workingStaff = getWorkingStaffForDate(selectedDate);
     
@@ -142,6 +144,21 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
   const filteredStaff = getFilteredStaff();
   const allWorkingStaff = getWorkingStaffForDate(selectedDate);
 
+  // Helper function to check if an event is part of a connected group
+  const isConnectedEvent = (eventId: string) => {
+    return serviceGroups.some(group => 
+      group.events.some(event => event.id === eventId)
+    );
+  };
+
+  // Helper function to get the connection color for an event
+  const getConnectionColor = (eventId: string) => {
+    const group = serviceGroups.find(group => 
+      group.events.some(event => event.id === eventId)
+    );
+    return group ? (group.type === 'VIP_COMBO' ? '#e74c3c' : '#3498db') : null;
+  };
+
   // Debug logging
   console.log('📅 CustomDayView rendered with:', {
     selectedDate: selectedDate.toISOString(),
@@ -155,6 +172,142 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
     allWorkingStaff: allWorkingStaff,
     filteredStaff: filteredStaff
   });
+
+  // Detectar grupos de servicios relacionados
+  const detectServiceGroups = () => {
+    const groups: { 
+      type: 'VIP_COMBO' | 'CONSECUTIVE'; 
+      events: any[]; 
+      customerId: string; 
+      customerName: string;
+    }[] = [];
+    
+    // Agrupar eventos por cliente
+    const eventsByCustomer = events.reduce((acc: Record<string, any[]>, event: any) => {
+      // Usar email como identificador único del cliente
+      const customerKey = event.extendedProps?.rawBooking?.customerEmail || 
+                         event.extendedProps?.email || 
+                         event.email ||
+                         event.title; // Fallback al nombre si no hay email
+      if (!customerKey) return acc;
+      
+      if (!acc[customerKey]) {
+        acc[customerKey] = [];
+      }
+      acc[customerKey].push(event);
+      return acc;
+    }, {});
+
+    // Analizar cada grupo de cliente
+    Object.entries(eventsByCustomer).forEach(([customerKey, customerEvents]) => {
+      const events = customerEvents as any[]; // Cast explícito para resolver el error de tipado
+      
+      if (events.length < 2) return; // Necesita al menos 2 servicios
+
+      const sortedEvents = events.sort((a: any, b: any) => {
+        const timeA = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${a.extendedProps?.rawBooking?.startTime || a.extendedProps?.startTime || a.start}`, 'YYYY-MM-DD HH:mm:ss').valueOf();
+        const timeB = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${b.extendedProps?.rawBooking?.startTime || b.extendedProps?.startTime || b.start}`, 'YYYY-MM-DD HH:mm:ss').valueOf();
+        return timeA - timeB;
+      });
+
+      // Detectar VIP combo (servicios simultáneos)
+      for (let i = 0; i < sortedEvents.length - 1; i++) {
+        const current = sortedEvents[i];
+        const next = sortedEvents[i + 1];
+        
+        const currentStart = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${current.extendedProps?.rawBooking?.startTime || current.extendedProps?.startTime || current.start}`, 'YYYY-MM-DD HH:mm:ss');
+        const nextStart = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${next.extendedProps?.rawBooking?.startTime || next.extendedProps?.startTime || next.start}`, 'YYYY-MM-DD HH:mm:ss');
+        
+        // Si empiezan al mismo tiempo = VIP combo
+        if (Math.abs(currentStart.diff(nextStart, 'minutes')) <= 5) {
+          const existingGroup = groups.find(g => g.type === 'VIP_COMBO' && g.customerId === customerKey);
+          if (existingGroup) {
+            if (!existingGroup.events.find(e => e.id === next.id)) {
+              existingGroup.events.push(next);
+            }
+          } else {
+            groups.push({
+              type: 'VIP_COMBO',
+              events: [current, next],
+              customerId: customerKey,
+              customerName: current.title || current.extendedProps?.rawBooking?.customerName || 'Cliente'
+            });
+          }
+        }
+      }
+
+      // Detectar servicios consecutivos
+      for (let i = 0; i < sortedEvents.length - 1; i++) {
+        const current = sortedEvents[i];
+        const next = sortedEvents[i + 1];
+        
+        const currentStart = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${current.extendedProps?.rawBooking?.startTime || current.extendedProps?.startTime || current.start}`, 'YYYY-MM-DD HH:mm:ss');
+        const currentEnd = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${current.extendedProps?.rawBooking?.endTime || current.extendedProps?.endTime || current.end}`, 'YYYY-MM-DD HH:mm:ss');
+        const nextStart = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${next.extendedProps?.rawBooking?.startTime || next.extendedProps?.startTime || next.start}`, 'YYYY-MM-DD HH:mm:ss');
+        
+        // Si el siguiente empieza justo cuando termina el actual (± 30 min de tolerancia)
+        const timeDiff = Math.abs(nextStart.diff(currentEnd, 'minutes'));
+        if (timeDiff <= 30 && Math.abs(currentStart.diff(nextStart, 'minutes')) > 5) {
+          // Verificar que no estén ya en un grupo VIP combo
+          const isInVipGroup = groups.some(g => 
+            g.type === 'VIP_COMBO' && 
+            g.customerId === customerKey && 
+            (g.events.find(e => e.id === current.id) || g.events.find(e => e.id === next.id))
+          );
+          
+          if (!isInVipGroup) {
+            const existingGroup = groups.find(g => g.type === 'CONSECUTIVE' && g.customerId === customerKey);
+            if (existingGroup) {
+              if (!existingGroup.events.find(e => e.id === current.id)) {
+                existingGroup.events.push(current);
+              }
+              if (!existingGroup.events.find(e => e.id === next.id)) {
+                existingGroup.events.push(next);
+              }
+              // Reordenar por tiempo
+              existingGroup.events.sort((a, b) => {
+                const timeA = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${a.extendedProps?.rawBooking?.startTime || a.extendedProps?.startTime || a.start}`, 'YYYY-MM-DD HH:mm:ss').valueOf();
+                const timeB = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${b.extendedProps?.rawBooking?.startTime || b.extendedProps?.startTime || b.start}`, 'YYYY-MM-DD HH:mm:ss').valueOf();
+                return timeA - timeB;
+              });
+            } else {
+              groups.push({
+                type: 'CONSECUTIVE',
+                events: [current, next],
+                customerId: customerKey,
+                customerName: current.title || current.extendedProps?.rawBooking?.customerName || 'Cliente'
+              });
+            }
+          }
+        }
+      }
+      
+    });
+
+    return groups;
+  };
+
+  const serviceGroups = detectServiceGroups();
+
+  // Update staff area width when layout changes
+  useEffect(() => {
+    const updateStaffAreaWidth = () => {
+      if (staffColumnsRef.current) {
+        const width = staffColumnsRef.current.getBoundingClientRect().width;
+        setStaffAreaWidth(width);
+        console.log('📐 Staff area width updated:', width);
+      }
+    };
+    
+    // Initial measurement
+    updateStaffAreaWidth();
+    
+    // Update on window resize
+    window.addEventListener('resize', updateStaffAreaWidth);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', updateStaffAreaWidth);
+  }, [filteredStaff.length]);
 
   // Update current time every minute
   useEffect(() => {
@@ -331,21 +484,58 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
   return (
     <div style={styles.customDayView}>
       {/* Header */}
-      <div style={styles.dayHeader}>
-        <h6 className="mb-0">
-          {(() => {
-            const formattedDate = moment(selectedDate).format(isSpanish ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, MMMM D, YYYY');
-            return formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
-          })()}
-        </h6>
-        {/* Debug info */}
-        <small style={{ color: '#6c757d', fontSize: '0.7rem' }}>
-          {isSpanish ? 'Eventos' : 'Events'}: {events.length} | {isSpanish ? 'Staff Disponible' : 'Available Staff'}: {filteredStaff.length}/{staff.length}
-        </small>
+      <div style={{ ...styles.dayHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h6 className="mb-0">
+            {(() => {
+              const formattedDate = moment(selectedDate).format(isSpanish ? 'dddd, D [de] MMMM [de] YYYY' : 'dddd, MMMM D, YYYY');
+              return formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+            })()}
+          </h6>
+          {/* Debug info */}
+          <small style={{ color: '#6c757d', fontSize: '0.7rem' }}>
+            {isSpanish ? 'Eventos' : 'Events'}: {events.length} | {isSpanish ? 'Staff Disponible' : 'Available Staff'}: {filteredStaff.length}/{staff.length}
+          </small>
+        </div>
+        
+        {/* Leyenda de servicios relacionados */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#495057' }}>
+            {isSpanish ? 'Servicios Relacionados:' : 'Related Services:'}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div 
+              style={{
+                width: '16px',
+                height: '3px',
+                background: '#e74c3c',
+                borderRadius: '1px'
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', color: '#495057' }}>
+              {isSpanish ? 'VIP Combo' : 'VIP Combo'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div 
+              style={{
+                width: '16px',
+                height: '2px',
+                background: '#3498db',
+                borderStyle: 'dashed',
+                borderWidth: '1px 0',
+                borderColor: '#3498db'
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', color: '#495057' }}>
+              {isSpanish ? 'Consecutivos' : 'Consecutive'}
+            </span>
+          </div>
+        </div>
       </div>
       
       {/* Grid */}
-      <div style={styles.timeGrid}>
+      <div style={styles.timeGrid} className="calendar-time-grid">
         {/* Time column */}
         <div style={styles.timeColumn}>
           <div style={{ height: '42px', borderBottom: '1px solid #dee2e6' }}></div>
@@ -368,7 +558,7 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
         </div>
         
         {/* Staff columns */}
-        <div style={styles.staffColumns}>
+        <div ref={staffColumnsRef} style={styles.staffColumns} className="staff-columns">
           {filteredStaff.length === 0 ? (
             // Mensaje cuando no hay staff trabajando
             <div style={{
@@ -399,7 +589,14 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
             const staffEvents = getEventsForStaff(staffMember.id);
             const isLastColumn = index === filteredStaff.length - 1;
             
-            console.log(`🧑‍💼 Staff ${staffMember.fullName} events:`, staffEvents);
+            console.log(`🏛️ Column render (index ${index}):`, { 
+              staffId: staffMember.id, 
+              staffName: staffMember.fullName, 
+              firstName: staffMember.firstName,
+              lastName: staffMember.lastName,
+              visualColumnPosition: index,
+              eventsCount: staffEvents.length
+            });
             
             return (
               <div 
@@ -592,7 +789,7 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                                 
                                 currentMouseY = moveEvent.clientY;  // Update current position
                                 const deltaY = moveEvent.clientY - (resizing.startY || e.clientY);
-                                const slotHeight = 25; // 30min slot = 25px
+                                const slotHeight = 40; // 30min slot = 40px (mismo que getCardPosition)
                                 const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
                                 const deltaMinutes = (snappedDelta / slotHeight) * 30;
                                 
@@ -637,11 +834,11 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                                 }
                               };
                               
-                              const handleMouseUp = () => {
+                                const handleMouseUp = () => {
                                 if (!resizing || !element) return;
                                 
                                 const deltaY = currentMouseY - resizing.startY;
-                                const slotHeight = 25;
+                                const slotHeight = 40; // Mismo que getCardPosition
                                 const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
                                 const deltaMinutes = (snappedDelta / slotHeight) * 30;
                                 
@@ -688,7 +885,11 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                             cursor: 'move',
                             position: 'absolute',
                             left: '4px',
-                            right: '4px'
+                            right: '4px',
+                            // Agregar borde fino si es parte de un grupo conectado
+                            border: isConnectedEvent(appointment.id) 
+                              ? `2px solid ${getConnectionColor(appointment.id)}` 
+                              : '1px solid rgba(0,0,0,0.1)'
                           }}
                           onClick={(e) => {
                             if (isCurrentlyResizing) return;
@@ -792,6 +993,183 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
               </div>
             </div>
           )}
+
+          {/* Líneas conectoras para servicios relacionados */}
+          <svg
+            style={{
+              position: 'absolute',
+              top: 0,
+              width: 'calc(100%)',
+              height: '100%',
+              pointerEvents: 'none',
+              zIndex: 1
+            }}
+          >
+
+            
+            {serviceGroups.map((group, groupIndex) => {
+              // Calcular las posiciones de los eventos usando la misma lógica que getCardPosition y appointment cards
+              const eventPositions = group.events.map(event => {
+                const staffId = event.extendedProps?.staffId || event.extendedProps?.rawBooking?.staffId;
+                const staffName = event.extendedProps?.staffName || event.extendedProps?.staff || event.staff;
+                const staffIndex = filteredStaff.findIndex(s => 
+                  s.id === staffId || s.firstName + ' ' + s.lastName === staffName
+                );
+                if (staffIndex === -1) return null;
+
+                console.log('🔍 Staff mapping debug:', {
+                  eventTitle: event.title,
+                  eventStaffId: staffId,
+                  eventStaffName: staffName,
+                  foundStaffIndex: staffIndex,
+                  staffAtIndex: filteredStaff[staffIndex],
+                  allFilteredStaff: filteredStaff.map((s, i) => ({ index: i, id: s.id, name: s.fullName, firstName: s.firstName, lastName: s.lastName }))
+                });
+
+                // Usar EXACTAMENTE la misma lógica que getCardPosition
+                const startTime = event.extendedProps?.rawBooking?.startTime || event.extendedProps?.startTime || event.start;
+                const duration = event.extendedProps?.rawBooking?.duration || event.extendedProps?.duration || 30;
+                
+                // Parse time usando moment (igual que getCardPosition)
+                let cardPositionData;
+                try {
+                  // Convertir startTime al formato que espera getCardPosition (h:mm A)
+                  let formattedStartTime;
+                  if (startTime.includes('AM') || startTime.includes('PM')) {
+                    formattedStartTime = startTime;
+                  } else {
+                    // Convertir de HH:mm:ss o HH:mm a formato AM/PM
+                    const timeMoment = moment(startTime, ['HH:mm:ss', 'HH:mm']);
+                    formattedStartTime = timeMoment.format('h:mm A');
+                  }
+                  
+                  // Usar getCardPosition para obtener posición exacta
+                  cardPositionData = getCardPosition(formattedStartTime, duration);
+                  
+                } catch (e) {
+                  console.warn('Error getting card position:', startTime);
+                  // Fallback calculation
+                  const timeMoment = moment();
+                  const hour = timeMoment.hour();
+                  const minute = timeMoment.minute();
+                  const startMinutes = (hour - 8) * 60 + minute;
+                  const top = (startMinutes / 30) * 40;
+                  const height = Math.max((duration / 30) * 40, 30);
+                  cardPositionData = { top: `${top}px`, height: `${height}px` };
+                }
+                
+                // Extraer valores numéricos del resultado de getCardPosition
+                const top = parseFloat(cardPositionData.top.replace('px', ''));
+                const height = parseFloat(cardPositionData.height.replace('px', ''));
+                
+                // Calcular posición X basada en las dimensiones reales del calendario 
+                const totalStaffColumns = filteredStaff.length;
+                const columnWidth = staffAreaWidth / totalStaffColumns;
+                
+                // El centro de cada columna (con offset de 80px porque el SVG cubre todo incluyendo columna tiempo)
+                const centerX = (staffIndex * columnWidth) + 4 + ((columnWidth - 8) / 2);
+                
+                console.log('🎯 SVG Position calculation:', {
+                  eventTitle: event.title,
+                  staffIndex,
+                  staffAreaWidth, 
+                  columnWidth,
+                  totalStaffColumns,
+                  centerX,
+                  actualColumnPositions: {
+                    column0: 0 + 4 + ((columnWidth - 8) / 2),
+                    column1: columnWidth + 4 + ((columnWidth - 8) / 2),
+                    column2: (2 * columnWidth) + 4 + ((columnWidth - 8) / 2),
+                    column3: (3 * columnWidth) + 4 + ((columnWidth - 8) / 2)
+                  },
+                  calculationBreakdown: {
+                    timeColumnWidth: 80,
+                    staffStartX: (staffIndex * columnWidth),
+                    cardLeftMargin: 4,
+                    cardContentWidth: columnWidth - 8,
+                    cardCenterOffset: (columnWidth - 8) / 2
+                  }
+                });
+                
+                return {
+                  event,
+                  staffIndex,
+                  top: top + 42, // +42px for header height (igual que appointment cards)
+                  height,
+                  centerX,
+                  centerY: top + 42 + height / 2 // Center Y position (exacto centro de appointment card)
+                };
+              }).filter(pos => pos !== null);
+
+              if (eventPositions.length < 2) return null;
+
+              const groupColor = group.type === 'VIP_COMBO' ? '#e74c3c' : '#3498db'; // Rojo para VIP, Azul para consecutivos
+              const strokeWidth = group.type === 'VIP_COMBO' ? 3 : 2;
+              const strokeDashArray = group.type === 'VIP_COMBO' ? 'none' : '8,4';
+
+              return (
+                <g key={`group-${groupIndex}`}>
+                  {eventPositions.slice(1).map((targetPos, index) => {
+                    const sourcePos = eventPositions[index];
+                    const isVIPCombo = group.type === 'VIP_COMBO';
+                    
+                    if (isVIPCombo) {
+                      // Para VIP combo: línea horizontal entre servicios simultáneos
+                      const y = Math.min(sourcePos.centerY, targetPos.centerY) + Math.abs(targetPos.centerY - sourcePos.centerY) / 2;
+                      return (
+                        <g key={`line-${index}`}>
+                          
+                          {/* Línea principal VIP combo */}
+                          <line
+                            x1={sourcePos.centerX}
+                            y1={y}
+                            x2={targetPos.centerX}
+                            y2={y}
+                            stroke={groupColor}
+                            strokeWidth={strokeWidth}
+                            strokeDasharray={strokeDashArray}
+                            opacity={0.8}
+                          />
+                        </g>
+                      );
+                    } else {
+                      // Para consecutivos: línea horizontal directa de centro a centro
+                      const startX = sourcePos.centerX; // Centro del primer appointment
+                      const startY = sourcePos.centerY; // Centro vertical del primer appointment
+                      const endX = targetPos.centerX; // Centro del segundo appointment  
+                      const endY = targetPos.centerY; // Centro vertical del segundo appointment
+                      
+                      console.log('🔗 Consecutive line (center to center):', {
+                        startPoint: `${startX}, ${startY}`,
+                        endPoint: `${endX}, ${endY}`,
+                        sourceEvent: sourcePos.event.title,
+                        targetEvent: targetPos.event.title
+                      });
+                      
+                      return (
+                        <g key={`line-${index}`}>
+                          
+                          {/* Línea horizontal directa */}
+                          <line
+                            x1={startX}
+                            y1={startY}
+                            x2={endX}
+                            y2={endY}
+                            stroke={groupColor}
+                            strokeWidth={strokeWidth}
+                            strokeDasharray={strokeDashArray}
+                            opacity={0.9}
+                          />
+                        </g>
+                      );
+                    }
+                  })}
+                </g>
+              );
+            })}
+          </svg>
+
+
         </div>
       </div>
     </div>
