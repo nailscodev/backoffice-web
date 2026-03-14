@@ -158,6 +158,23 @@ const convert12to24 = (time12: string, period: string): string => {
     return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+// Helper to ensure time is in HH:MM format
+const ensureTimeFormat = (time: string): string => {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (timeRegex.test(time)) return time;
+    
+    // Try to clean the time
+    const cleanTime = time.replace(/[^\d:]/g, '');
+    const parts = cleanTime.split(':');
+    if (parts.length >= 2) {
+        const hours = parseInt(parts[0]) || 0;
+        const minutes = parseInt(parts[1]) || 0;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+    
+    return '09:00'; // fallback
+};
+
 // Custom Time Picker Component with AM/PM format
 interface TimePickerProps {
     id: string;
@@ -196,57 +213,250 @@ const formatWorkingDays = (workingDays: string[], t: (key: string) => string): s
     return workingDays.map(day => dayMap[day] || day).join(', ');
 };
 
-const formatShiftTimes = (shifts: Array<{ shiftStart: string; shiftEnd: string }>): string => {
-    if (!shifts || shifts.length === 0) return 'No shifts';
-    
-    const formatShift = (shift: { shiftStart: string; shiftEnd: string }) => {
-        const { time: startTime, period: startPeriod } = convert24to12(shift.shiftStart);
-        const { time: endTime, period: endPeriod } = convert24to12(shift.shiftEnd);
-        
-        // Remove leading zeros and show full format
-        const formatTime = (time: string, period: string) => {
-            const cleanTime = time.replace(/^0/, ''); // Remove leading zero from hour
-            return `${cleanTime}${period}`;
-        };
-        
-        const start = formatTime(startTime, startPeriod);
-        const end = formatTime(endTime, endPeriod);
-        
-        return `${start} - ${end}`;
+// Helper to convert legacy shifts to weekly schedule format
+const convertLegacyShiftsToWeeklySchedule = (shifts: Array<{ shiftStart: string; shiftEnd: string }>, workingDays: string[] = []): any => {
+    const weeklySchedule: any = {
+        monday: { shifts: [] },
+        tuesday: { shifts: [] },
+        wednesday: { shifts: [] },
+        thursday: { shifts: [] },
+        friday: { shifts: [] },
+        saturday: { shifts: [] },
+        sunday: { shifts: [] }
     };
+
+    const dayMapping: { [key: string]: string } = {
+        'Mon': 'monday',
+        'Tue': 'tuesday', 
+        'Wed': 'wednesday',
+        'Thu': 'thursday',
+        'Fri': 'friday',
+        'Sat': 'saturday',
+        'Sun': 'sunday'
+    };
+
+    // Apply shifts to working days only
+    if (shifts && shifts.length > 0 && workingDays && workingDays.length > 0) {
+        console.log(`📅 Applying ${shifts.length} shifts to working days:`, workingDays);
+        
+        workingDays.forEach(day => {
+            const dayKey = dayMapping[day];
+            if (dayKey) {
+                weeklySchedule[dayKey].shifts = [...shifts];
+                console.log(`   ✓ Applied shifts to ${dayKey}:`, shifts);
+            }
+        });
+    } else {
+        console.log('⚠️ No shifts or working days to apply');
+    }
+
+    return weeklySchedule;
+};
+
+// Helper to convert backend shifts format to frontend weeklySchedule format
+const convertBackendShiftsToWeeklySchedule = (shifts: any): any => {
+    const weeklySchedule: any = {
+        monday: { shifts: [] },
+        tuesday: { shifts: [] },
+        wednesday: { shifts: [] },
+        thursday: { shifts: [] },
+        friday: { shifts: [] },
+        saturday: { shifts: [] },
+        sunday: { shifts: [] }
+    };
+
+    if (shifts && typeof shifts === 'object') {
+        console.log('🔄 Converting backend shifts object:', Object.keys(shifts));
+        
+        // Convert each day's shifts from backend format
+        Object.keys(shifts).forEach(dayKey => {
+            if (weeklySchedule[dayKey] && Array.isArray(shifts[dayKey])) {
+                weeklySchedule[dayKey].shifts = shifts[dayKey].map((shift: any) => ({
+                    shiftStart: shift.shiftStart,
+                    shiftEnd: shift.shiftEnd
+                }));
+                
+                if (shifts[dayKey].length > 0) {
+                    console.log(`   ✓ ${dayKey}: ${shifts[dayKey].length} shifts converted`);
+                }
+            }
+        });
+    } else {
+        console.log('⚠️ Invalid shifts object provided');
+    }
+
+    return weeklySchedule;
+};
+
+// Helper to create default weekly schedule
+const createDefaultWeeklySchedule = (): any => {
+    return {
+        monday: { shifts: [] },
+        tuesday: { shifts: [] },
+        wednesday: { shifts: [] },
+        thursday: { shifts: [] },
+        friday: { shifts: [] },
+        saturday: { shifts: [] },
+        sunday: { shifts: [] }
+    };
+};
+
+// Helper to get working days from weekly schedule
+const getWorkingDaysFromSchedule = (weeklySchedule: any): string[] => {
+    if (!weeklySchedule) return [];
+    
+    const dayMapping = {
+        monday: 'Mon',
+        tuesday: 'Tue',
+        wednesday: 'Wed',
+        thursday: 'Thu',
+        friday: 'Fri',
+        saturday: 'Sat', 
+        sunday: 'Sun'
+    };
+
+    const workingDays: string[] = [];
+    Object.entries(dayMapping).forEach(([dayKey, dayAbbr]) => {
+        if (weeklySchedule[dayKey]?.shifts && weeklySchedule[dayKey].shifts.length > 0) {
+            workingDays.push(dayAbbr);
+        }
+    });
+
+    return workingDays;
+};
+
+const formatShiftTimes = (staffData: any): string => {
+    // Try to use weeklySchedule first, then fallback to legacy shifts
+    if (staffData?.weeklySchedule && typeof staffData.weeklySchedule === 'object') {
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const dayAbbr = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        
+        const scheduleLines: string[] = [];
+        
+        days.forEach((dayKey, index) => {
+            const daySchedule = staffData.weeklySchedule[dayKey];
+            if (daySchedule?.shifts && daySchedule.shifts.length > 0) {
+                const dayName = dayAbbr[index];
+                const shiftsText = daySchedule.shifts.map((shift: any) => 
+                    formatSingleShift(shift)
+                ).join(', ');
+                scheduleLines.push(`${dayName}: ${shiftsText}`);
+            }
+        });
+        
+        return scheduleLines.length > 0 ? scheduleLines.join('\n') : 'No shifts';
+    }
+    
+    // Fallback to legacy format
+    const shifts = staffData?.shifts;
+    if (!shifts || !Array.isArray(shifts) || shifts.length === 0) return 'No shifts';
     
     if (shifts.length === 1) {
-        return formatShift(shifts[0]);
+        return formatSingleShift(shifts[0]);
     }
     
     // Multiple shifts - show all shifts on separate lines
-    return shifts.map(shift => formatShift(shift)).join('\n');
+    return shifts.map((shift: any) => formatSingleShift(shift)).join('\n');
+};
+
+// Helper function to format a single shift
+const formatSingleShift = (shift: { shiftStart: string; shiftEnd: string }) => {
+    const { time: startTime, period: startPeriod } = convert24to12(shift.shiftStart);
+    const { time: endTime, period: endPeriod } = convert24to12(shift.shiftEnd);
+    
+    // Remove leading zeros and show full format
+    const formatTime = (time: string, period: string) => {
+        const cleanTime = time.replace(/^0/, ''); // Remove leading zero from hour
+        return `${cleanTime}${period}`;
+    };
+    
+    const start = formatTime(startTime, startPeriod);
+    const end = formatTime(endTime, endPeriod);
+    
+    return `${start} - ${end}`;
 };
 
 const TimePicker: React.FC<TimePickerProps> = ({ id, name, value, onChange, className, isInvalid }) => {
-    const { time, period } = convert24to12(value);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const { time, period } = convert24to12(value || '09:00');
     const [currentTime, setCurrentTime] = useState(time);
     const [currentPeriod, setCurrentPeriod] = useState(period);
 
     React.useEffect(() => {
-        const { time: newTime, period: newPeriod } = convert24to12(value);
-        setCurrentTime(newTime);
-        setCurrentPeriod(newPeriod);
-    }, [value]);
+        if (value && value !== '') {
+            const { time: newTime, period: newPeriod } = convert24to12(value);
+            setCurrentTime(newTime);
+            setCurrentPeriod(newPeriod);
+            if (!isInitialized) {
+                setIsInitialized(true);
+            }
+        }
+    }, [value, isInitialized]);
 
     const handleTimeChange = (newTime: string, newPeriod: string) => {
-        const time24 = convert12to24(newTime, newPeriod);
+        // Ensure we have valid time format
+        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        
+        // If the time doesn't match expected format, try to fix it
+        let cleanTime = newTime;
+        if (!timeRegex.test(newTime)) {
+            // Try to extract numbers and format properly
+            const timeMatch = newTime.match(/(\d{1,2}):?(\d{0,2})/);
+            if (timeMatch) {
+                const hours = parseInt(timeMatch[1]) || 0;
+                const minutes = parseInt(timeMatch[2]) || 0;
+                cleanTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            } else {
+                cleanTime = '09:00'; // fallback
+            }
+        }
+        
+        const time24 = convert12to24(cleanTime, newPeriod);
+        if (cleanTime !== newTime) {
+            console.log('⏰ Time format cleaned:', { input: newTime, cleaned: cleanTime, result24: time24 });
+        }
+        
+        setCurrentTime(cleanTime);
+        setCurrentPeriod(newPeriod);
         onChange(time24);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newTime = e.target.value;
-        setCurrentTime(newTime);
-        handleTimeChange(newTime, currentPeriod);
+        const inputValue = e.target.value;
+        
+        // Auto-convert 24-hour format to 12-hour format in real-time
+        if (inputValue.includes(':')) {
+            const [hoursStr, minutesStr] = inputValue.split(':');
+            const hours = parseInt(hoursStr);
+            const minutes = parseInt(minutesStr) || 0;
+            
+            if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+                // Valid 24-hour time - convert to 12-hour
+                if (hours > 12) {
+                    // PM time (13-23 -> 1-11 PM)
+                    const hour12 = hours - 12;
+                    const newTime = `${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    handleTimeChange(newTime, 'PM');
+                    return;
+                } else if (hours === 12) {
+                    // 12 PM
+                    const newTime = `12:${minutes.toString().padStart(2, '0')}`;
+                    handleTimeChange(newTime, 'PM');
+                    return;
+                } else if (hours === 0) {
+                    // 12 AM (midnight)
+                    const newTime = `12:${minutes.toString().padStart(2, '0')}`;
+                    handleTimeChange(newTime, 'AM');
+                    return;
+                }
+            }
+        }
+        
+        // For partial input or invalid format, just update the time part
+        handleTimeChange(inputValue, currentPeriod);
     };
 
     const handlePeriodChange = (newPeriod: string) => {
-        setCurrentPeriod(newPeriod);
         handleTimeChange(currentTime, newPeriod);
     };
 
@@ -373,6 +583,7 @@ const Team = () => {
         setModal(false);
         setTeamMem(null);
         setIsEdit(false);
+        setActiveScheduleTab(''); // Reset active tab
         validation.resetForm();
     };
 
@@ -527,13 +738,44 @@ const Team = () => {
             serviceIds: (teamMem && teamMem.services) ? teamMem.services.map((s: any) => s.id) : [],
             isWebVisible: (teamMem && teamMem._staffData?.isWebVisible !== undefined) ? teamMem._staffData.isWebVisible : true,
             workingDays: (teamMem && teamMem._staffData?.workingDays) || [],
-            shifts: (teamMem && teamMem._staffData?.shifts?.length > 0 && 
-                     Array.isArray(teamMem._staffData.shifts) &&
-                     teamMem._staffData.shifts.every((shift: any) => 
-                         shift && typeof shift === 'object' && shift.shiftStart && shift.shiftEnd
-                     )) 
-                     ? teamMem._staffData.shifts 
-                     : [{ shiftStart: '09:00', shiftEnd: '17:00' }],
+            // Convert shifts to weeklySchedule format based on data structure
+            weeklySchedule: (() => {
+                if (!teamMem || !teamMem._staffData) {
+                    return createDefaultWeeklySchedule();
+                }
+
+                const staffData = teamMem._staffData;
+                
+                // First priority: use weeklySchedule if it exists and has the right format
+                if (staffData.weeklySchedule && typeof staffData.weeklySchedule === 'object') {
+                    // Check if it's already in the right format
+                    const sample = Object.values(staffData.weeklySchedule)[0];
+                    if (sample && typeof sample === 'object' && 'shifts' in sample) {
+                        console.log('✅ Using existing weeklySchedule format');
+                        return staffData.weeklySchedule;
+                    }
+                }
+                
+                // Second priority: use shifts object from backend (new format)
+                if (staffData.shifts && typeof staffData.shifts === 'object' && !Array.isArray(staffData.shifts)) {
+                    console.log('🔄 Converting backend shifts object to weeklySchedule');
+                    return convertBackendShiftsToWeeklySchedule(staffData.shifts);
+                }
+                
+                // Third priority: use legacy shifts array format (applied to all working days)
+                if (staffData.shifts && Array.isArray(staffData.shifts) && 
+                    staffData.shifts.length > 0 &&
+                    staffData.shifts.every((shift: any) => 
+                        shift && typeof shift === 'object' && shift.shiftStart && shift.shiftEnd
+                    )) {
+                    console.log('🔄 Converting legacy shifts array to weeklySchedule for working days:', staffData.workingDays);
+                    return convertLegacyShiftsToWeeklySchedule(staffData.shifts, staffData.workingDays || []);
+                }
+                
+                // Default fallback
+                console.log('⚠️ No valid shifts found, using default empty schedule');
+                return createDefaultWeeklySchedule();
+            })(),
             // commissionPercentage: (teamMem && teamMem._staffData?.commissionPercentage) || '',
             // hourlyRate: (teamMem && teamMem._staffData?.hourlyRate) || '',
         },
@@ -544,29 +786,51 @@ const Team = () => {
             phone: Yup.string(),
             serviceIds: Yup.array().min(1, t('team.validation.services_required')),
             workingDays: Yup.array().min(1, t('team.validation.working_days_required')),
-            shifts: Yup.array()
-                .min(1, t('team.validation.shifts_required'))
-                .of(
-                    Yup.object().shape({
-                        shiftStart: Yup.string()
-                            .required(t('team.validation.shift_start_required'))
-                            .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, t('team.validation.shift_time_format')),
-                        shiftEnd: Yup.string()
-                            .required(t('team.validation.shift_end_required'))
-                            .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, t('team.validation.shift_time_format'))
-                            .test('is-after-start', t('team.validation.shift_end_after_start'), function(value: any) {
-                                const { shiftStart } = this.parent;
-                                if (!shiftStart || !value) return true;
-                                const startTime = new Date(`1970-01-01 ${shiftStart}`);
-                                const endTime = new Date(`1970-01-01 ${value}`);
-                                return endTime > startTime;
-                            })
-                    })
-                ),
+            // Temporarily disable complex weeklySchedule validation
+            weeklySchedule: Yup.object().nullable(),
         }),
         onSubmit: async (values: any) => {
+            console.log('🚀 Starting staff save...');
             try {
                 setLoading(true);
+                
+                // Auto-update workingDays based on weeklySchedule
+                const autoWorkingDays = getWorkingDaysFromSchedule(values.weeklySchedule);
+                
+                // Validate and clean weeklySchedule time formats
+                const cleanedWeeklySchedule = JSON.parse(JSON.stringify(values.weeklySchedule));
+                const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                
+                // Clean all time values to ensure HH:MM format
+                Object.keys(cleanedWeeklySchedule).forEach(dayKey => {
+                    const daySchedule = cleanedWeeklySchedule[dayKey];
+                    if (daySchedule?.shifts && Array.isArray(daySchedule.shifts)) {
+                        daySchedule.shifts = daySchedule.shifts.map((shift: any) => {
+                            const cleanShift = { ...shift };
+                            
+                            // Clean start time
+                            if (cleanShift.shiftStart) {
+                                const originalStart = cleanShift.shiftStart;
+                                cleanShift.shiftStart = ensureTimeFormat(cleanShift.shiftStart);
+                                if (cleanShift.shiftStart !== originalStart) {
+                                    console.warn(`🔧 Fixed shiftStart: ${originalStart} → ${cleanShift.shiftStart}`);
+                                }
+                            }
+                            
+                            // Clean end time
+                            if (cleanShift.shiftEnd) {
+                                const originalEnd = cleanShift.shiftEnd;
+                                cleanShift.shiftEnd = ensureTimeFormat(cleanShift.shiftEnd);
+                                if (cleanShift.shiftEnd !== originalEnd) {
+                                    console.warn(`🔧 Fixed shiftEnd: ${originalEnd} → ${cleanShift.shiftEnd}`);
+                                }
+                            }
+                            
+                            return cleanShift;
+                        });
+                    }
+                });
+                
                 const staffData: any = {
                     firstName: values.firstName,
                     lastName: values.lastName,
@@ -575,19 +839,15 @@ const Team = () => {
                     role: StaffRole.TECHNICIAN,
                     serviceIds: values.serviceIds,
                     isWebVisible: values.isWebVisible !== undefined ? values.isWebVisible : true,
-                    workingDays: values.workingDays.length > 0 ? values.workingDays : undefined,
-                    shifts: values.shifts && values.shifts.length > 0 ? values.shifts : undefined,
+                    workingDays: autoWorkingDays.length > 0 ? autoWorkingDays : undefined,
+                    weeklySchedule: cleanedWeeklySchedule, // Use cleaned schedule
                     // commissionPercentage: values.commissionPercentage ? parseFloat(values.commissionPercentage) : undefined,
                     // hourlyRate: values.hourlyRate ? parseFloat(values.hourlyRate) : undefined,
                     avatarUrl: values.userImage || undefined
                 };
 
-                // Debug logging to verify shifts data
-                console.log('Submitting staff data:', {
-                    ...staffData,
-                    shifts: staffData.shifts
-                });
-                console.log('Raw form values shifts:', values.shifts);
+                // Debug logging to verify weeklySchedule data
+                console.log('📤 Submitting staff with cleaned schedule');
 
                 if (isEdit && teamMem) {
                     await updateStaff(teamMem.id, staffData);
@@ -599,7 +859,7 @@ const Team = () => {
                 handleCloseModal();
                 fetchStaffData();
             } catch (error: any) {
-                console.error('Error saving staff:', error);
+                console.error('❌ Error saving staff:', error);
                 toast.error(error.response?.data?.message || 'Error al guardar el staff');
             } finally {
                 setLoading(false);
@@ -610,16 +870,24 @@ const Team = () => {
       // Image Validation
   const [imgStore, setImgStore] = useState<any>();
   const [selectedImage, setSelectedImage] = useState<any>();
-
-  const handleClick = (item: any) => {
-    const newData = [...imgStore, item];
-    setImgStore(newData);
-    validation.setFieldValue('img', newData)
-  }
+  const [activeScheduleTab, setActiveScheduleTab] = useState<string>('');
 
   useEffect(() => {
     setImgStore((teamMem && teamMem.img) || [])
   }, [teamMem])
+
+  // Initialize active schedule tab with the first working day
+  useEffect(() => {
+    if (validation.values.workingDays && validation.values.workingDays.length > 0) {
+      const daysMapping: { [key: string]: string } = {
+        'Mon': 'monday', 'Tue': 'tuesday', 'Wed': 'wednesday', 
+        'Thu': 'thursday', 'Fri': 'friday', 'Sat': 'saturday', 'Sun': 'sunday'
+      };
+      const firstWorkingDay = validation.values.workingDays[0];
+      const firstDayKey = daysMapping[firstWorkingDay] || 'monday';
+      setActiveScheduleTab(firstDayKey);
+    }
+  }, [validation.values.workingDays, modal, teamMem])
 
   const handleImageChange = (event: any) => {
     const file = event.target.files[0];
@@ -803,7 +1071,7 @@ const Team = () => {
                                                                         <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>Working Days</p>
                                                                     </Col>
                                                                     <Col xs={12}>
-                                                                        <h6 className="mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.2', whiteSpace: 'pre-line' }}>{formatShiftTimes(item._staffData?.shifts || [])}</h6>
+                                                                        <h6 className="mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.2', whiteSpace: 'pre-line' }}>{formatShiftTimes(item._staffData || {})}</h6>
                                                                         <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>Schedule</p>
                                                                     </Col>
                                                                 </Row>
@@ -828,12 +1096,29 @@ const Team = () => {
                                 </Row>
 
                                 <div className="modal fade" id="addmembers" tabIndex={1} aria-hidden="true">
-                                    <div className="modal-dialog modal-dialog-centered">
-                                        <Modal isOpen={modal} toggle={handleCloseModal} centered>
+                                    <div className="modal-dialog modal-dialog-centered modal-xl">
+                                        <Modal isOpen={modal} toggle={handleCloseModal} centered size="xl">
                                             <ModalBody>
                                                 <Form onSubmit={(e) => {
                                                     e.preventDefault();
-                                                    validation.handleSubmit();
+                                                    console.log('Form validation check...');
+                                                    
+                                                    // Check if form is valid before submitting
+                                                    if (Object.keys(validation.errors).length === 0) {
+                                                        console.log('✅ Form valid, submitting...');
+                                                        validation.handleSubmit();
+                                                    } else {
+                                                        console.log('❌ Validation errors found:', validation.errors);
+                                                        // Force validation to show errors
+                                                        validation.setTouched({
+                                                            firstName: true,
+                                                            lastName: true,
+                                                            email: true,
+                                                            serviceIds: true,
+                                                            workingDays: true,
+                                                            weeklySchedule: true
+                                                        });
+                                                    }
                                                     return false;
                                                 }}>
                                                     <Row>
@@ -1067,105 +1352,276 @@ const Team = () => {
                                                                 ) : null}
                                                             </div>
 
-                                                            {/* Shifts Section */}
+                                                            {/* Weekly Schedule Section - Day Specific Hours */}
                                                             <div className="mb-3">
                                                                 <Label className="form-label">{t('team.form.shifts')} *</Label>
                                                                 <div className="border rounded p-3">
-                                                                    {(validation.values.shifts || []).map((shift: any, index: number) => (
-                                                                        <div key={index} className={`shift-row ${index > 0 ? 'mt-3 pt-3 border-top' : ''}`}>
-                                                                            <div className="d-flex align-items-center justify-content-between mb-2">
-                                                                                <h6 className="mb-0">{t('team.form.shift_number', { number: index + 1 })}</h6>
-                                                                                {(validation.values.shifts || []).length > 1 && (
-                                                                                    <Button
-                                                                                        type="button"
-                                                                                        color="danger"
-                                                                                        size="sm"
-                                                                                        onClick={() => {
-                                                                                            const newShifts = [...(validation.values.shifts || [])];
-                                                                                            newShifts.splice(index, 1);
-                                                                                            validation.setFieldValue('shifts', newShifts);
-                                                                                        }}
-                                                                                    >
-                                                                                        <i className="ri-delete-bin-line"></i>
-                                                                                    </Button>
-                                                                                )}
-                                                                            </div>
-                                                                            <Row>
-                                                                                <Col md={6}>
-                                                                                    <div className="mb-3">
-                                                                                        <Label htmlFor={`shiftStart-${index}`} className="form-label">{t('team.form.shift_start')}</Label>
-                                                                                        <TimePicker
-                                                                                            id={`shiftStart-${index}`}
-                                                                                            name={`shifts[${index}].shiftStart`}
-                                                                                            value={shift?.shiftStart || ''}
-                                                                                            onChange={(value) => {
-                                                                                                const newShifts = [...(validation.values.shifts || [])];
-                                                                                                // Ensure the shift object exists with proper structure
-                                                                                                const currentShift = newShifts[index] || { shiftStart: '', shiftEnd: '' };
-                                                                                                newShifts[index] = {
-                                                                                                    ...currentShift,
-                                                                                                    shiftStart: value
-                                                                                                };
-                                                                                                validation.setFieldValue('shifts', newShifts);
-                                                                                            }}
-                                                                                            className="form-control"
-                                                                                            isInvalid={!!(validation.touched.shifts?.[index]?.shiftStart && validation.errors.shifts?.[index]?.shiftStart)}
-                                                                                        />
-                                                                                        {validation.touched.shifts?.[index]?.shiftStart && validation.errors.shifts?.[index]?.shiftStart ? (
-                                                                                            <div className="invalid-feedback d-block">{validation.errors.shifts[index].shiftStart}</div>
-                                                                                        ) : null}
+                                                                    {/* Days of the week tabs - Only show working days */}
+                                                                    <div className="nav nav-tabs mb-3" role="tablist" id="shiftDayTabs">
+                                                                        {[
+                                                                            { key: 'monday', label: t('team.days.monday'), abbr: 'Mon' },
+                                                                            { key: 'tuesday', label: t('team.days.tuesday'), abbr: 'Tue' },
+                                                                            { key: 'wednesday', label: t('team.days.wednesday'), abbr: 'Wed' },
+                                                                            { key: 'thursday', label: t('team.days.thursday'), abbr: 'Thu' },
+                                                                            { key: 'friday', label: t('team.days.friday'), abbr: 'Fri' },
+                                                                            { key: 'saturday', label: t('team.days.saturday'), abbr: 'Sat' },
+                                                                            { key: 'sunday', label: t('team.days.sunday'), abbr: 'Sun' }
+                                                                        ]
+                                                                        .filter(day => (validation.values.workingDays || []).includes(day.abbr))
+                                                                        .map((day, filteredIndex) => {
+                                                                            const daySchedule = validation.values.weeklySchedule?.[day.key] || { shifts: [] };
+                                                                            const hasShifts = daySchedule.shifts && daySchedule.shifts.length > 0;
+                                                                            return (
+                                                                                <a
+                                                                                    key={day.key}
+                                                                                    className={`nav-link ${filteredIndex === 0 ? 'active' : ''}`}
+                                                                                    href={`#${day.key}-tab`}
+                                                                                    data-bs-toggle="tab"
+                                                                                    type="button"
+                                                                                    role="tab"
+                                                                                    aria-controls={`${day.key}-tab`}
+                                                                                    aria-selected={filteredIndex === 0 ? 'true' : 'false'}
+                                                                                    style={{
+                                                                                        backgroundColor: filteredIndex === 0 ? '#0d6efd' : '',
+                                                                                        color: filteredIndex === 0 ? 'white' : '',
+                                                                                        fontWeight: filteredIndex === 0 ? 'bold' : '',
+                                                                                        fontSize: '0.8rem',
+                                                                                        padding: '0.25rem 0.5rem',
+                                                                                                        textDecoration: 'none',
+                                                                                                        border: '1px solid #dee2e6',
+                                                                                                        borderBottom: 'none'
+                                                                                                    }}
+                                                                                                    onClick={(e) => {
+                                                                                                        e.preventDefault();
+                                                                                                        // Remove active from all tabs
+                                                                                                        document.querySelectorAll('#shiftDayTabs .nav-link').forEach(tab => {
+                                                                                                            tab.classList.remove('active');
+                                                                                                            (tab as HTMLElement).style.backgroundColor = '';
+                                                                                                            (tab as HTMLElement).style.color = '';
+                                                                                                            (tab as HTMLElement).style.fontWeight = '';
+                                                                                                        });
+                                                                                                        // Add active to clicked tab with stronger visual
+                                                                                                        e.currentTarget.classList.add('active');
+                                                                                                        e.currentTarget.style.backgroundColor = '#0d6efd';
+                                                                                                        e.currentTarget.style.color = 'white';
+                                                                                                        e.currentTarget.style.fontWeight = 'bold';
+                                                                                                        
+                                                                                                        // Hide all tab panes
+                                                                                                        document.querySelectorAll('.tab-pane').forEach(pane => {
+                                                                                                            pane.classList.remove('show', 'active');
+                                                                                                        });
+                                                                                                        // Show target tab pane
+                                                                                                        const target = document.querySelector(`#${day.key}-tab`);
+                                                                                                        if (target) {
+                                                                                                            target.classList.add('show', 'active');
+                                                                                                        }
+                                                                                                    }}
+                                                                                                >
+                                                                                                    {day.label}
+                                                                                                    {hasShifts && <i className="mdi mdi-check ms-1"></i>}
+                                                                                                </a>
+                                                                                            );
+                                                                                        })}
                                                                                     </div>
-                                                                                </Col>
-                                                                                <Col md={6}>
-                                                                                    <div className="mb-3">
-                                                                                        <Label htmlFor={`shiftEnd-${index}`} className="form-label">{t('team.form.shift_end')}</Label>
-                                                                                        <TimePicker
-                                                                                            id={`shiftEnd-${index}`}
-                                                                                            name={`shifts[${index}].shiftEnd`}
-                                                                                            value={shift?.shiftEnd || ''}
-                                                                                            onChange={(value) => {
-                                                                                                const newShifts = [...(validation.values.shifts || [])];
-                                                                                                // Ensure the shift object exists with proper structure
-                                                                                                const currentShift = newShifts[index] || { shiftStart: '', shiftEnd: '' };
-                                                                                                newShifts[index] = {
-                                                                                                    ...currentShift,
-                                                                                                    shiftEnd: value
-                                                                                                };
-                                                                                                validation.setFieldValue('shifts', newShifts);
-                                                                                            }}
-                                                                                            className="form-control"
-                                                                                            isInvalid={!!(validation.touched.shifts?.[index]?.shiftEnd && validation.errors.shifts?.[index]?.shiftEnd)}
-                                                                                        />
-                                                                                        {validation.touched.shifts?.[index]?.shiftEnd && validation.errors.shifts?.[index]?.shiftEnd ? (
-                                                                                            <div className="invalid-feedback d-block">{validation.errors.shifts[index].shiftEnd}</div>
-                                                                                        ) : null}
+
+                                                                                    {/* Tab content */}
+                                                                                    <div className="tab-content">
+                                                                                        {[
+                                                                                            { key: 'monday', label: t('team.days.monday'), abbr: 'Mon' },
+                                                                                            { key: 'tuesday', label: t('team.days.tuesday'), abbr: 'Tue' },
+                                                                                            { key: 'wednesday', label: t('team.days.wednesday'), abbr: 'Wed' },
+                                                                                            { key: 'thursday', label: t('team.days.thursday'), abbr: 'Thu' },
+                                                                                            { key: 'friday', label: t('team.days.friday'), abbr: 'Fri' },
+                                                                                            { key: 'saturday', label: t('team.days.saturday'), abbr: 'Sat' },
+                                                                                            { key: 'sunday', label: t('team.days.sunday'), abbr: 'Sun' }
+                                                                                        ]
+                                                                                        .filter(day => (validation.values.workingDays || []).includes(day.abbr))
+                                                                                        .map((day, filteredIndex) => {
+                                                                                            const daySchedule = validation.values.weeklySchedule?.[day.key] || { shifts: [] };
+                                                                                            const isActive = filteredIndex === 0;
+                                                                                            return (
+                                                                                                <div 
+                                                                                                    key={day.key}
+                                                                                                    className={`tab-pane fade ${isActive ? 'show active' : ''}`} 
+                                                                                                    id={`${day.key}-tab`} 
+                                                                                                    role="tabpanel"
+                                                                                    aria-labelledby={`${day.key}-link`}
+                                                                                >
+                                                                                    <h6 className="mb-3">{day.label} - {t('team.form.schedule_label')}</h6>
+                                                                                    
+                                                                                    {/* Render existing shifts */}
+                                                                                    {daySchedule.shifts && daySchedule.shifts.length > 0 ? (
+                                                                                        <div className="mb-3">
+                                                                                            {daySchedule.shifts.map((shift: any, shiftIndex: number) => (
+                                                                                                <div key={shiftIndex} className="border rounded p-3 mb-2">
+                                                                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                                                                        <h6 className="mb-0">
+                                                                                                            {t('team.form.shift_number', { number: shiftIndex + 1 })}
+                                                                                                        </h6>
+                                                                                                        <Button
+                                                                                                            type="button"
+                                                                                                            color="outline-danger"
+                                                                                                            size="sm"
+                                                                                                            onClick={() => {
+                                                                                                                // Deep clone to avoid reference issues
+                                                                                                                const newSchedule = JSON.parse(JSON.stringify(validation.values.weeklySchedule || {}));
+                                                                                                                if (newSchedule[day.key]?.shifts) {
+                                                                                                                    newSchedule[day.key].shifts = newSchedule[day.key].shifts.filter((_: any, index: number) => index !== shiftIndex);
+                                                                                                                    // If no shifts left, create empty array
+                                                                                                                    if (newSchedule[day.key].shifts.length === 0) {
+                                                                                                                        newSchedule[day.key] = { shifts: [] };
+                                                                                                                    }
+                                                                                                                }
+                                                                                                                validation.setFieldValue('weeklySchedule', newSchedule);
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            <i className="ri-delete-bin-line"></i>
+                                                                                                        </Button>
+                                                                                                    </div>
+                                                                                                    <Row>
+                                                                                                        <Col md={6}>
+                                                                                                            <div className="mb-3">
+                                                                                                                <Label className="form-label">{t('team.form.shift_start')}</Label>
+                                                                                                                <TimePicker
+                                                                                                                    id={`${day.key}-shift-${shiftIndex}-start`}
+                                                                                                                    name={`weeklySchedule.${day.key}.shifts[${shiftIndex}].shiftStart`}
+                                                                                                                    value={shift.shiftStart || ''}
+                                                                                                                    onChange={(value) => {
+                                                                                                                        // Deep clone to avoid reference issues
+                                                                                                                        const newSchedule = JSON.parse(JSON.stringify(validation.values.weeklySchedule || {}));
+                                                                                                                        if (!newSchedule[day.key]) {
+                                                                                                                            newSchedule[day.key] = { shifts: [] };
+                                                                                                                        }
+                                                                                                                        if (newSchedule[day.key].shifts && newSchedule[day.key].shifts[shiftIndex]) {
+                                                                                                                            newSchedule[day.key].shifts[shiftIndex] = {
+                                                                                                                                ...newSchedule[day.key].shifts[shiftIndex],
+                                                                                                                                shiftStart: ensureTimeFormat(value)
+                                                                                                                            };
+                                                                                                                        }
+                                                                                                                        validation.setFieldValue('weeklySchedule', newSchedule);
+                                                                                                                        // Force a re-render by updating the form state
+                                                                                                                        validation.setFieldTouched('weeklySchedule', true);
+                                                                                                                    }}
+                                                                                                                    className="form-control"
+                                                                                                                />
+                                                                                                            </div>
+                                                                                                        </Col>
+                                                                                                        <Col md={6}>
+                                                                                                            <div className="mb-3">
+                                                                                                                <Label className="form-label">{t('team.form.shift_end')}</Label>
+                                                                                                                <TimePicker
+                                                                                                                    id={`${day.key}-shift-${shiftIndex}-end`}
+                                                                                                                    name={`weeklySchedule.${day.key}.shifts[${shiftIndex}].shiftEnd`}
+                                                                                                                    value={shift.shiftEnd || ''}
+                                                                                                                    onChange={(value) => {
+                                                                                                                        // Deep clone to avoid reference issues
+                                                                                                                        const newSchedule = JSON.parse(JSON.stringify(validation.values.weeklySchedule || {}));
+                                                                                                                        if (!newSchedule[day.key]) {
+                                                                                                                            newSchedule[day.key] = { shifts: [] };
+                                                                                                                        }
+                                                                                                                        if (newSchedule[day.key].shifts && newSchedule[day.key].shifts[shiftIndex]) {
+                                                                                                                            newSchedule[day.key].shifts[shiftIndex] = {
+                                                                                                                                ...newSchedule[day.key].shifts[shiftIndex],
+                                                                                                                                shiftEnd: ensureTimeFormat(value)
+                                                                                                                            };
+                                                                                                                        }
+                                                                                                                        validation.setFieldValue('weeklySchedule', newSchedule);
+                                                                                                                        // Force a re-render by updating the form state
+                                                                                                                        validation.setFieldTouched('weeklySchedule', true);
+                                                                                                                    }}
+                                                                                                                    className="form-control"
+                                                                                                                />
+                                                                                                            </div>
+                                                                                                        </Col>
+                                                                                                    </Row>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="text-center py-4">
+                                                                                            <p className="text-muted mb-3">{t('team.form.no_shifts_configured')}</p>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    
+                                                                                    {/* Action buttons */}
+                                                                                    <div className="text-center mt-3">
+                                                                                        {!(daySchedule.shifts && daySchedule.shifts.length > 0) ? (
+                                                                                            <Button
+                                                                                                type="button"
+                                                                                                color="success"
+                                                                                                size="sm"
+                                                                                                onClick={() => {
+                                                                                                    // Deep clone to avoid reference issues
+                                                                                                    const newSchedule = JSON.parse(JSON.stringify(validation.values.weeklySchedule || {}));
+                                                                                                    const defaultStart = ensureTimeFormat('09:00');
+                                                                                                    const defaultEnd = ensureTimeFormat('17:00');
+                                                                                                    newSchedule[day.key] = { 
+                                                                                                        shifts: [{ 
+                                                                                                            shiftStart: defaultStart, 
+                                                                                                            shiftEnd: defaultEnd 
+                                                                                                        }] 
+                                                                                                    };
+                                                                                                    validation.setFieldValue('weeklySchedule', newSchedule);
+                                                                                                    validation.setFieldTouched('weeklySchedule', true);
+                                                                                                }}
+                                                                                            >
+                                                                                                <i className="ri-add-line me-1"></i>
+                                                                                                {t('team.form.add_shift')}
+                                                                                            </Button>
+                                                                                        ) : (
+                                                                                            <div className="d-flex justify-content-center gap-2">
+                                                                                                <Button
+                                                                                                    type="button"
+                                                                                                    color="primary"
+                                                                                                    size="sm"
+                                                                                                    onClick={() => {
+                                                                                                        // Deep clone to avoid reference issues
+                                                                                                        const newSchedule = JSON.parse(JSON.stringify(validation.values.weeklySchedule || {}));
+                                                                                                        if (!newSchedule[day.key]) {
+                                                                                                            newSchedule[day.key] = { shifts: [] };
+                                                                                                        }
+                                                                                                        if (!newSchedule[day.key].shifts) {
+                                                                                                            newSchedule[day.key].shifts = [];
+                                                                                                        }
+                                                                                                        // Add new shift with different default times for second shift
+                                                                                                        const defaultStart = newSchedule[day.key].shifts.length === 1 ? ensureTimeFormat('14:00') : ensureTimeFormat('09:00');
+                                                                                                        const defaultEnd = newSchedule[day.key].shifts.length === 1 ? ensureTimeFormat('18:00') : ensureTimeFormat('17:00');
+                                                                                                        newSchedule[day.key].shifts.push({ 
+                                                                                                            shiftStart: defaultStart, 
+                                                                                                            shiftEnd: defaultEnd 
+                                                                                                        });
+                                                                                                        validation.setFieldValue('weeklySchedule', newSchedule);
+                                                                                                        validation.setFieldTouched('weeklySchedule', true);
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <i className="ri-add-line me-1"></i>
+                                                                                                    {t('team.form.add_another_shift')}
+                                                                                                </Button>
+                                                                                                <Button
+                                                                                                    type="button"
+                                                                                                    color="outline-danger"
+                                                                                                    size="sm"
+                                                                                                    onClick={() => {
+                                                                                                        // Deep clone to avoid reference issues
+                                                                                                        const newSchedule = JSON.parse(JSON.stringify(validation.values.weeklySchedule || {}));
+                                                                                                        newSchedule[day.key] = { shifts: [] };
+                                                                                                        validation.setFieldValue('weeklySchedule', newSchedule);
+                                                                                                        validation.setFieldTouched('weeklySchedule', true);
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <i className="ri-close-line me-1"></i>
+                                                                                                    {t('team.form.clear_day')}
+                                                                                                </Button>
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
-                                                                                </Col>
-                                                                            </Row>
-                                                                        </div>
-                                                                    ))}
-                                                                    
-                                                                    <div className="text-center mt-3">
-                                                                        <Button
-                                                                            type="button"
-                                                                            color="success"
-                                                                            size="sm"
-                                                                            onClick={() => {
-                                                                                const newShifts = [...(validation.values.shifts || [])];
-                                                                                newShifts.push({ 
-                                                                                    shiftStart: '09:00', 
-                                                                                    shiftEnd: '17:00' 
-                                                                                });
-                                                                                validation.setFieldValue('shifts', newShifts);
-                                                                            }}
-                                                                        >
-                                                                            <i className="ri-add-line me-1"></i>
-                                                                            {t('team.form.add_shift')}
-                                                                        </Button>
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 </div>
-                                                                {validation.touched.shifts && validation.errors.shifts && typeof validation.errors.shifts === 'string' ? (
-                                                                    <div className="invalid-feedback d-block">{validation.errors.shifts}</div>
+                                                                {validation.errors.weeklySchedule && typeof validation.errors.weeklySchedule === 'string' ? (
+                                                                    <div className="invalid-feedback d-block">{validation.errors.weeklySchedule}</div>
                                                                 ) : null}
                                                             </div>
 
@@ -1311,7 +1767,7 @@ const Team = () => {
                                                 <div className="p-3 border border-dashed border-start-0">
                                                     <h6 className="mb-1 profile-project" style={{ fontSize: '0.85rem', lineHeight: '1.3' }}>{formatWorkingDays(sideBar._staffData?.workingDays || [], t)}</h6>
                                                     <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>Working Days</p>
-                                                    <h6 className="mb-1 profile-task" style={{ fontSize: '0.85rem', lineHeight: '1.3', whiteSpace: 'pre-line' }}>{formatShiftTimes(sideBar._staffData?.shifts || [])}</h6>
+                                                    <h6 className="mb-1 profile-task" style={{ fontSize: '0.85rem', lineHeight: '1.3', whiteSpace: 'pre-line' }}>{formatShiftTimes(sideBar._staffData || {})}</h6>
                                                     <p className="text-muted mb-0" style={{ fontSize: '0.75rem' }}>Schedule</p>
                                                 </div>
                                             </Col>

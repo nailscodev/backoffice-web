@@ -61,7 +61,7 @@ import {
 } from "../../slices/thunks";
 import { createSelector } from "reselect";
 import { servicesByCategory, staffMembers } from "../../common/data/calender";
-import { getStaffList, Staff } from "../../api/staff";
+import { getStaffList, Staff, WeeklySchedule } from "../../api/staff";
 import { getCategories, Category } from "../../api/categories";
 import { updateBooking, getBookingById } from "../../api/bookings";
 import { getServicesList, Service, getRemovalAddonsByServices } from "../../api/services";
@@ -115,16 +115,38 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
   const getWorkingStaffForDate = (date: Date) => {
     // Siempre usar formato inglés para los días de la semana, independientemente del idioma
     const dayOfWeek = moment(date).locale('en').format('ddd'); // Siempre 'Mon', 'Tue', etc.
+    const dayOfWeekFull = moment(date).locale('en').format('dddd').toLowerCase() as keyof WeeklySchedule; // 'monday', 'tuesday', etc.
     
     return staff.filter(staffMember => {
-      // Verificar si el staff tiene workingDays definido
-      if (!staffMember.workingDays || !Array.isArray(staffMember.workingDays)) {
-        // Si no tiene workingDays, asumir que trabaja todos los días excepto domingo
+      // Check weeklySchedule first (new format) - específico por día
+      if (staffMember.weeklySchedule && typeof staffMember.weeklySchedule === 'object') {
+        const daySchedule = staffMember.weeklySchedule[dayOfWeekFull];
+        return daySchedule && daySchedule.shifts && daySchedule.shifts.length > 0;
+      }
+      
+      // Check backend shifts object format (new format)
+      if (staffMember.shifts && typeof staffMember.shifts === 'object' && !Array.isArray(staffMember.shifts)) {
+        const dayShifts = staffMember.shifts[dayOfWeekFull];
+        return dayShifts && Array.isArray(dayShifts) && (dayShifts as any[]).length > 0;
+      }
+      
+      // Check legacy shifts array format - se aplica a todos los workingDays
+      if (staffMember.shifts && Array.isArray(staffMember.shifts) && (staffMember.shifts as any[]).length > 0) {
+        // Verificar si tiene workingDays y si este día está incluido
+        if (staffMember.workingDays && Array.isArray(staffMember.workingDays)) {
+          return staffMember.workingDays.includes(dayOfWeek);
+        }
+        // Si no tiene workingDays pero tiene shifts array, asumir que trabaja todos los días excepto domingo
         return dayOfWeek !== 'Sun';
       }
       
-      // Verificar si el staff trabaja en este día de la semana
-      return staffMember.workingDays.includes(dayOfWeek);
+      // Fallback: solo usar workingDays si no hay shifts definidos
+      if (staffMember.workingDays && Array.isArray(staffMember.workingDays)) {
+        return staffMember.workingDays.includes(dayOfWeek);
+      }
+      
+      // Default fallback: trabajar todos los días excepto domingo
+      return dayOfWeek !== 'Sun';
     });
   };
 
@@ -332,26 +354,58 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
 
   // Generate time slots for specific staff based on their shifts
   const generateTimeSlotsForStaff = (staffMember: any) => {
-    if (!staffMember.shifts || staffMember.shifts.length === 0) {
+    const dayOfWeek = moment(selectedDate).locale('en').format('ddd'); // 'Mon', 'Tue', etc.
+    const dayOfWeekFull = moment(selectedDate).locale('en').format('dddd').toLowerCase() as keyof WeeklySchedule; // 'monday', 'tuesday', etc.
+    
+    let dayShifts: any[] = [];
+    
+    // Priority 1: Check weeklySchedule (frontend format)
+    if (staffMember.weeklySchedule && typeof staffMember.weeklySchedule === 'object') {
+      const daySchedule = staffMember.weeklySchedule[dayOfWeekFull];
+      dayShifts = daySchedule?.shifts || [];
+    }
+    // Priority 2: Check backend shifts object format (specific shifts per day)
+    else if (staffMember.shifts && typeof staffMember.shifts === 'object' && !Array.isArray(staffMember.shifts)) {
+      const dayShiftsFromBackend = staffMember.shifts[dayOfWeekFull];
+      dayShifts = Array.isArray(dayShiftsFromBackend) ? dayShiftsFromBackend : [];
+    }
+    // Priority 3: Check legacy shifts array format (same shifts for all working days)
+    else if (staffMember.shifts && Array.isArray(staffMember.shifts) && (staffMember.shifts as any[]).length > 0) {
+      // Only apply legacy shifts if staff is working on this day
+      const isWorkingDay = staffMember.workingDays && Array.isArray(staffMember.workingDays) 
+        ? staffMember.workingDays.includes(dayOfWeek)
+        : dayOfWeek !== 'Sun'; // Default fallback
+      
+      if (isWorkingDay) {
+        dayShifts = staffMember.shifts as any[];
+      }
+    }
+
+    if (!Array.isArray(dayShifts) || dayShifts.length === 0) {
       // If no shifts defined, use default full schedule
+      console.log(`⚠️ No shifts found for ${staffMember.fullName || staffMember.name} on ${dayOfWeekFull}`);
       return generateTimeSlots();
     }
+
+    console.log(`📅 Generating time slots for ${staffMember.fullName || staffMember.name} on ${dayOfWeekFull}:`, dayShifts);
 
     const availableSlots: string[] = [];
     
     // Process each shift for the staff member
-    staffMember.shifts.forEach((shift: any) => {
-      const startTime = moment(shift.shiftStart, 'HH:mm');
-      const endTime = moment(shift.shiftEnd, 'HH:mm');
-      
-      // Generate 30-minute slots for this shift
-      let currentTime = moment(startTime);
-      while (currentTime.isBefore(endTime)) {
-        const timeSlot = currentTime.format('HH:mm');
-        if (!availableSlots.includes(timeSlot)) {
-          availableSlots.push(timeSlot);
+    dayShifts.forEach((shift: any) => {
+      if (shift && shift.shiftStart && shift.shiftEnd) {
+        const startTime = moment(shift.shiftStart, 'HH:mm');
+        const endTime = moment(shift.shiftEnd, 'HH:mm');
+        
+        // Generate 30-minute slots for this shift
+        let currentTime = moment(startTime);
+        while (currentTime.isBefore(endTime)) {
+          const timeSlot = currentTime.format('HH:mm');
+          if (!availableSlots.includes(timeSlot)) {
+            availableSlots.push(timeSlot);
+          }
+          currentTime.add(30, 'minutes');
         }
-        currentTime.add(30, 'minutes');
       }
     });
 
@@ -360,16 +414,46 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
 
   // Check if a time slot is available for specific staff
   const isSlotAvailableForStaff = (timeSlot: string, staffMember: any) => {
-    if (!staffMember.shifts || staffMember.shifts.length === 0) {
-      // If no shifts defined, all slots are available (default 8AM-8PM)
+    const dayOfWeek = moment(selectedDate).locale('en').format('ddd'); // 'Mon', 'Tue', etc.
+    const dayOfWeekFull = moment(selectedDate).locale('en').format('dddd').toLowerCase() as keyof WeeklySchedule; // 'monday', 'tuesday', etc.
+    
+    let dayShifts: any[] = [];
+    
+    // Priority 1: Check weeklySchedule (frontend format)
+    if (staffMember.weeklySchedule && typeof staffMember.weeklySchedule === 'object') {
+      const daySchedule = staffMember.weeklySchedule[dayOfWeekFull];
+      dayShifts = daySchedule?.shifts || [];
+    }
+    // Priority 2: Check backend shifts object format (specific shifts per day)
+    else if (staffMember.shifts && typeof staffMember.shifts === 'object' && !Array.isArray(staffMember.shifts)) {
+      const dayShiftsFromBackend = staffMember.shifts[dayOfWeekFull];
+      dayShifts = Array.isArray(dayShiftsFromBackend) ? dayShiftsFromBackend : [];
+    }
+    // Priority 3: Check legacy shifts array format (same shifts for all working days)
+    else if (staffMember.shifts && Array.isArray(staffMember.shifts) && (staffMember.shifts as any[]).length > 0) {
+      // Only apply legacy shifts if staff is working on this day
+      const isWorkingDay = staffMember.workingDays && Array.isArray(staffMember.workingDays) 
+        ? staffMember.workingDays.includes(dayOfWeek)
+        : dayOfWeek !== 'Sun'; // Default fallback
+      
+      if (isWorkingDay) {
+        dayShifts = staffMember.shifts as any[];
+      }
+    }
+
+    if (!Array.isArray(dayShifts) || dayShifts.length === 0) {
+      // If no shifts defined, all slots are available during default hours (8AM-8PM)
       const hour = parseInt(timeSlot.split(':')[0]);
       return hour >= 8 && hour < 20;
     }
 
     const slotTime = moment(timeSlot, 'HH:mm');
     
-    // Check if the slot falls within any of the staff's shifts
-    return staffMember.shifts.some((shift: any) => {
+    // Check if the slot falls within any of the staff's shifts for this day
+    return dayShifts.some((shift: any) => {
+      if (!shift || !shift.shiftStart || !shift.shiftEnd) {
+        return false;
+      }
       const shiftStart = moment(shift.shiftStart, 'HH:mm');
       const shiftEnd = moment(shift.shiftEnd, 'HH:mm');
       return slotTime.isSameOrAfter(shiftStart) && slotTime.isBefore(shiftEnd);

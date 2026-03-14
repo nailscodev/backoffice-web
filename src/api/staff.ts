@@ -24,6 +24,22 @@ export interface Shift {
   shiftEnd: string;   // Format: "HH:mm" (e.g., "18:00")
 }
 
+// Day schedule interface for specific day shifts
+export interface DaySchedule {
+  shifts?: Shift[];
+}
+
+// Weekly schedule interface for new day-specific shifts
+export interface WeeklySchedule {
+  monday?: DaySchedule;
+  tuesday?: DaySchedule;
+  wednesday?: DaySchedule;
+  thursday?: DaySchedule;
+  friday?: DaySchedule;
+  saturday?: DaySchedule;
+  sunday?: DaySchedule;
+}
+
 // Interfaces matching backend DTOs
 export interface Staff {
   id: string;
@@ -40,7 +56,8 @@ export interface Staff {
   isWebVisible?: boolean;
   specialties?: string[];
   workingDays?: string[];
-  shifts?: Shift[];
+  shifts?: Shift[]; // Legacy format for backward compatibility
+  weeklySchedule?: WeeklySchedule; // New day-specific format
   commissionPercentage?: number;
   hourlyRate?: number;
   hireDate?: string;
@@ -101,7 +118,8 @@ export interface CreateStaffDto {
   isWebVisible?: boolean;
   specialties?: string[];
   workingDays?: string[];
-  shifts?: Shift[];
+  shifts?: Shift[]; // Legacy format - deprecated but maintained for compatibility  
+  weeklySchedule?: WeeklySchedule; // New day-specific format - takes precedence
   commissionPercentage?: number;
   hourlyRate?: number;
   hireDate?: string;
