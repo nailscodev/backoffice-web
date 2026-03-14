@@ -1066,13 +1066,9 @@ const Team = () => {
                                                         <div className="team-stats-wrapper">
                                                             <Col lg={12} className="col">
                                                                 <Row className="text-muted text-center mb-3">
-                                                                    <Col xs={12} className="mb-2">
+                                                                    <Col xs={12}>
                                                                         <h6 className="mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.2' }}>{formatWorkingDays(item._staffData?.workingDays || [], t)}</h6>
                                                                         <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>Working Days</p>
-                                                                    </Col>
-                                                                    <Col xs={12}>
-                                                                        <h6 className="mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.2', whiteSpace: 'pre-line' }}>{formatShiftTimes(item._staffData || {})}</h6>
-                                                                        <p className="text-muted mb-0" style={{ fontSize: '0.7rem' }}>Schedule</p>
                                                                     </Col>
                                                                 </Row>
                                                             </Col>
@@ -1766,12 +1762,11 @@ const Team = () => {
                                             <Col xs={12}>
                                                 <div className="p-3 border border-dashed border-start-0">
                                                     <h6 className="mb-1 profile-project" style={{ fontSize: '0.85rem', lineHeight: '1.3' }}>{formatWorkingDays(sideBar._staffData?.workingDays || [], t)}</h6>
-                                                    <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>Working Days</p>
-                                                    <h6 className="mb-1 profile-task" style={{ fontSize: '0.85rem', lineHeight: '1.3', whiteSpace: 'pre-line' }}>{formatShiftTimes(sideBar._staffData || {})}</h6>
-                                                    <p className="text-muted mb-0" style={{ fontSize: '0.75rem' }}>Schedule</p>
+                                                    <p className="text-muted mb-0" style={{ fontSize: '0.75rem' }}>Working Days</p>
                                                 </div>
                                             </Col>
                                         </Row>
+
                                         <div className="p-3">
                                             <h5 className="fs-15 mb-3">{t('team.profile.personal_details')}</h5>
                                             <div className="mb-3">
