@@ -416,7 +416,7 @@ const InvoiceList = () => {
           {/* Top area: 5 metric cards in a responsive grid */}
           {(() => {
             // Use backend data for all metrics
-            const totalRevenue = dashboardStats.totalRevenue || 0;
+            const totalRevenue = dashboardStats.totalRevenue + (dashboardStats.manualAdjustmentsTotal || 0) || 0;
             const cashTotal = dashboardStats.cash || 0;
             const bankTotal = dashboardStats.bank || 0;
             const manualAdjustments = dashboardStats.manualAdjustmentsTotal || 0;
