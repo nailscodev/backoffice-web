@@ -466,6 +466,8 @@
     "menu.admin.reports.by_date": "Filtros por fecha",
     "menu.admin.reports.metrics": "Métricas",
 
+    "menu.admin.tests.title": "Tests",
+
     "menu.admin.settings.title": "Configuración",
     "menu.admin.settings.users_roles": "Usuarios y Roles",
     "menu.admin.settings.authentication": "Autenticación",

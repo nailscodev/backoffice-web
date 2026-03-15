@@ -492,6 +492,8 @@
     "menu.admin.reports.by_date": "Date filters",
     "menu.admin.reports.metrics": "Metrics",
 
+    "menu.admin.tests.title": "Tests",
+
     "menu.admin.settings.title": "Settings",
     "menu.admin.settings.users_roles": "Users & Roles",
     "menu.admin.settings.authentication": "Authentication",

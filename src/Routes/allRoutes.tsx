@@ -77,6 +77,9 @@ import BookingSettings from "../pages/Settings/BookingSettings";
 import UserManagement from "../pages/Settings/Users/index";
 import LanguageManagement from "../pages/Settings/Language/index";
 
+// Performance Tests
+import PerformanceTests from "../pages/Tests";
+
 // // NFT Marketplace Pages
 import Marketplace from "../pages/NFTMarketplace/Marketplace";
 import Collections from "../pages/NFTMarketplace/Collections";
@@ -296,6 +299,9 @@ const authProtectedRoutes = [
   { path: "/config/reservas", component: <BookingSettings /> },
   { path: "/config/usuarios", component: <UserManagement /> },
   { path: "/config/idioma", component: <LanguageManagement /> },
+
+  // Performance Tests
+  { path: "/tests", component: <PerformanceTests /> },
 
   // //Chat
   { path: "/apps-chat", component: <Chat /> },

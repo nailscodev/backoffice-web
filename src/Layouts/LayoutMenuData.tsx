@@ -237,6 +237,21 @@ const Navdata = () => {
                 { id: "usuarios-roles", label: t('menu.admin.settings.users_roles'), link: "/config/usuarios", parentId: "admin-config" },
                 { id: "idioma", label: t('menu.admin.settings.language'), link: "/config/idioma", parentId: "admin-config", icon: "ri-time-line", disabled: true, badgeName: "Coming Soon", badgeColor: "info" },
             ],
+        },
+
+        // 9) Performance Tests
+        {
+            id: "admin-tests",
+            label: t('menu.admin.tests.title') || 'Tests',
+            icon: "ri-speed-up-line",
+            link: "/tests",
+            click: function (e: any) {
+                e.preventDefault();
+                setIscurrentState('Tests');
+                updateIconSidebar(e);
+                history('/tests');
+            },
+            stateVariables: false,
         }
     ];
 
@@ -270,7 +285,8 @@ const menuData = [
     { id: "admin-config", label: 'menu.admin.settings.title', icon: "ri-settings-2-line", link: "/config", subItems: [
         { id: "usuarios-roles", label: 'menu.admin.settings.users_roles', link: "/config/usuarios", parentId: "admin-config" },
         { id: "idioma", label: 'menu.admin.settings.language', link: "/config/idioma", parentId: "admin-config", icon: "ri-time-line", disabled: true, badgeName: "Coming Soon", badgeColor: "info" }
-    ] }
+    ] },
+    { id: "admin-tests", label: 'menu.admin.tests.title', icon: "ri-speed-up-line", link: "/tests" }
 ];
 
 export default Navdata;
