@@ -293,7 +293,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     const grouped: Record<string, Service[]> = {};
     
     // Si hay staff preseleccionado del calendario, filtrar solo sus servicios
-    let filteredServices = services;
+    let filteredServices = services ?? [];
     if (preselectedStaffId) {
       const preselectedStaff = staff.find(s => s.id === preselectedStaffId);
       if (preselectedStaff?.services) {

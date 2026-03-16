@@ -96,7 +96,7 @@ const apexBaseOptions = {
   xaxis: {
     type: "numeric" as const,
     title: { text: "Elapsed (seconds)", style: { fontSize: "11px", color: "#888" } },
-    labels: { formatter: (v: number) => `${v}s` },
+    labels: { formatter: (v: string) => `${v}s` },
   },
   tooltip: { shared: true, intersect: false },
   legend: { position: "top" as const, horizontalAlign: "left" as const },
