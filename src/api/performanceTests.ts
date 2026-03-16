@@ -52,7 +52,7 @@ const baseHeaders = () => {
 
 export const startTest = async (type: TestType, baseUrl?: string): Promise<TestResult> => {
   const { data } = await axios.post(
-    `${API_URL}/api/performance-tests/run`,
+    `${API_URL}/api/v1/performance-tests/run`,
     { type, baseUrl },
     { headers: baseHeaders() },
   );
@@ -60,14 +60,14 @@ export const startTest = async (type: TestType, baseUrl?: string): Promise<TestR
 };
 
 export const getTestResult = async (id: string): Promise<TestResult> => {
-  const { data } = await axios.get(`${API_URL}/api/performance-tests/${id}`, {
+  const { data } = await axios.get(`${API_URL}/api/v1/performance-tests/${id}`, {
     headers: baseHeaders(),
   });
   return data.data ?? data;
 };
 
 export const listTestResults = async (): Promise<TestResult[]> => {
-  const { data } = await axios.get(`${API_URL}/api/performance-tests`, {
+  const { data } = await axios.get(`${API_URL}/api/v1/performance-tests`, {
     headers: baseHeaders(),
   });
   const result = data.data ?? data;
@@ -75,7 +75,7 @@ export const listTestResults = async (): Promise<TestResult[]> => {
 };
 
 export const cancelTest = async (id: string): Promise<void> => {
-  await axios.delete(`${API_URL}/api/performance-tests/${id}/cancel`, {
+  await axios.delete(`${API_URL}/api/v1/performance-tests/${id}/cancel`, {
     headers: baseHeaders(),
   });
 };
