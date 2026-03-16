@@ -141,7 +141,7 @@
   "invoices.bank_card": "Banco / Tarjeta",
   "invoices.total_revenue": "Ingresos Totales",
   "invoices.manual_adjustments": "Ajustes Manuales",
-  "invoices.completed_transactions": "Transacciones Completadas",
+  "invoices.completed_transactions": "Reservas",
   "invoices.completed": "Completadas",
   "invoices.adjustment": "ajuste",
   "invoices.adjustments": "ajustes",

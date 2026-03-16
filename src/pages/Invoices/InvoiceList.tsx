@@ -284,16 +284,40 @@ const InvoiceList = () => {
         header: t('invoices.col.transaction_id', 'Transaction ID'),
         accessorKey: "id",
         enableColumnFilter: false,
-        cell: (cell: any) => (
-          <span 
-            className="text-muted font-monospace" 
-            style={{ fontSize: '0.8rem', cursor: 'pointer' }}
-            title={t('invoices.click_to_copy', 'Click to copy')}
-            onClick={() => navigator.clipboard?.writeText(cell.getValue())}
-          >
-            {cell.getValue()}
-          </span>
-        ),
+        cell: (cell: any) => {
+          const id = cell.getValue();
+          
+          const copyToClipboard = async (text: string) => {
+            try {
+              await navigator.clipboard.writeText(text);
+              toast.success(t('invoices.id.copy_success', 'ID copied to clipboard'));
+            } catch (err) {
+              console.error('Error al copiar:', err);
+              toast.error(t('invoices.id.copy_error', 'Error copying ID'));
+            }
+          };
+          
+          return (
+            <div className="d-flex align-items-center">
+              <span 
+                className="text-body fw-medium me-2" 
+                title={t('invoices.id.copy_tooltip', 'Click to copy: {{id}}', { id: id || '' })}
+                style={{ cursor: 'pointer', fontSize: '0.875rem' }}
+                onClick={() => id && copyToClipboard(id)}
+              >
+                {id ? id.substring(0, 8) + '...' : '-'}
+              </span>
+              {id && (
+                <i 
+                  className="ri-file-copy-line text-muted" 
+                  style={{ cursor: 'pointer', fontSize: '0.75rem' }}
+                  onClick={() => copyToClipboard(id)}
+                  title={t('invoices.id.copy_full_tooltip', 'Copy full ID')}
+                ></i>
+              )}
+            </div>
+          );
+        },
       },
       {
         header: t('invoices.col.customer', 'Customer'),
@@ -320,7 +344,7 @@ const InvoiceList = () => {
         enableColumnFilter: false,
         cell: (cell: any) => (
           <span className={cell.getValue() === 'CASH' ? 'badge bg-success' : 'badge bg-primary'}>
-            {cell.getValue() === 'CASH' ? t('invoices.cash', 'Efectivo') : t('invoices.card', 'Tarjeta')}
+            {cell.getValue() === 'CASH' ? t('invoices.cash', 'Cash') : t('invoices.card', 'Card')}
           </span>
         ),
       },

@@ -39,7 +39,7 @@
     "Companies": "Compañías",
     "Deals": "ofertas",
     "Leads": "Dirige",
-    "Transactions": "Actas",
+    "Transactions": "Reservas",
     "Buy & Sell": "Compra venta",
     "My Wallet": "Mi billetera",
     "ICO List": "Lista de ICO",
@@ -568,7 +568,7 @@
     "invoices.in_cash": "En efectivo",
     "invoices.in_bank": "En banco",
     "invoices.manual_adjustments": "Ajustes Manuales",
-    "invoices.completed_transactions": "Transacciones",
+    "invoices.completed_transactions": "Reservas",
 
     "invoices.cash_vs_bank": "Efectivo vs Banco",
     "invoices.revenue_over_time": "Ingresos a lo Largo del Tiempo",
