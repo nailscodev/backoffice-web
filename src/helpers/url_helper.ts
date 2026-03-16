@@ -10,6 +10,11 @@ export const GET_USER_PERMISSIONS = "/api/v1/users/me/permissions";
 //USERS
 export const USERS = "/api/v1/users";
 
+//ROLES AND PERMISSIONS
+export const GET_ROLE_PERMISSIONS = "/api/v1/users/roles/{role}/permissions";
+export const UPDATE_ROLE_PERMISSIONS = "/api/v1/users/roles/{role}/permissions";
+export const GET_ALL_ROLE_PERMISSIONS = "/api/v1/users/roles/permissions/all";
+
 //BOOKINGS
 export const BOOKINGS = "/api/v1/bookings";
 export const GET_BOOKINGS = "/api/v1/bookings";

@@ -1305,5 +1305,11 @@
     "roles.assignment.select_role_placeholder": "-- Selecciona un rol --",
     "roles.assignment.available_screens": "Pantallas disponibles:",
     "roles.assignment.save": "Guardar",
-    "roles.assignment.saved": "Asignación guardada para el rol {{role}}: {{screens}}"
+    "roles.assignment.success": "Permisos guardados exitosamente para {{role}}! {{count}} pantallas configuradas.",
+    "roles.assignment.error": "Error guardando permisos para {{role}}: {{error}}",
+    "roles.assignment.description": "Configura qué pantallas puede acceder cada rol en el sistema",
+    "roles.assignment.select_instruction": "Selecciona qué pantallas puede acceder este rol",
+    "roles.assignment.select_all": "Seleccionar Todo",
+    "roles.assignment.select_none": "No Seleccionar Nada",
+    "roles.assignment.screens_selected": "{{selected}} de {{total}} pantallas seleccionadas"
 }

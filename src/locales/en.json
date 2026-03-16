@@ -998,6 +998,19 @@
     "common.select_date": "Select a date",
     "common.page_title_reservations": "Reservations | Nails & Co Midtown - Admin Panel",
 
+    "roles.assignment.title": "Screen Permissions Assignment",
+    "roles.assignment.select_role": "Select Role:",
+    "roles.assignment.select_role_placeholder": "Select a role to configure...",
+    "roles.assignment.available_screens": "Available Screens",
+    "roles.assignment.save": "Save Permissions",
+    "roles.assignment.success": "Permissions saved successfully for {{role}}! {{count}} screens configured.",
+    "roles.assignment.error": "Error saving permissions for {{role}}: {{error}}",
+    "roles.assignment.description": "Configure which screens each role can access in the system",
+    "roles.assignment.select_instruction": "Select which screens this role can access",
+    "roles.assignment.select_all": "Select All",
+    "roles.assignment.select_none": "Select None",
+    "roles.assignment.screens_selected": "{{selected}} of {{total}} screens selected",
+
     "reservations.id.copy_tooltip": "Click to copy: {{id}}",
     "reservations.id.copy_success": "ID copied to clipboard",
     "reservations.id.copy_error": "Error copying ID",
@@ -1457,11 +1470,5 @@
     "booking.confirm.removal_services": "Removal Services",
     "booking.confirm.date_time": "Date & Time",
     "booking.confirm.notes": "Notes",
-    "booking.confirm.total": "Total:",
-    "roles.assignment.title": "Assign Screens to Roles",
-    "roles.assignment.select_role": "Select a role:",
-    "roles.assignment.select_role_placeholder": "-- Select a role --",
-    "roles.assignment.available_screens": "Available screens:",
-    "roles.assignment.save": "Save",
-    "roles.assignment.saved": "Assignment saved for role {{role}}: {{screens}}"
+    "booking.confirm.total": "Total:"
 }

@@ -82,21 +82,21 @@ const Navdata = () => {
                     // Navigate to Invoice List
                     link: "/apps-invoices-list",
                     parentId: "admin-ingresos",
-                    isChildItem: true,
-                    childItems: [
-                        {
-                            id: 1,
-                            label: t('menu.admin.revenue.completed_shifts_list'),
-                            link: "/apps-invoices-list",
-                            parentId: "ingresos-diarios",
-                            click: function (e: any) {
-                                e.preventDefault();
-                                setIscurrentState('Ingresos');
-                                updateIconSidebar(e);
-                                history('/apps-invoices-list');
-                            }
-                        },
-                    ]
+                    // isChildItem: true,
+                    // childItems: [
+                    //     {
+                    //         id: 1,
+                    //         label: t('menu.admin.revenue.completed_shifts_list'),
+                    //         link: "/apps-invoices-list",
+                    //         parentId: "ingresos-diarios",
+                    //         click: function (e: any) {
+                    //             e.preventDefault();
+                    //             setIscurrentState('Ingresos');
+                    //             updateIconSidebar(e);
+                    //             history('/apps-invoices-list');
+                    //         }
+                    //     },
+                    // ]
                 },
                 {
                     id: "ajustes-manuales",
@@ -104,21 +104,21 @@ const Navdata = () => {
                     // Navigate to Invoice Create
                     link: "/apps-invoices-create",
                     parentId: "admin-ingresos",
-                    isChildItem: true,
-                    childItems: [
-                        {
-                            id: 1,
-                            label: t('menu.admin.revenue.external_transactions'),
-                            link: "/apps-invoices-create",
-                            parentId: "ajustes-manuales",
-                            click: function (e: any) {
-                                e.preventDefault();
-                                setIscurrentState('Ingresos');
-                                updateIconSidebar(e);
-                                history('/apps-invoices-create');
-                            }
-                        },
-                    ]
+                    // isChildItem: true,
+                    // childItems: [
+                    //     {
+                    //         id: 1,
+                    //         label: t('menu.admin.revenue.external_transactions'),
+                    //         link: "/apps-invoices-create",
+                    //         parentId: "ajustes-manuales",
+                    //         click: function (e: any) {
+                    //             e.preventDefault();
+                    //             setIscurrentState('Ingresos');
+                    //             updateIconSidebar(e);
+                    //             history('/apps-invoices-create');
+                    //         }
+                    //     },
+                    // ]
                 },
             ],
         },
@@ -252,12 +252,8 @@ const menuData = [
     { label: 'menu.admin.header', isHeader: true },
     { id: "admin-dashboard", label: 'menu.admin.dashboard', icon: "ri-dashboard-2-line", link: "/dashboard" },
     { id: "admin-ingresos", label: 'menu.admin.revenue.title', icon: "ri-wallet-3-line", link: "/ingresos", subItems: [
-        { id: "ingresos-diarios", label: 'menu.admin.revenue.daily_revenue', link: "/apps-invoices-list", parentId: "admin-ingresos", childItems: [
-            { id: 1, label: 'menu.admin.revenue.completed_shifts_list', link: "/apps-invoices-list", parentId: "ingresos-diarios" }
-        ] },
-        { id: "ajustes-manuales", label: 'menu.admin.revenue.manual_adjustments', link: "/apps-invoices-create", parentId: "admin-ingresos", childItems: [
-            { id: 1, label: 'menu.admin.revenue.external_transactions', link: "/apps-invoices-create", parentId: "ajustes-manuales" }
-        ] }
+        { id: "ingresos-diarios", label: 'menu.admin.revenue.daily_revenue', link: "/apps-invoices-list", parentId: "admin-ingresos"},
+        { id: "ajustes-manuales", label: 'menu.admin.revenue.manual_adjustments', link: "/apps-invoices-create", parentId: "admin-ingresos"}
     ] },
     { id: "admin-reservas", label: 'menu.admin.reservations.title', icon: "ri-calendar-line", link: "/reservas", subItems: [
         { id: "historial-reservas", label: 'menu.admin.reservations.list', link: "/apps-ecommerce-orders", parentId: "admin-reservas" },

@@ -34,6 +34,18 @@ export const getUserPermissions = () => {
   return api.get(url.GET_USER_PERMISSIONS);
 };
 
+export const getRolePermissions = (role: string) => {
+  return api.get(url.GET_ROLE_PERMISSIONS.replace('{role}', role));
+};
+
+export const updateRolePermissions = (role: string, screens: string[]) => {
+  return api.update(url.UPDATE_ROLE_PERMISSIONS.replace('{role}', role), { screens });
+};
+
+export const getAllRolePermissions = () => {
+  return api.get(url.GET_ALL_ROLE_PERMISSIONS);
+};
+
 export const changeUserPassword = async (userId: string, data: { currentPassword: string; newPassword: string }) => {
   try {
     return await api.update(`${url.USERS}/${userId}/change-password`, data);
