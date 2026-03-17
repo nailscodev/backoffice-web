@@ -25,7 +25,8 @@ import {
   Modal,
   ModalHeader,
   ModalBody,
-  ModalFooter
+  ModalFooter,
+  Alert
 } from "reactstrap";
 
 import * as Yup from "yup";
@@ -59,7 +60,7 @@ import {
   updateEvent as onUpdateEvent,
   getUpCommingEvent as onGetUpCommingEvent,
 } from "../../slices/thunks";
-import { createSelector } from "reselect";
+
 import { servicesByCategory, staffMembers } from "../../common/data/calender";
 import { getStaffList, Staff, WeeklySchedule } from "../../api/staff";
 import { getCategories, Category } from "../../api/categories";
@@ -1410,14 +1411,10 @@ const Calender = () => {
   const { t, i18n } = useTranslation();
   
   // Selector para obtener el usuario actual
-  const selectAuthState = (state: any) => state.Login;
-  const selectUserData = createSelector(
-    selectAuthState,
-    (auth) => ({
-      user: auth.user
-    })
-  );
-  const { user } = useSelector(selectUserData);
+  const { user } = useSelector((state: any) => state.Login);
+  
+  // Determinar si el usuario es staff
+  const isStaffUser = user && user.role === 'staff';
   
   // Get current language and set up date formatting
   const currentLang = i18n.language || 'en';
@@ -1517,19 +1514,10 @@ const Calender = () => {
   const [showServiceEditor, setShowServiceEditor] = useState(false);
 
   const selectLayoutState = (state: any) => state.Calendar;
-  const calendarDataProperties = createSelector(
-    selectLayoutState,
-    (state: any) => ({
-      events: state.events,
-      categories: state.categories,
-      upcommingevents: state.upcommingevents,
-      isEventUpdated: state.isEventUpdated,
-    })
-  );
   // Inside your component
   const {
     events, categories, upcommingevents, isEventUpdated
-  } = useSelector(calendarDataProperties);
+  } = useSelector(selectLayoutState);
 
   console.log('📅 [CALENDAR COMPONENT] Events from Redux:', events);
   console.log('📅 [CALENDAR COMPONENT] Events count:', events?.length || 0);
@@ -1801,6 +1789,11 @@ const Calender = () => {
     if (date < now) {
       return; // No permitir crear reservas en el pasado
     }
+
+    // Prevent slot click for staff users
+    if (user && user.role === 'staff') {
+      return;
+    }
     
     // Configurar valores preseleccionados para CreateBookingModal
     const timeString = moment(date).format('h:mm A');
@@ -1822,6 +1815,11 @@ const Calender = () => {
     // Verificar si la fecha/hora ya pasó
     if (date < now) {
       return; // No permitir crear breaks en el pasado
+    }
+
+    // Prevent right click for staff users
+    if (user && user.role === 'staff') {
+      return;
     }
     
     // Configurar valores preseleccionados para CreateBreakModal
@@ -2951,14 +2949,16 @@ const Calender = () => {
                       </Nav>
                     </Col>
                     <Col xs="auto">
-                      <div className="d-flex gap-2">
-                        <Button color="success" onClick={() => setGeneralCreateBookingModal(true)}>
-                          <i className="ri-add-line align-bottom me-1"></i> {t('reservations.create_reservation')}
-                        </Button>
-                        <Button color="warning" onClick={() => setGeneralCreateBreakModal(true)}>
-                          <i className="ri-time-line align-bottom me-1"></i> {t('calendar.create_break') || 'Create Break'}
-                        </Button>
-                      </div>
+                      {user && user.role !== 'staff' && (
+                        <div className="d-flex gap-2">
+                          <Button color="success" onClick={() => setGeneralCreateBookingModal(true)}>
+                            <i className="ri-add-line align-bottom me-1"></i> {t('reservations.create_reservation')}
+                          </Button>
+                          <Button color="warning" onClick={() => setGeneralCreateBreakModal(true)}>
+                            <i className="ri-time-line align-bottom me-1"></i> {t('calendar.create_break') || 'Create Break'}
+                          </Button>
+                        </div>
+                      )}
                     </Col>
                   </Row>
                 </CardHeader>
@@ -3410,15 +3410,17 @@ const Calender = () => {
                     <Label className="form-label fw-semibold">
                       {t("reservations.form.services")}
                     </Label>
-                    <Button
-                      color="link"
-                      size="sm"
-                      className="p-0"
-                      onClick={() => setShowServiceEditor(!showServiceEditor)}
-                    >
-                      <i className={`ri-${showServiceEditor ? 'eye-off' : 'edit'}-line me-1`} />
-                      {showServiceEditor ? t("common.hide_editor") : t("common.edit")}
-                    </Button>
+                    {!isStaffUser && (
+                      <Button
+                        color="link"
+                        size="sm"
+                        className="p-0"
+                        onClick={() => setShowServiceEditor(!showServiceEditor)}
+                      >
+                        <i className={`ri-${showServiceEditor ? 'eye-off' : 'edit'}-line me-1`} />
+                        {showServiceEditor ? t("common.hide_editor") : t("common.edit")}
+                      </Button>
+                    )}
                   </div>
                   
                   {!showServiceEditor ? (
@@ -3487,6 +3489,7 @@ const Calender = () => {
                           className="form-select"
                           value={selectedService?.id || ""}
                           onChange={(e) => handleServiceChange(e.target.value)}
+                          disabled={isStaffUser}
                         >
                           <option value="">{t("reservations.form.select_service_placeholder")}</option>
                           {allCategories.map(category => {
@@ -3532,7 +3535,7 @@ const Calender = () => {
                                     <i 
                                       className="ri-close-line" 
                                       style={{ cursor: 'pointer' }}
-                                      onClick={() => handleAddonToggle(addon)}
+                                      onClick={isStaffUser ? undefined : () => handleAddonToggle(addon)}
                                     />
                                   </span>
                                 ))}
@@ -3557,6 +3560,7 @@ const Calender = () => {
                                 e.target.value = "";
                               }
                             }}
+                            disabled={isStaffUser}
                           >
                             <option value="">
                               {(() => {
@@ -3600,7 +3604,7 @@ const Calender = () => {
                                   <i 
                                     className="ri-close-line" 
                                     style={{ cursor: 'pointer' }}
-                                    onClick={() => handleRemovalAddonToggle(addon)}
+                                    onClick={isStaffUser ? undefined : () => handleRemovalAddonToggle(addon)}
                                   />
                                 </span>
                               ))}
@@ -3623,6 +3627,7 @@ const Calender = () => {
                               e.target.value = "";
                             }
                           }}
+                          disabled={isStaffUser}
                         >
                           <option value="">
                             {getCompatibleRemovalAddons().length > 0 
@@ -3688,6 +3693,7 @@ const Calender = () => {
                     onChange={editValidation.handleChange}
                     onBlur={editValidation.handleBlur}
                     value={editValidation.values.staffId || ""}
+                    disabled={isStaffUser}
                   >
                     <option value="">{t("reservations.form.select_staff")}</option>
                     {staff.map((staffMember) => (
@@ -3710,6 +3716,7 @@ const Calender = () => {
                       onChange={editValidation.handleChange}
                       onBlur={editValidation.handleBlur}
                       value={editValidation.values.orderDate || ""}
+                      disabled={isStaffUser}
                     />
                   </div>
                   <div className="col-md-4">
@@ -3723,6 +3730,7 @@ const Calender = () => {
                       onChange={editValidation.handleChange}
                       onBlur={editValidation.handleBlur}
                       value={editValidation.values.startTime || ""}
+                      disabled={isStaffUser}
                     />
                   </div>
                   <div className="col-md-4">
@@ -3736,6 +3744,7 @@ const Calender = () => {
                       onChange={editValidation.handleChange}
                       onBlur={editValidation.handleBlur}
                       value={editValidation.values.endTime || ""}
+                      disabled={isStaffUser}
                     />
                   </div>
                 </div>
@@ -3773,7 +3782,7 @@ const Calender = () => {
                       onChange={editValidation.handleChange}
                       onBlur={editValidation.handleBlur}
                       value={editValidation.values.payment || ""}
-                      disabled={editValidation.values.status === 'pending' || editValidation.values.status === 'in_progress' || editValidation.values.status === 'cancelled'}
+                      disabled={editValidation.values.status === 'pending' || editValidation.values.status === 'in_progress' || editValidation.values.status === 'cancelled' || isStaffUser}
                       invalid={editValidation.touched.payment && editValidation.errors.payment ? true : false}
                     >
                       <option value="">{t("reservations.form.select_payment")}</option>
@@ -3808,6 +3817,7 @@ const Calender = () => {
                       onBlur={editValidation.handleBlur}
                       value={editValidation.values.status || ""}
                       invalid={editValidation.touched.status && editValidation.errors.status ? true : false}
+                      disabled={isStaffUser}
                     >
                       <option value="">{t("reservations.form.select_status")}</option>
                       <option value="pending">{t("reservations.status.pending")}</option>
@@ -3838,6 +3848,7 @@ const Calender = () => {
                       onBlur={editValidation.handleBlur}
                       value={editValidation.values.cancellationReason || ""}
                       invalid={editValidation.touched.cancellationReason && editValidation.errors.cancellationReason ? true : false}
+                      disabled={isStaffUser}
                     />
                     {editValidation.touched.cancellationReason && editValidation.errors.cancellationReason ? (
                       <FormFeedback type="invalid">{editValidation.errors.cancellationReason}</FormFeedback>
@@ -3857,20 +3868,33 @@ const Calender = () => {
                 )}
               </ModalBody>
               <ModalFooter>
+                {/* Mostrar mensaje de solo lectura para usuarios staff */}
+                {isStaffUser && (
+                  <div className="w-100 text-center mb-2">
+                    <Alert color="info" className="mb-0">
+                      <i className="ri-information-line me-2"></i>
+                      {t('booking.staff_readonly_message') || 'This modal is read-only for staff users'}
+                    </Alert>
+                  </div>
+                )}
+
                 <div className="hstack gap-2 justify-content-end">
                   <Button color="light" onClick={toggleEditModal}>
                     {t("common.close")}
                   </Button>
-                  <Button 
-                    color="success" 
-                    type="submit"
-                    disabled={
-                      editValidation.values.status === 'completed' && 
-                      (!editValidation.values.payment || editValidation.values.payment === 'pending' || editValidation.values.payment === '')
-                    }
-                  >
-                    {t("common.save_changes")}
-                  </Button>
+                  {/* Ocultar botón de guardar cambios para usuarios staff */}
+                  {!isStaffUser && (
+                    <Button 
+                      color="success" 
+                      type="submit"
+                      disabled={
+                        editValidation.values.status === 'completed' && 
+                        (!editValidation.values.payment || editValidation.values.payment === 'pending' || editValidation.values.payment === '')
+                      }
+                    >
+                      {t("common.save_changes")}
+                    </Button>
+                  )}
                 </div>
               </ModalFooter>
             </form>

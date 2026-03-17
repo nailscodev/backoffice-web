@@ -21,6 +21,7 @@ import * as Yup from 'yup';
 import moment from 'moment';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 
 // API imports
 import { getStaffList, Staff } from '../../api/staff';
@@ -44,6 +45,12 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
   preselectedStaffId
 }) => {
   const { t, i18n } = useTranslation();
+  
+  // Selector para obtener el usuario actual
+  const user = useSelector((state: any) => state.Login?.user);
+  
+  // Determinar si el usuario es staff
+  const isStaffUser = user && user.role === 'staff';
   
   // Estados
   const [loading, setLoading] = useState(false);
@@ -249,6 +256,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   onChange={validation.handleChange}
                   onBlur={validation.handleBlur}
                   invalid={validation.touched.type && !!validation.errors.type}
+                  disabled={isStaffUser}
                 >
                   {breakTypes.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -273,7 +281,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   onChange={validation.handleChange}
                   onBlur={validation.handleBlur}
                   invalid={validation.touched.staffId && !!validation.errors.staffId}
-                  disabled={!!preselectedStaffId}
+                  disabled={!!preselectedStaffId || isStaffUser}
                 >
                   <option value="">{t('calendar.select_staff') || 'Select staff member'}</option>
                   {staff.map((staffMember) => (
@@ -302,6 +310,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   onBlur={validation.handleBlur}
                   invalid={validation.touched.title && !!validation.errors.title}
                   placeholder={t('calendar.enter_break_title') || 'Enter break title'}
+                  disabled={isStaffUser}
                 />
                 {validation.touched.title && validation.errors.title && (
                   <FormFeedback>{validation.errors.title}</FormFeedback>
@@ -331,7 +340,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   }}
                   value={validation.values.date}
                   onChange={(date) => validation.setFieldValue('date', date[0])}
-                  disabled={!!preselectedDate}
+                  disabled={!!preselectedDate || isStaffUser}
                 />
                 {validation.touched.date && validation.errors.date && (
                   <div className="invalid-feedback d-block">{String(validation.errors.date)}</div>
@@ -350,7 +359,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   onChange={validation.handleChange}
                   onBlur={validation.handleBlur}
                   invalid={validation.touched.startTime && !!validation.errors.startTime}
-                  disabled={!!preselectedTime}
+                  disabled={!!preselectedTime || isStaffUser}
                 >
                   {timeSlots.map((slot) => (
                     <option key={slot.value} value={slot.value}>
@@ -375,6 +384,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   onChange={validation.handleChange}
                   onBlur={validation.handleBlur}
                   invalid={validation.touched.endTime && !!validation.errors.endTime}
+                  disabled={isStaffUser}
                 >
                   {timeSlots.map((slot) => (
                     <option key={slot.value} value={slot.value}>
@@ -402,6 +412,7 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
                   onChange={validation.handleChange}
                   onBlur={validation.handleBlur}
                   placeholder={t('calendar.enter_notes') || 'Enter additional notes...'}
+                  disabled={isStaffUser}
                 />
               </FormGroup>
             </Col>
@@ -409,22 +420,36 @@ const CreateBreakModal: React.FC<CreateBreakModalProps> = ({
         </ModalBody>
         
         <ModalFooter>
+          {/* Mostrar mensaje de solo lectura para usuarios staff */}
+          {isStaffUser && (
+            <div className="w-100 text-center">
+              <Alert color="info" className="mb-0">
+                <i className="ri-information-line me-2"></i>
+                {t('calendar.staff_readonly_message') || 'This modal is read-only for staff users'}
+              </Alert>
+            </div>
+          )}
+
           <Button color="light" onClick={handleClose} disabled={loading}>
             {t('common.cancel') || 'Cancel'}
           </Button>
-          <Button color="warning" type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <Spinner size="sm" className="me-2" />
-                {t('common.creating') || 'Creating...'}
-              </>
-            ) : (
-              <>
-                <i className="ri-time-line me-2"></i>
-                {t('calendar.create_break') || 'Create Break'}
-              </>
-            )}
-          </Button>
+
+          {/* Ocultar botón de crear para usuarios staff */}
+          {!isStaffUser && (
+            <Button color="warning" type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="me-2" />
+                  {t('common.creating') || 'Creating...'}
+                </>
+              ) : (
+                <>
+                  <i className="ri-time-line me-2"></i>
+                  {t('calendar.create_break') || 'Create Break'}
+                </>
+              )}
+            </Button>
+          )}
         </ModalFooter>
       </Form>
     </Modal>

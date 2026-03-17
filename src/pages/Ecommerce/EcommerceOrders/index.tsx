@@ -16,7 +16,8 @@ import {
   Label,
   Input,
   FormFeedback,
-  Button
+  Button,
+  Alert
 } from "reactstrap";
 import { Link, useLocation } from "react-router-dom";
 import classnames from "classnames";
@@ -1310,14 +1311,16 @@ const EcommerceOrders = () => {
                   </div>
                   <div className="col-sm-auto">
                     <div className="d-flex gap-1 flex-wrap">
-                      <button
-                        type="button"
-                        className="btn btn-success add-btn"
-                        id="create-btn"
-                        onClick={() => setCreateBookingModal(true)}
-                      >
-                        <i className="ri-add-line align-bottom me-1"></i> {t("reservations.create_reservation")}
-                      </button>{" "}
+                      {user && user.role !== 'staff' && (
+                        <button
+                          type="button"
+                          className="btn btn-success add-btn"
+                          id="create-btn"
+                          onClick={() => setCreateBookingModal(true)}
+                        >
+                          <i className="ri-add-line align-bottom me-1"></i> {t("reservations.create_reservation")}
+                        </button>
+                      )}{" "}
                       {/* <button type="button" className="btn btn-info" onClick={() => setIsExportCSV(true)}>
                         <i className="ri-file-download-line align-bottom me-1"></i>{" "}
                         {t("reservations.export")}
@@ -1503,6 +1506,13 @@ const EcommerceOrders = () => {
                     return false;
                   }}>
                     <ModalBody>
+                      {/* Alert para usuarios staff */}
+                      {user && user.role === 'staff' && (
+                        <Alert color="info" className="mb-3">
+                          <i className="ri-information-line me-2"></i>
+                          {t('reservations.staff_readonly_mode', 'You are viewing this reservation in read-only mode')}
+                        </Alert>
+                      )}
                       <div className="row mb-3">
                         <div className="col-md-6">
                           <Label className="form-label fw-semibold">
@@ -1536,15 +1546,17 @@ const EcommerceOrders = () => {
                           <Label className="form-label fw-semibold">
                             {t("reservations.form.services")}
                           </Label>
-                          <Button
-                            color="link"
-                            size="sm"
-                            className="p-0"
-                            onClick={() => setShowServiceEditor(!showServiceEditor)}
-                          >
-                            <i className={`ri-${showServiceEditor ? 'eye-off' : 'edit'}-line me-1`} />
-                            {showServiceEditor ? t("common.hide_editor") : t("common.edit")}
-                          </Button>
+                          {user && user.role !== 'staff' && (
+                            <Button
+                              color="link"
+                              size="sm"
+                              className="p-0"
+                              onClick={() => setShowServiceEditor(!showServiceEditor)}
+                            >
+                              <i className={`ri-${showServiceEditor ? 'eye-off' : 'edit'}-line me-1`} />
+                              {showServiceEditor ? t("common.hide_editor") : t("common.edit")}
+                            </Button>
+                          )}
                         </div>
                         
                         {!showServiceEditor ? (
@@ -1586,6 +1598,7 @@ const EcommerceOrders = () => {
                                 className="form-select"
                                 value={selectedService?.id || ""}
                                 onChange={(e) => handleServiceChange(e.target.value)}
+                                disabled={user && user.role === 'staff'}
                               >
                                 <option value="">{t("reservations.form.select_service_placeholder")}</option>
                                 {allCategories.map(category => {
@@ -1630,8 +1643,14 @@ const EcommerceOrders = () => {
                                           {addon.name} (+${addon.price})
                                           <i 
                                             className="ri-close-line" 
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={() => handleAddonToggle(addon)}
+                                            style={{ 
+                                              cursor: user && user.role === 'staff' ? 'not-allowed' : 'pointer',
+                                              opacity: user && user.role === 'staff' ? 0.5 : 1
+                                            }}
+                                            onClick={() => {
+                                              if (user && user.role === 'staff') return;
+                                              handleAddonToggle(addon);
+                                            }}
                                           />
                                         </span>
                                       ))}
@@ -1656,6 +1675,7 @@ const EcommerceOrders = () => {
                                       e.target.value = "";
                                     }
                                   }}
+                                  disabled={user && user.role === 'staff'}
                                 >
                                   <option value="">
                                     {(() => {
@@ -1698,8 +1718,14 @@ const EcommerceOrders = () => {
                                         {addon.name} (+${addon.price})
                                         <i 
                                           className="ri-close-line" 
-                                          style={{ cursor: 'pointer' }}
-                                          onClick={() => handleRemovalAddonToggle(addon)}
+                                          style={{ 
+                                            cursor: user && user.role === 'staff' ? 'not-allowed' : 'pointer',
+                                            opacity: user && user.role === 'staff' ? 0.5 : 1
+                                          }}
+                                          onClick={() => {
+                                            if (user && user.role === 'staff') return;
+                                            handleRemovalAddonToggle(addon);
+                                          }}
                                         />
                                       </span>
                                     ))}
@@ -1722,6 +1748,7 @@ const EcommerceOrders = () => {
                                     e.target.value = "";
                                   }
                                 }}
+                                disabled={user && user.role === 'staff'}
                               >
                                 <option value="">
                                   {getCompatibleRemovalAddons().length > 0 
@@ -1787,6 +1814,7 @@ const EcommerceOrders = () => {
                           onChange={validation.handleChange}
                           onBlur={validation.handleBlur}
                           value={validation.values.staffId || ""}
+                          disabled={user && user.role === 'staff'}
                         >
                           <option value="">{t("reservations.form.select_staff")}</option>
                           {staff.map((staffMember) => (
@@ -1809,6 +1837,7 @@ const EcommerceOrders = () => {
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.orderDate || ""}
+                            disabled={user && user.role === 'staff'}
                           />
                         </div>
                         <div className="col-md-4">
@@ -1822,6 +1851,7 @@ const EcommerceOrders = () => {
                             onChange={handleTimeInputChange('startTime')}
                             onBlur={validation.handleBlur}
                             value={validation.values.startTime || ""}
+                            disabled={user && user.role === 'staff'}
                           />
                         </div>
                         <div className="col-md-4">
@@ -1835,6 +1865,7 @@ const EcommerceOrders = () => {
                             onChange={handleTimeInputChange('endTime')}
                             onBlur={validation.handleBlur}
                             value={validation.values.endTime || ""}
+                            disabled={user && user.role === 'staff'}
                           />
                         </div>
                       </div>
@@ -1875,7 +1906,7 @@ const EcommerceOrders = () => {
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.payment || ""}
-                            disabled={validation.values.status === 'pending' || validation.values.status === 'in_progress' || validation.values.status === 'cancelled'}
+                            disabled={validation.values.status === 'pending' || validation.values.status === 'in_progress' || validation.values.status === 'cancelled' || (user && user.role === 'staff')}
                             invalid={
                               validation.touched.payment && validation.errors.payment ? true : false
                             }
@@ -1919,6 +1950,7 @@ const EcommerceOrders = () => {
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.status || ""}
+                            disabled={user && user.role === 'staff'}
                             invalid={
                               validation.touched.status && validation.errors.status ? true : false
                             }
@@ -1954,6 +1986,7 @@ const EcommerceOrders = () => {
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.cancellationReason || ""}
+                            disabled={user && user.role === 'staff'}
                             invalid={
                               validation.touched.cancellationReason && validation.errors.cancellationReason ? true : false
                             }
@@ -1986,16 +2019,18 @@ const EcommerceOrders = () => {
                         >
                           {t("common.close")}
                         </button>
-                        <button 
-                          type="submit" 
-                          className="btn btn-success"
-                          disabled={
-                            validation.values.status === 'completed' && 
-                            (!validation.values.payment || validation.values.payment === 'pending' || validation.values.payment === '')
-                          }
-                        >
-                          {t("common.save_changes")}
-                        </button>
+                        {user && user.role !== 'staff' && (
+                          <button 
+                            type="submit" 
+                            className="btn btn-success"
+                            disabled={
+                              validation.values.status === 'completed' && 
+                              (!validation.values.payment || validation.values.payment === 'pending' || validation.values.payment === '')
+                            }
+                          >
+                            {t("common.save_changes")}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </Form>

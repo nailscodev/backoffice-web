@@ -27,6 +27,7 @@ import * as Yup from 'yup';
 import moment from 'moment';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 
 // API imports
 import { getCustomers, createCustomer, Customer } from '../../api/customers';
@@ -98,6 +99,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
   restrictToOneService = false,
 }) => {
   const { t, i18n } = useTranslation();
+  
+  // Selector para obtener el usuario actual
+  const user = useSelector((state: any) => state.Login?.user);
+  
+  // Determinar si el usuario es staff
+  const isStaffUser = user && user.role === 'staff';
   
   // Estados principales
   const [step, setStep] = useState<'customer' | 'services' | 'vipcombo' | 'staff' | 'datetime' | 'confirm'>('customer');
@@ -2020,6 +2027,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     }}
                     placeholder={t('booking.customer.search_placeholder')}
                     isClearable
+                    isDisabled={isStaffUser}
                   />
                 </FormGroup>
 
@@ -2027,6 +2035,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   <Button
                     color="link"
                     onClick={() => setIsNewCustomer(true)}
+                    disabled={isStaffUser}
                   >
                     {t('booking.customer.create_new')}
                   </Button>
@@ -2065,6 +2074,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     onBlur={customerForm.handleBlur}
                     value={customerForm.values.firstName || ""}
                     invalid={!!(customerForm.touched.firstName && customerForm.errors.firstName)}
+                    disabled={isStaffUser}
                   />
                   {customerForm.touched.firstName && customerForm.errors.firstName ? (
                     <FormFeedback type="invalid">{customerForm.errors.firstName}</FormFeedback>
@@ -2085,6 +2095,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     onBlur={customerForm.handleBlur}
                     value={customerForm.values.lastName || ""}
                     invalid={!!(customerForm.touched.lastName && customerForm.errors.lastName)}
+                    disabled={isStaffUser}
                   />
                   {customerForm.touched.lastName && customerForm.errors.lastName ? (
                     <FormFeedback type="invalid">{customerForm.errors.lastName}</FormFeedback>
@@ -2104,6 +2115,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     onBlur={customerForm.handleBlur}
                     value={customerForm.values.email || ""}
                     invalid={!!(customerForm.touched.email && customerForm.errors.email)}
+                    disabled={isStaffUser}
                   />
                   {customerForm.touched.email && customerForm.errors.email ? (
                     <FormFeedback type="invalid">{customerForm.errors.email}</FormFeedback>
@@ -2123,6 +2135,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     onBlur={customerForm.handleBlur}
                     value={customerForm.values.phone || ""}
                     invalid={!!(customerForm.touched.phone && customerForm.errors.phone)}
+                    disabled={isStaffUser}
                   />
                   {customerForm.touched.phone && customerForm.errors.phone ? (
                     <FormFeedback type="invalid">{customerForm.errors.phone}</FormFeedback>
@@ -2142,6 +2155,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     onChange={customerForm.handleChange}
                     onBlur={customerForm.handleBlur}
                     value={customerForm.values.notes || ""}
+                    disabled={isStaffUser}
                   />
                 </div>
 
@@ -2153,7 +2167,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   >
                     {t('customers.form.close')}
                   </button>
-                  <button type="submit" className="btn btn-success">
+                  <button type="submit" className="btn btn-success" disabled={isStaffUser}>
                     {t('customers.add_customer')}
                   </button>
                 </div>
@@ -2245,8 +2259,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                         <div 
                                           key={addOn.id}
                                           className={`border rounded p-2 ${isSelected ? 'border-success bg-success bg-opacity-10' : ''}`}
-                                          style={{ cursor: 'pointer' }}
-                                          onClick={() => toggleAddOn(service.id, addOn)}
+                                          style={{ cursor: isStaffUser ? 'default' : 'pointer' }}
+                                          onClick={isStaffUser ? undefined : () => toggleAddOn(service.id, addOn)}
                                         >
                                           <div className="d-flex align-items-start justify-content-between">
                                             <div className="form-check mb-0">
@@ -2256,6 +2270,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                                 checked={!!isSelected}
                                                 onChange={() => toggleAddOn(service.id, addOn)}
                                                 onClick={(e) => e.stopPropagation()}
+                                                disabled={isStaffUser}
                                               />
                                               <Label className="form-check-label mb-0">
                                                 <strong>{addOn.name}</strong>
@@ -2288,6 +2303,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           color="danger"
                           size="sm"
                           onClick={() => removeService(service.id)}
+                          disabled={isStaffUser}
                         >
                           <i className="ri-delete-bin-line" />
                         </Button>
@@ -2332,8 +2348,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   <Card key={category.id} className={`mb-2 ${isIncompatible ? 'opacity-50' : ''}`}>
                     <CardHeader 
                       className="bg-light"
-                      style={{ cursor: 'pointer' }}
-                      onClick={toggleCategory}
+                      style={{ cursor: isStaffUser ? 'default' : 'pointer' }}
+                      onClick={isStaffUser ? undefined : toggleCategory}
                     >
                       <div className="d-flex justify-content-between align-items-center">
                         <div className="d-flex align-items-center gap-2">
@@ -2362,9 +2378,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 key={service.id}
                                 className={`border rounded p-2 ${
                                   isSelected ? 'border-primary bg-primary bg-opacity-10' : ''
-                                } ${isDisabled ? '' : 'cursor-pointer'}`}
-                                style={{ cursor: isDisabled ? 'not-allowed' : 'pointer', opacity: isDisabled ? 0.5 : 1 }}
-                                onClick={() => !isDisabled && addService(service)}
+                                } ${isDisabled || isStaffUser ? '' : 'cursor-pointer'}`}
+                                style={{ cursor: isDisabled || isStaffUser ? 'not-allowed' : 'pointer', opacity: isDisabled || isStaffUser ? 0.5 : 1 }}
+                                onClick={() => !isDisabled && !isStaffUser && addService(service)}
                               >
                                 <div className="d-flex justify-content-between align-items-center">
                                   <div>
@@ -2495,6 +2511,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     setUserConfirmedVIPChoice(true); // User made explicit choice
                     goToNextStep();
                   }}
+                  disabled={isStaffUser}
                 >
                   <i className="ri-star-fill me-2"></i>
                   {t('booking.vipcombo.yes_combo') || 'Yes, VIP Combo'}
@@ -2557,6 +2574,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                 value={staffId || ''}
                                 onChange={(e) => assignStaff(service.id, e.target.value)}
                                 bsSize="sm"
+                                disabled={isStaffUser}
                               >
                                 <option value="">{t('booking.staff.select_option') || 'Select a professional...'}</option>
                                 <option value="any">
@@ -2627,6 +2645,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           type="select"
                           value={staffId || ''}
                           onChange={(e) => assignStaff(service.id, e.target.value)}
+                          disabled={isStaffUser}
                         >
                           <option value="">{t('booking.staff.select_option') || 'Select a professional...'}</option>
                           <option value="any">
@@ -2775,10 +2794,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         <Col key={dayOffset} className="text-center mb-2">
                           <button
                             type="button"
-                            className={`calendar-chip${isSelected ? ' selected' : ''}${isDisabled ? ' disabled' : ''}`}
-                            disabled={isDisabled}
+                            className={`calendar-chip${isSelected ? ' selected' : ''}${isDisabled || isStaffUser ? ' disabled' : ''}`}
+                            disabled={isDisabled || isStaffUser}
                             onClick={() => {
-                              if (!isDisabled) {
+                              if (!isDisabled && !isStaffUser) {
                                 setSelectedDate(date.toDate());
                                 // Solo resetear el tiempo si no viene preseleccionado del calendario
                                 if (!hasPreselectedTime) {
@@ -2834,7 +2853,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           }
                         }
                       }}
-                      disabled={moment(weekStartDate).subtract(7, 'days').isBefore(moment(), 'day') || loadingValidDays}
+                      disabled={moment(weekStartDate).subtract(7, 'days').isBefore(moment(), 'day') || loadingValidDays || isStaffUser}
                     >
                       <i className="ri-arrow-left-s-line"></i> {t('booking.datetime.prev_week')}
                     </Button>
@@ -2853,7 +2872,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           setSelectedTime(null);
                         }
                       }}
-                      disabled={loadingValidDays}
+                      disabled={loadingValidDays || isStaffUser}
                     >
                       {t('booking.datetime.next_week')} <i className="ri-arrow-right-s-line"></i>
                     </Button>
@@ -2916,7 +2935,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                   key={slot.time}
                                   type="button"
                                   className={`calendar-chip${normalizeTimeFormat(selectedTime) === normalizeTimeFormat(slot.time) ? ' selected' : ''}`}
-                                  disabled={!slot.available}
+                                  disabled={!slot.available || isStaffUser}
                                   onClick={() => handleTimeSelect(slot.time)}
                                   style={{ minWidth: '80px' }}
                                 >
@@ -2948,7 +2967,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                   key={slot.time}
                                   type="button"
                                   className={`calendar-chip${normalizeTimeFormat(selectedTime) === normalizeTimeFormat(slot.time) ? ' selected' : ''}`}
-                                  disabled={!slot.available}
+                                  disabled={!slot.available || isStaffUser}
                                   onClick={() => handleTimeSelect(slot.time)}
                                   style={{ minWidth: '80px' }}
                                 >
@@ -2980,7 +2999,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                                   key={slot.time}
                                   type="button"
                                   className={`calendar-chip${normalizeTimeFormat(selectedTime) === normalizeTimeFormat(slot.time) ? ' selected' : ''}`}
-                                  disabled={!slot.available}
+                                  disabled={!slot.available || isStaffUser}
                                   onClick={() => handleTimeSelect(slot.time)}
                                   style={{ minWidth: '80px' }}
                                 >
@@ -3037,7 +3056,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     color={slotVerified ? 'success' : 'warning'}
                     block
                     onClick={verifySlotAvailability}
-                    disabled={verifying || selectedServices.some(s => !s.staffId)}
+                    disabled={verifying || selectedServices.some(s => !s.staffId) || isStaffUser}
                   >
                     {verifying ? (
                       <>
@@ -3079,6 +3098,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t('booking.datetime.additional_notes_placeholder')}
+                disabled={isStaffUser}
               />
             </FormGroup>
           </div>
@@ -3194,32 +3214,47 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       </ModalBody>
 
       <ModalFooter>
-        {step !== 'customer' && (
-          <Button color="secondary" onClick={goToPreviousStep} disabled={loading || verifying}>
-            <i className="ri-arrow-left-line me-1" />
-            {t('booking.button.back')}
-          </Button>
+        {/* Mostrar mensaje de solo lectura para usuarios staff */}
+        {isStaffUser && (
+          <div className="w-100 text-center">
+            <Alert color="info" className="mb-0">
+              <i className="ri-information-line me-2"></i>
+              {t('booking.staff_readonly_message') || 'This modal is read-only for staff users'}
+            </Alert>
+          </div>
         )}
 
-        {step !== 'confirm' ? (
-          <Button color="primary" onClick={goToNextStep} disabled={loading || verifying}>
-            {t('booking.button.next')}
-            <i className="ri-arrow-right-line ms-1" />
-          </Button>
-        ) : (
-          <Button color="success" onClick={handleCreateBooking} disabled={loading || verifying}>
-            {loading ? (
-              <>
-                <Spinner size="sm" className="me-1" />
-                {t('booking.confirm.creating')}
-              </>
-            ) : (
-              <>
-                <i className="ri-check-line me-1" />
-                {t('booking.confirm.create_button')} {isVIPCombo && '(VIP Combo)'}
-              </>
+        {/* Ocultar botones de navegación y creación para usuarios staff */}
+        {!isStaffUser && (
+          <>
+            {step !== 'customer' && (
+              <Button color="secondary" onClick={goToPreviousStep} disabled={loading || verifying}>
+                <i className="ri-arrow-left-line me-1" />
+                {t('booking.button.back')}
+              </Button>
             )}
-          </Button>
+
+            {step !== 'confirm' ? (
+              <Button color="primary" onClick={goToNextStep} disabled={loading || verifying}>
+                {t('booking.button.next')}
+                <i className="ri-arrow-right-line ms-1" />
+              </Button>
+            ) : (
+              <Button color="success" onClick={handleCreateBooking} disabled={loading || verifying}>
+                {loading ? (
+                  <>
+                    <Spinner size="sm" className="me-1" />
+                    {t('booking.confirm.creating')}
+                  </>
+                ) : (
+                  <>
+                    <i className="ri-check-line me-1" />
+                    {t('booking.confirm.create_button')} {isVIPCombo && '(VIP Combo)'}
+                  </>
+                )}
+              </Button>
+            )}
+          </>
         )}
 
         <Button color="danger" outline onClick={handleClose} disabled={loading || verifying}>
@@ -3294,12 +3329,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   key={removal.id}
                   className={`border rounded p-3 mb-2 ${
                     isSelected ? 'border-success bg-success bg-opacity-10' : ''
-                  } ${isIncompatible ? 'opacity-50' : ''}`}
+                  } ${isIncompatible || isStaffUser ? 'opacity-50' : ''}`}
                   style={{ 
-                    cursor: isIncompatible ? 'not-allowed' : 'pointer',
+                    cursor: isIncompatible || isStaffUser ? 'not-allowed' : 'pointer',
                     position: 'relative'
                   }}
-                  onClick={!isIncompatible ? handleToggle : undefined}
+                  onClick={!isIncompatible && !isStaffUser ? handleToggle : undefined}
                 >
                   {isIncompatible && (
                     <Badge color="warning" className="position-absolute top-0 end-0 m-2">
@@ -3313,7 +3348,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                         name="removal-selection"
                         className="form-check-input"
                         checked={isSelected}
-                        disabled={isIncompatible}
+                        disabled={isIncompatible || isStaffUser}
                         onChange={handleToggle}
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -3355,11 +3390,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             border: '1px solid #dee2e6',
             color: '#6c757d'
           }}
+          disabled={isStaffUser}
         >
           <i className="ri-close-line me-1" />
           {t('booking.removal.no_removal_needed') || 'NO REMOVAL NEEDED'}
         </Button>
-        <Button color="primary" onClick={handleRemovalModalContinue}>
+        <Button color="primary" onClick={handleRemovalModalContinue} disabled={isStaffUser}>
           {t('booking.button.continue') || 'Continue'}
           <i className="ri-arrow-right-line ms-1" />
         </Button>
