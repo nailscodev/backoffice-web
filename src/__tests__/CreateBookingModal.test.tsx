@@ -7,6 +7,8 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 import '@testing-library/jest-dom';
 import CreateBookingModal from '../Components/Common/CreateBookingModal';
 
@@ -70,6 +72,15 @@ jest.mock('react-i18next', () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Redux store mock — provides the Login slice that CreateBookingModal needs
+// ---------------------------------------------------------------------------
+const mockStore = configureStore({
+  reducer: {
+    Login: (state = { user: null }) => state,
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Default props
 // ---------------------------------------------------------------------------
 const defaultProps = {
@@ -82,7 +93,11 @@ const defaultProps = {
 // Helpers
 // ---------------------------------------------------------------------------
 const renderModal = (props = {}) =>
-  render(<CreateBookingModal {...defaultProps} {...props} />);
+  render(
+    <Provider store={mockStore}>
+      <CreateBookingModal {...defaultProps} {...props} />
+    </Provider>
+  );
 
 // ---------------------------------------------------------------------------
 // Tests
