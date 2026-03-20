@@ -354,7 +354,7 @@ const ServicesList = () => {
             <UncontrolledDropdown>
               <DropdownToggle
                 href="#"
-                className="btn btn-soft-secondary btn-sm"
+                className="btn btn-secondary btn-sm"
                 tag="button"
               >
                 <i className="ri-more-fill" />
