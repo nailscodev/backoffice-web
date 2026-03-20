@@ -611,12 +611,20 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       // Contar minutos de bookings por staff
       bookings.forEach((booking: any) => {
         if (booking.status !== 'cancelled' && booking.appointmentDate === dateStr) {
-          const startTime = moment(booking.startTime, 'HH:mm:ss');
-          const endTime = moment(booking.endTime, 'HH:mm:ss');
-          const durationMinutes = endTime.diff(startTime, 'minutes');
+          // Buscar staff por nombre completo ya que la API devuelve staffName
+          const staffMember = staff.find(s => {
+            const fullName = `${s.firstName} ${s.lastName}`;
+            return fullName === booking.staffName;
+          });
           
-          const currentWorkload = workloadMap.get(booking.staffId) || 0;
-          workloadMap.set(booking.staffId, currentWorkload + durationMinutes);
+          if (staffMember) {
+            const startTime = moment(booking.startTime, 'HH:mm:ss');
+            const endTime = moment(booking.endTime, 'HH:mm:ss');
+            const durationMinutes = endTime.diff(startTime, 'minutes');
+            
+            const currentWorkload = workloadMap.get(staffMember.id) || 0;
+            workloadMap.set(staffMember.id, currentWorkload + durationMinutes);
+          }
         }
       });
 
@@ -942,8 +950,25 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
       });
 
       const bookings = bookingsResponse.data || [];
+      
+      // Buscar el staff member para obtener su nombre completo
+      const staffMember = staff.find(s => s.id === staffId);
+      if (!staffMember) {
+        console.error(`❌ Staff member not found: ${staffId}`);
+        return false;
+      }
+      
+      // Filtrar bookings del staff por nombre completo
+      const staffFullName = `${staffMember.firstName} ${staffMember.lastName}`;
+      console.log(`  🔍 Checking ${staffFullName} availability from ${startTime} to ${endTime}`);
+      console.log(`  📋 Total bookings for date: ${bookings.length}`);
+      
       const staffBookings = bookings.filter(
-        (b: any) => b.staffId === staffId && b.status !== 'cancelled' && b.appointmentDate === bookingDate
+        (b: any) => b.staffName === staffFullName && b.status !== 'cancelled' && b.appointmentDate === bookingDate
+      );
+      
+      console.log(`  📅 ${staffFullName} has ${staffBookings.length} bookings:`, 
+        staffBookings.map(b => `${b.serviceName} ${b.startTime}-${b.endTime}`)
       );
 
       const requestStart = moment(`${bookingDate} ${startTime}`, 'YYYY-MM-DD HH:mm:ss');
@@ -955,15 +980,15 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
         // Check overlap
         if (requestStart.isBefore(bookingEnd) && requestEnd.isAfter(bookingStart)) {
-
+          console.log(`  ❌ ${staffFullName} has conflict with: ${booking.serviceName} ${booking.startTime}-${booking.endTime}`);
           return false;
         }
       }
 
-
+      console.log(`  ✅ ${staffFullName} is AVAILABLE at ${startTime}-${endTime}`);
       return true;
     } catch (err) {
-      console.error('Error checking staff availability:', err);
+      console.error(`  ❌ Error checking availability for staff ${staffId}:`, err);
       return false;
     }
   };
@@ -1345,6 +1370,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
           
           // 1. Obtener técnicos que pueden hacer este servicio Y trabajan en el día seleccionado
+          console.log(`🔍 Evaluating staff for ${service.name} on ${selectedDayName}:`);
+          console.log(`📋 Total staff available:`, staff.length);
+          
           const eligibleStaff = staff.filter(staffMember => {
             const canDoService = staffMember.services?.some(svc => svc.id === service.id);
             const worksOnDay = staffMember.workingDays?.includes(selectedDayName);
@@ -1354,7 +1382,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               isAvailable: staffMember.isAvailable,
               canDoService,
               worksOnDay,
-              workingDays: staffMember.workingDays
+              workingDays: staffMember.workingDays,
+              services: staffMember.services?.map(s => s.name) || 'none'
             });
             
             return staffMember.isActive &&
@@ -1364,16 +1393,20 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           });
 
           if (eligibleStaff.length === 0) {
-
+            console.log(`❌ No eligible staff found for ${service.name}`);
             return null;
           }
 
+          console.log(`✅ Found ${eligibleStaff.length} eligible staff for ${service.name}`);
 
-
-          // 2. Verificar disponibilidad en el horario específico y obtener workload
-          const availableStaffWithWorkload = [];
+          // 2. Verificar disponibilidad en el horario específico y contar turnos del día
+          const availableStaffWithBookingCount = [];
+          
+          console.log(`⏰ Checking availability for time ${formattedTime} on ${formattedDate}...`);
           
           for (const staffMember of eligibleStaff) {
+            console.log(`\n🔍 Checking ${staffMember.firstName} ${staffMember.lastName}:`);
+            
             // Verificar si está disponible en el horario específico
             const isAvailable = await isStaffAvailableAtTime(
               staffMember.id,
@@ -1383,57 +1416,200 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             );
 
             if (isAvailable) {
-              // Obtener workload del técnico para el día
-              const workload = staffWorkloads.find(w => w.id === staffMember.id);
-              const workloadMinutes = workload?.workloadMinutes || 0;
-              
-              availableStaffWithWorkload.push({
-                staff: staffMember,
-                workloadMinutes,
-              });
-              
-
+              // Obtener número de turnos del día usando getBookingsList
+              console.log(`  ✅ ${staffMember.firstName} is available! Counting daily bookings...`);
+              try {
+                const dayBookings = await getBookingsList({
+                  startDate: formattedDate,
+                  endDate: formattedDate,
+                  limit: 100
+                  // Removemos el filtro staffId y status para obtener todos los bookings como en isStaffAvailableAtTime
+                });
+                
+                console.log(`  📊 API returned ${dayBookings?.data?.length || 0} total bookings for the day`);
+                
+                // Filtrar por nombre completo ya que la API no maneja staffId en filtros
+                const staffFullName = `${staffMember.firstName} ${staffMember.lastName}`;
+                const filteredBookings = dayBookings?.data?.filter(
+                  (booking: any) => {
+                    const matches = booking.staffName === staffFullName && 
+                                   booking.status !== 'cancelled' && 
+                                   booking.appointmentDate === formattedDate;
+                    if (matches) {
+                      console.log(`    ➤ Found booking: ${booking.serviceName} ${booking.startTime}-${booking.endTime} (${booking.status})`);
+                    }
+                    return matches;
+                  }
+                ) || [];
+                
+                const bookingsCount = filteredBookings.length;
+                
+                availableStaffWithBookingCount.push({
+                  staff: staffMember,
+                  bookingsCount,
+                });
+                
+                console.log(`📊 ${staffMember.firstName} ${staffMember.lastName}: ${bookingsCount} booking(s) today`);
+                console.log(`  ➕ Added to available staff list (total so far: ${availableStaffWithBookingCount.length})`);
+              } catch (error) {
+                console.error(`Error getting bookings for ${staffMember.firstName}:`, error);
+                // En caso de error, asumir 0 turnos para no excluir al staff
+                availableStaffWithBookingCount.push({
+                  staff: staffMember,
+                  bookingsCount: 0,
+                });
+                console.log(`  ⚠️ Error occurred, added ${staffMember.firstName} with 0 bookings as fallback`);
+              }
             } else {
-
+              console.log(`❌ ${staffMember.firstName} not available at ${formattedTime}`);
             }
           }
 
-          if (availableStaffWithWorkload.length === 0) {
-
+          if (availableStaffWithBookingCount.length === 0) {
+            console.log(`❌ No available staff found for ${service.name} at ${formattedTime}`);
             return null;
           }
 
-          // 3. Seleccionar el técnico con menor carga de trabajo
-          const optimalStaff = availableStaffWithWorkload.reduce((min, current) => {
-            return current.workloadMinutes < min.workloadMinutes ? current : min;
+          // 3. Seleccionar el técnico con menos turnos del día
+          console.log(`\n🏆 Final selection from ${availableStaffWithBookingCount.length} available staff:`);
+          availableStaffWithBookingCount.forEach(({ staff, bookingsCount }) => {
+            console.log(`  - ${staff.firstName} ${staff.lastName}: ${bookingsCount} bookings`);
+          });
+          
+          const optimalStaff = availableStaffWithBookingCount.reduce((min, current) => {
+            console.log(`  🥊 Comparing: ${current.staff.firstName} (${current.bookingsCount}) vs ${min.staff.firstName} (${min.bookingsCount})`);
+            return current.bookingsCount < min.bookingsCount ? current : min;
           });
 
-
+          console.log(`✅ WINNER: ${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName} with ${optimalStaff.bookingsCount} booking(s)`);
+          console.log(`─────────────────────────────────────────────────────`);
           
           return {
             staffId: optimalStaff.staff.id,
             staffName: `${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName}`,
-            workloadMinutes: optimalStaff.workloadMinutes
+            bookingsCount: optimalStaff.bookingsCount
           };
         };
 
         if (isMultipleServicesFlow) {
           // Para múltiples servicios: auto-asignar individualmente cada servicio con 'any'
-          const updatedServices = await Promise.all(
-            selectedServices.map(async ({ service, addOns, staffId, staffName }, index) => {
-              if (staffId === 'any') {
-                const addOnsDuration = addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
-                const removalsDuration = index === 0
-                  ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
-                  : 0;
-                const totalDuration = service.duration + addOnsDuration + removalsDuration;
+          // En modo VIP Combo, evitar asignar el mismo técnico a múltiples servicios
+          const updatedServices = [...selectedServices];
+          const assignedStaffIds = new Set<string>();
 
-                console.log(`🔄 Finding optimal staff for "${service.name}" (${totalDuration} min)`);
+          for (let i = 0; i < selectedServices.length; i++) {
+            const { service, addOns, staffId, staffName } = selectedServices[i];
+            
+            if (staffId === 'any') {
+              const addOnsDuration = addOns.reduce((sum, addon) => sum + (addon.additionalTime || 0), 0);
+              const removalsDuration = i === 0
+                ? removalAddOns.filter(r => selectedRemovalIds.includes(r.id)).reduce((sum, r) => sum + (r.additionalTime || 0), 0)
+                : 0;
+              const totalDuration = service.duration + addOnsDuration + removalsDuration;
 
+              console.log(`🔄 Finding optimal staff for "${service.name}" (${totalDuration} min)${isVIPCombo ? ' - VIP Combo mode' : ''}`);
+
+              // Para VIP combo, crear función especial que excluye staff ya asignados
+              if (isVIPCombo) {
+                const findOptimalStaffExcluding = async (excludeStaffIds: Set<string>) => {
+                  const selectedDayName = moment(selectedDate).locale('en').format('ddd');
+                  
+                  const eligibleStaff = staff.filter(staffMember => {
+                    const canDoService = staffMember.services?.some(svc => svc.id === service.id);
+                    const worksOnDay = staffMember.workingDays?.includes(selectedDayName);
+                    const notAlreadyAssigned = !excludeStaffIds.has(staffMember.id);
+                    
+                    return staffMember.isActive &&
+                      staffMember.isAvailable &&
+                      canDoService &&
+                      worksOnDay &&
+                      notAlreadyAssigned;
+                  });
+
+                  if (eligibleStaff.length === 0) {
+                    console.log(`❌ No eligible staff found for ${service.name} (excluding ${excludeStaffIds.size} already assigned)`);
+                    return null;
+                  }
+
+                  const availableStaffWithBookingCount = [];
+                  
+                  for (const staffMember of eligibleStaff) {
+                    const isAvailable = await isStaffAvailableAtTime(
+                      staffMember.id,
+                      formattedTime + ':00',
+                      moment(formattedTime, 'HH:mm').add(totalDuration, 'minutes').format('HH:mm:ss'),
+                      formattedDate
+                    );
+
+                    if (isAvailable) {
+                      try {
+                        const dayBookings = await getBookingsList({
+                          startDate: formattedDate,
+                          endDate: formattedDate,
+                          limit: 100
+                          // Removemos el filtro staffId y status para consistencia
+                        });
+                        
+                        // Filtrar por nombre completo ya que la API no maneja staffId en filtros
+                        const staffFullName = `${staffMember.firstName} ${staffMember.lastName}`;
+                        const filteredBookings = dayBookings?.data?.filter(
+                          (booking: any) => booking.staffName === staffFullName && 
+                                           booking.status !== 'cancelled' && 
+                                           booking.appointmentDate === formattedDate
+                        ) || [];
+                        
+                        const bookingsCount = filteredBookings.length;
+                        availableStaffWithBookingCount.push({
+                          staff: staffMember,
+                          bookingsCount,
+                        });
+                        
+                        console.log(`📊 ${staffMember.firstName} ${staffMember.lastName}: ${bookingsCount} booking(s) today`);
+                      } catch (error) {
+                        availableStaffWithBookingCount.push({
+                          staff: staffMember,
+                          bookingsCount: 0,
+                        });
+                      }
+                    }
+                  }
+
+                  if (availableStaffWithBookingCount.length === 0) {
+                    return null;
+                  }
+
+                  const optimalStaff = availableStaffWithBookingCount.reduce((min, current) => {
+                    return current.bookingsCount < min.bookingsCount ? current : min;
+                  });
+
+                  console.log(`✅ Selected ${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName} with ${optimalStaff.bookingsCount} booking(s) for VIP combo`);
+                  
+                  return {
+                    staffId: optimalStaff.staff.id,
+                    staffName: `${optimalStaff.staff.firstName} ${optimalStaff.staff.lastName}`,
+                    bookingsCount: optimalStaff.bookingsCount
+                  };
+                };
+
+                const optimalAssignment = await findOptimalStaffExcluding(assignedStaffIds);
+                
+                if (optimalAssignment) {
+                  updatedServices[i] = {
+                    service,
+                    addOns,
+                    staffId: optimalAssignment.staffId,
+                    staffName: optimalAssignment.staffName
+                  };
+                  assignedStaffIds.add(optimalAssignment.staffId);
+                } else {
+                  toast.error(t('booking.toast.staff_assignment_failed', { service: service.name, time: formattedTime }));
+                }
+              } else {
+                // Modo consecutivo: puede usar el mismo técnico
                 const optimalAssignment = await findOptimalStaff(service, addOns, totalDuration);
                 
                 if (optimalAssignment) {
-                  return {
+                  updatedServices[i] = {
                     service,
                     addOns,
                     staffId: optimalAssignment.staffId,
@@ -1441,14 +1617,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   };
                 } else {
                   toast.error(t('booking.toast.staff_assignment_failed', { service: service.name, time: formattedTime }));
-                  return { service, addOns, staffId, staffName };
                 }
               }
-
-              // Mantener servicios que no son 'any'
-              return { service, addOns, staffId, staffName };
-            })
-          );
+            }
+          }
 
           setSelectedServices(updatedServices);
 
