@@ -341,15 +341,23 @@ const PerformanceTests: React.FC = () => {
     if (!selectedTest || selectedTest.status !== "running") return;
     try {
       await cancelTest(selectedTest.id);
-      toast.info("Test cancelado");
-      if (pollRef.current) clearInterval(pollRef.current);
-      setRunningType(null);
-      const updated = { ...selectedTest, status: "cancelled" as const };
-      setSelectedTest(updated);
-      setHistory((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch (err: any) {
-      toast.error(`Error al cancelar: ${err.message}`);
+      // 404 means the backend restarted and lost this run from memory —
+      // the test is definitively gone, so treat it as cancelled from the UI's perspective.
+      // Any other error (network, 5xx) is a real failure worth surfacing.
+      if (err?.response?.status !== 404) {
+        toast.error(`Error al cancelar: ${err.message}`);
+        return;
+      }
     }
+    // Reached here on success (200) OR on 404 (backend lost the run) — either way stop.
+    toast.info("Test cancelado");
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = null;
+    setRunningType(null);
+    const updated = { ...selectedTest, status: "cancelled" as const };
+    setSelectedTest(updated);
+    setHistory((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   };
 
   const handleSelectHistory = async (id: string) => {
@@ -357,7 +365,16 @@ const PerformanceTests: React.FC = () => {
       const result = await getTestResult(id);
       setSelectedTest(result);
       setTimeout(() => liveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-    } catch {
+    } catch (err: any) {
+      // If the backend no longer has this run (restarted), fall back to local history data.
+      if (err?.response?.status === 404) {
+        const local = history.find((r) => r.id === id);
+        if (local) {
+          setSelectedTest(local);
+          setTimeout(() => liveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+          return;
+        }
+      }
       toast.error("No se pudo cargar el resultado");
     }
   };
