@@ -588,8 +588,9 @@ const PerformanceTests: React.FC = () => {
                 style={{ background: "#1c2a18", border: "1px solid #3fb950", fontSize: 11, color: "#8b949e" }}>
                 <i className="ri-information-line" style={{ color: "#3fb950", fontSize: 14, flexShrink: 0, marginTop: 1 }} />
                 <span>
-                  <strong style={{ color: "#3fb950" }}>Resultados intra-datacenter:</strong> este panel genera tráfico desde el propio backend en Fly.io (latencia ~5–20 ms).
-                  Los tests <strong>k6 en CI/CD</strong> miden latencia real desde red pública y son la fuente autoritativa para umbrales de producción.
+                  <strong style={{ color: "#3fb950" }}>Solo mide el frontend (turnero).</strong> Las APIs del backend están excluidas del
+                  runner embebido para evitar saturar el mismo proceso que ejecuta el test (self-DDoS).
+                  Para testear el backend directamente, usá <strong>k6 desde la CLI</strong> con los scripts de abajo.
                 </span>
               </div>
 
