@@ -536,7 +536,7 @@ const Team = () => {
             setTeamlist(mappedData);
         } catch (error: any) {
             console.error('Error fetching staff:', error);
-            toast.error('Error al cargar el staff');
+            toast.error(t('team.toast.load_staff_error'));
         } finally {
             setLoading(false);
         }
@@ -554,7 +554,7 @@ const Team = () => {
             setAvailableServices(response || []);
         } catch (error) {
             console.error('Error fetching services:', error);
-            toast.error('Error al cargar los servicios');
+            toast.error(t('team.toast.load_services_error'));
         }
     };
 
@@ -564,7 +564,7 @@ const Team = () => {
             setAvailableCategories(response || []);
         } catch (error) {
             console.error('Error fetching categories:', error);
-            toast.error('Error al cargar las categorías');
+            toast.error(t('team.toast.load_categories_error'));
         }
     };
 
@@ -612,12 +612,12 @@ const Team = () => {
         if (team) {
             try {
                 await deleteStaff(team.id);
-                toast.success('Staff eliminado exitosamente');
+                toast.success(t('team.toast.delete_success'));
                 setDeleteModal(false);
                 fetchStaffData();
             } catch (error: any) {
                 console.error('Error deleting staff:', error);
-                toast.error('Error al eliminar el staff');
+                toast.error(t('team.toast.delete_error'));
             }
         }
     };
@@ -627,15 +627,15 @@ const Team = () => {
         try {
             if (currentStatus === 'ACTIVE') {
                 await deactivateStaff(staffId);
-                toast.success('Staff desactivado exitosamente');
+                toast.success(t('team.toast.deactivate_success'));
             } else {
                 await activateStaff(staffId);
-                toast.success('Staff activado exitosamente');
+                toast.success(t('team.toast.activate_success'));
             }
             fetchStaffData();
         } catch (error: any) {
             console.error('Error toggling staff status:', error);
-            toast.error('Error al cambiar el estado del staff');
+            toast.error(t('team.toast.status_change_error'));
         }
     };
 
@@ -851,16 +851,16 @@ const Team = () => {
 
                 if (isEdit && teamMem) {
                     await updateStaff(teamMem.id, staffData);
-                    toast.success('Staff actualizado exitosamente');
+                    toast.success(t('team.toast.update_success'));
                 } else {
                     await createStaff(staffData);
-                    toast.success('Staff creado exitosamente');
+                    toast.success(t('team.toast.create_success'));
                 }
                 handleCloseModal();
                 fetchStaffData();
             } catch (error: any) {
                 console.error('❌ Error saving staff:', error);
-                toast.error(error.response?.data?.message || 'Error al guardar el staff');
+                toast.error(error.response?.data?.message || t('team.toast.save_error'));
             } finally {
                 setLoading(false);
             }
@@ -910,7 +910,7 @@ const Team = () => {
         const newServiceIds = combined.filter((item: string, index: number) => combined.indexOf(item) === index);
         validation.setFieldValue('serviceIds', newServiceIds);
         
-        toast.success(`Se agregaron ${categoryServices.length} servicios de la categoría`);
+        toast.success(t('team.toast.category_services_added', { count: categoryServices.length }));
     };
 
     // Helper function to remove all services from a category
@@ -923,7 +923,7 @@ const Team = () => {
         const newServiceIds = currentServiceIds.filter((id: string) => !categoryServiceIds.includes(id));
         validation.setFieldValue('serviceIds', newServiceIds);
         
-        toast.success(`Se removieron los servicios de la categoría`);
+        toast.success(t('team.toast.category_services_removed'));
     };
 
     // Check if a category is fully selected
