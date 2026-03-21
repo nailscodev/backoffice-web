@@ -59,7 +59,7 @@ const TEST_CONFIGS = {
     badge: "danger",
     shortDesc: "Simula un pico repentino de tráfico",
     duration: "~40 seg",
-    vuProfile: "2 VUs → pico a 50 → vuelta a 2",
+    vuProfile: "2 VUs → pico a 20 → vuelta a 2",
     goal: "Simula un salto de tráfico 25× (ej. post viral, flash sale). Verifica si el sistema sobrevive y se recupera.",
     thresholds: "p95 < 3000ms  •  Error < 10%",
     when: "Antes de promociones o eventos",
@@ -280,8 +280,13 @@ const PerformanceTests: React.FC = () => {
           pollRef.current = null;
           setRunningType(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Poll error:", err);
+        // If the test no longer exists on the server (backend restarted / 404), stop polling
+        if (err?.response?.status === 404) {
+          setSelectedTest((prev) => prev ? { ...prev, status: "failed" as const } : prev);
+          setHistory((prev) => prev.map((r) => (r.id === testId ? { ...r, status: "failed" as const } : r)));
+        }
         clearInterval(pollRef.current!);
         pollRef.current = null;
         setRunningType(null);
@@ -548,6 +553,28 @@ const PerformanceTests: React.FC = () => {
                   </small>
                 </div>
               )}
+
+              {/* Target endpoints */}
+              {selectedTest.targetEndpoints?.length > 0 && (
+                <div className="mb-3 p-2 rounded" style={{ background: "#161b22", border: `1px solid ${D_BORDER}` }}>
+                  <small style={{ color: D_SUB, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
+                    Endpoints targetados
+                  </small>
+                  {selectedTest.targetEndpoints.map((url, i) => (
+                    <div key={i} style={{ fontSize: 11, color: "#58a6ff", fontFamily: "monospace", lineHeight: 1.6, wordBreak: "break-all" }}>{url}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Disclaimer: panel vs CI metrics */}
+              <div className="mb-3 p-2 rounded d-flex align-items-start gap-2"
+                style={{ background: "#1c2a18", border: "1px solid #3fb950", fontSize: 11, color: "#8b949e" }}>
+                <i className="ri-information-line" style={{ color: "#3fb950", fontSize: 14, flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  <strong style={{ color: "#3fb950" }}>Resultados intra-datacenter:</strong> este panel genera tráfico desde el propio backend en Fly.io (latencia ~5–20 ms).
+                  Los tests <strong>k6 en CI/CD</strong> miden latencia real desde red pública y son la fuente autoritativa para umbrales de producción.
+                </span>
+              </div>
 
               {/* KPI tiles */}
               {kpiTiles.length > 0 && (
