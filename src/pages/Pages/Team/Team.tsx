@@ -1028,7 +1028,7 @@ const Team = () => {
                                                                         </div>}
                                                                 </div>
                                                                 <div className="team-content">
-                                                                    <Link to="#" onClick={() => { setIsOpen(!isOpen); setSideBar(item); }}>
+                                                                    <Link to="#">
                                                                         <h5 className="fs-16 mb-1">
                                                                             {item.name}
                                                                             {item.status !== 'ACTIVE' && (
