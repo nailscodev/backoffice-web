@@ -59,7 +59,7 @@ const TEST_CONFIGS = {
     badge: "danger",
     shortDesc: "Simula un pico repentino de tráfico",
     duration: "~40 seg",
-    vuProfile: "2 VUs → pico a 50 → vuelta a 2",
+    vuProfile: "2 VUs → pico a 20 → vuelta a 2",
     goal: "Simula un salto de tráfico 25× (ej. post viral, flash sale). Verifica si el sistema sobrevive y se recupera.",
     thresholds: "p95 < 3000ms  •  Error < 10%",
     when: "Antes de promociones o eventos",
@@ -280,8 +280,13 @@ const PerformanceTests: React.FC = () => {
           pollRef.current = null;
           setRunningType(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Poll error:", err);
+        // If the test no longer exists on the server (backend restarted / 404), stop polling
+        if (err?.response?.status === 404) {
+          setSelectedTest((prev) => prev ? { ...prev, status: "failed" as const } : prev);
+          setHistory((prev) => prev.map((r) => (r.id === testId ? { ...r, status: "failed" as const } : r)));
+        }
         clearInterval(pollRef.current!);
         pollRef.current = null;
         setRunningType(null);
@@ -336,15 +341,23 @@ const PerformanceTests: React.FC = () => {
     if (!selectedTest || selectedTest.status !== "running") return;
     try {
       await cancelTest(selectedTest.id);
-      toast.info("Test cancelado");
-      if (pollRef.current) clearInterval(pollRef.current);
-      setRunningType(null);
-      const updated = { ...selectedTest, status: "cancelled" as const };
-      setSelectedTest(updated);
-      setHistory((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch (err: any) {
-      toast.error(`Error al cancelar: ${err.message}`);
+      // 404 means the backend restarted and lost this run from memory —
+      // the test is definitively gone, so treat it as cancelled from the UI's perspective.
+      // Any other error (network, 5xx) is a real failure worth surfacing.
+      if (err?.response?.status !== 404) {
+        toast.error(`Error al cancelar: ${err.message}`);
+        return;
+      }
     }
+    // Reached here on success (200) OR on 404 (backend lost the run) — either way stop.
+    toast.info("Test cancelado");
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = null;
+    setRunningType(null);
+    const updated = { ...selectedTest, status: "cancelled" as const };
+    setSelectedTest(updated);
+    setHistory((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   };
 
   const handleSelectHistory = async (id: string) => {
@@ -352,7 +365,16 @@ const PerformanceTests: React.FC = () => {
       const result = await getTestResult(id);
       setSelectedTest(result);
       setTimeout(() => liveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-    } catch {
+    } catch (err: any) {
+      // If the backend no longer has this run (restarted), fall back to local history data.
+      if (err?.response?.status === 404) {
+        const local = history.find((r) => r.id === id);
+        if (local) {
+          setSelectedTest(local);
+          setTimeout(() => liveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+          return;
+        }
+      }
       toast.error("No se pudo cargar el resultado");
     }
   };
@@ -548,6 +570,29 @@ const PerformanceTests: React.FC = () => {
                   </small>
                 </div>
               )}
+
+              {/* Target endpoints */}
+              {selectedTest.targetEndpoints?.length > 0 && (
+                <div className="mb-3 p-2 rounded" style={{ background: "#161b22", border: `1px solid ${D_BORDER}` }}>
+                  <small style={{ color: D_SUB, fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
+                    Endpoints targetados
+                  </small>
+                  {selectedTest.targetEndpoints.map((url, i) => (
+                    <div key={i} style={{ fontSize: 11, color: "#58a6ff", fontFamily: "monospace", lineHeight: 1.6, wordBreak: "break-all" }}>{url}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Disclaimer: panel vs CI metrics */}
+              <div className="mb-3 p-2 rounded d-flex align-items-start gap-2"
+                style={{ background: "#1c2a18", border: "1px solid #3fb950", fontSize: 11, color: "#8b949e" }}>
+                <i className="ri-information-line" style={{ color: "#3fb950", fontSize: 14, flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  <strong style={{ color: "#3fb950" }}>Solo mide el frontend (turnero).</strong> Las APIs del backend están excluidas del
+                  runner embebido para evitar saturar el mismo proceso que ejecuta el test (self-DDoS).
+                  Para testear el backend directamente, usá <strong>k6 desde la CLI</strong> con los scripts de abajo.
+                </span>
+              </div>
 
               {/* KPI tiles */}
               {kpiTiles.length > 0 && (
