@@ -159,13 +159,26 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
       }
     }
   } catch (error: any) {
+    console.error('🚨 Login error:', error);
+    
     // Extract error message from different error structures
     let errorMessage = "An error occurred during login";
     let errorField = null;
     
     if (error?.response?.data) {
-      errorMessage = error.response.data.error || error.response.data.message || errorMessage;
-      errorField = error.response.data.field || null;
+      // Backend error response (401, 400, etc.)
+      const errorData = error.response.data;
+      console.log('📋 Backend error data:', errorData);
+      
+      if (errorData.error) {
+        // New backend format: { success: false, error: { statusCode, message, error, timestamp, path } }
+        errorMessage = errorData.error.message || errorData.error.error || errorMessage;
+      } else if (errorData.message) {
+        // Simple error format
+        errorMessage = errorData.message;
+      }
+      
+      errorField = errorData.field || null;
       
       // If message contains "Invalid credentials" or similar, associate with password field
       if (!errorField && errorMessage && typeof errorMessage === 'string' && (
@@ -191,6 +204,7 @@ export const loginUser = (user : any, history : any) => async (dispatch : any) =
       }
     }
     
+    console.log('⚠️ Login error processed:', { errorMessage, errorField });
     dispatch(apiError({ message: errorMessage, field: errorField }));
   }
 };

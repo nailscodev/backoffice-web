@@ -119,6 +119,9 @@ const Login = (props: any) => {
                                             <p className="text-muted">Sign in to continue.</p>
                                         </div>
                                         {error && errorMsg && !errorField ? (<Alert color="danger"> {error} </Alert>) : null}
+                                        {error && errorMsg && errorField && (
+                                          <Alert color="danger"> {error} </Alert>
+                                        )}
                                         {loginError && <Alert color="danger">{loginError}</Alert>}
                                         <div className="p-2 mt-4">
                                             <Form
