@@ -208,8 +208,21 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
       customerName: string;
     }[] = [];
     
-    // Agrupar eventos por cliente
-    const eventsByCustomer = events.reduce((acc: Record<string, any[]>, event: any) => {
+
+    
+    // Filtrar eventos cancelados antes del agrupamiento
+    const activeEvents = events.filter((event: any) => {
+      const status = event.extendedProps?.status || 
+                    event.extendedProps?.rawBooking?.status || 
+                    event.status;
+
+      return status !== 'cancelled';
+    });
+    
+
+    
+    // Agrupar eventos por cliente (solo eventos no cancelados)
+    const eventsByCustomer = activeEvents.reduce((acc: Record<string, any[]>, event: any) => {
       // Usar email como identificador único del cliente
       const customerKey = event.extendedProps?.rawBooking?.customerEmail || 
                          event.extendedProps?.email || 
@@ -245,7 +258,12 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
         const nextStart = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${next.extendedProps?.rawBooking?.startTime || next.extendedProps?.startTime || next.start}`, 'YYYY-MM-DD HH:mm:ss');
         
         // Si empiezan al mismo tiempo = VIP combo
-        if (Math.abs(currentStart.diff(nextStart, 'minutes')) <= 5) {
+        const timeDiffMinutes = Math.abs(currentStart.diff(nextStart, 'minutes'));
+        const isSimultaneous = timeDiffMinutes <= 5;
+        
+
+        
+        if (isSimultaneous) {
           const existingGroup = groups.find(g => g.type === 'VIP_COMBO' && g.customerId === customerKey);
           if (existingGroup) {
             if (!existingGroup.events.find(e => e.id === next.id)) {
@@ -274,6 +292,41 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
         // Si el siguiente empieza justo cuando termina el actual (± 30 min de tolerancia)
         const timeDiff = Math.abs(nextStart.diff(currentEnd, 'minutes'));
         if (timeDiff <= 30 && Math.abs(currentStart.diff(nextStart, 'minutes')) > 5) {
+          
+          // **NUEVA LÓGICA**: Verificar si hay eventos cancelados para el mismo cliente en el rango de tiempo
+          const nextEnd = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${next.extendedProps?.rawBooking?.endTime || next.extendedProps?.endTime || next.end}`, 'YYYY-MM-DD HH:mm:ss');
+          
+          const cancelledEventsInRange = events.filter((event: any) => {
+            const eventStatus = event.extendedProps?.status || event.extendedProps?.rawBooking?.status || event.status;
+            if (eventStatus !== 'cancelled') return false;
+            
+            // Verificar si es el mismo cliente
+            const eventCustomerKey = event.extendedProps?.rawBooking?.customerEmail || 
+                                   event.extendedProps?.email || 
+                                   event.email ||
+                                   event.title;
+            if (eventCustomerKey !== customerKey) return false;
+            
+            // Verificar si el evento cancelado se superpone con TODO el rango de tiempo (desde inicio del primero hasta final del segundo)
+            const eventStart = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${event.extendedProps?.rawBooking?.startTime || event.extendedProps?.startTime || event.start}`, 'YYYY-MM-DD HH:mm:ss');
+            const eventEnd = moment(`${moment(selectedDate).format('YYYY-MM-DD')} ${event.extendedProps?.rawBooking?.endTime || event.extendedProps?.endTime || event.end}`, 'YYYY-MM-DD HH:mm:ss');
+            
+            // Verificar si se superpone con el rango completo (currentStart hasta nextEnd)
+            const hasOverlap = eventStart.isBefore(nextEnd) && eventEnd.isAfter(currentStart);
+            
+
+            
+            return hasOverlap;
+          });
+          
+
+          
+          // Si hay eventos cancelados en el rango, NO marcar como consecutivos
+          if (cancelledEventsInRange.length > 0) {
+
+            continue;
+          }
+          
           // Verificar que no estén ya en un grupo VIP combo
           const isInVipGroup = groups.some(g => 
             g.type === 'VIP_COMBO' && 
@@ -309,6 +362,8 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
       }
       
     });
+
+
 
     return groups;
   };
@@ -467,6 +522,57 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
 
   const timeSlots = generateTimeSlots();
   console.log('⏰ Generated time slots:', timeSlots);
+
+  // Función para detectar eventos superpuestos y calcular posición horizontal
+  const getHorizontalPosition = (appointment: AppointmentCard, allStaffEvents: AppointmentCard[], staffIndex: number) => {
+    // Encontrar eventos que se superponen con este appointment
+    const overlappingEvents = allStaffEvents.filter(other => {
+      if (other.id === appointment.id) return true;
+      
+      // Convertir tiempos a minutos para comparar
+      const thisStart = moment(appointment.startTime, 'h:mm A');
+      const thisEnd = moment(appointment.endTime, 'h:mm A');
+      const otherStart = moment(other.startTime, 'h:mm A');
+      const otherEnd = moment(other.endTime, 'h:mm A');
+      
+      // Verificar si se superponen
+      return thisStart.isBefore(otherEnd) && thisEnd.isAfter(otherStart);
+    }).sort((a, b) => {
+      // Ordenar por estado primero: eventos activos a la izquierda, cancelados a la derecha
+      const aStatus = a.status || 'pending';
+      const bStatus = b.status || 'pending';
+      const aIsCancelled = aStatus === 'cancelled';
+      const bIsCancelled = bStatus === 'cancelled';
+      
+      if (aIsCancelled !== bIsCancelled) {
+        return aIsCancelled ? 1 : -1; // Cancelados van a la derecha (1), activos a la izquierda (-1)
+      }
+      
+      // Si tienen el mismo estado, ordenar por hora de inicio, luego por ID para consistencia
+      const timeCompare = moment(a.startTime, 'h:mm A').valueOf() - moment(b.startTime, 'h:mm A').valueOf();
+      return timeCompare !== 0 ? timeCompare : a.id.localeCompare(b.id);
+    });
+    
+    if (overlappingEvents.length <= 1) {
+      // No hay superposición, usar ancho completo
+      return { left: '4px', right: '4px', width: 'auto' };
+    }
+    
+    // Encontrar el índice de este evento en el grupo superpuesto
+    const currentIndex = overlappingEvents.findIndex(evt => evt.id === appointment.id);
+    const totalOverlapping = overlappingEvents.length;
+    
+    // Calcular ancho y posición
+    const availableWidth = 100; // Porcentaje
+    const eachWidth = availableWidth / totalOverlapping;
+    const leftPosition = currentIndex * eachWidth;
+    
+    return {
+      left: `${leftPosition}%`,
+      width: `${eachWidth}%`,
+      right: 'auto'
+    };
+  };
 
   // Filter events for selected date and organize by staff
   const getEventsForStaff = (staffId: string) => {
@@ -814,6 +920,7 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                   ) : (
                     staffEvents.map(appointment => {
                       const position = getCardPosition(appointment.startTime, appointment.duration);
+                      const horizontalPos = getHorizontalPosition(appointment, staffEvents, index);
                       const isCurrentlyResizing = resizing?.bookingId === appointment.id;
                       
                       return (
@@ -976,8 +1083,9 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                             color: appointment.textColor,
                             cursor: 'move',
                             position: 'absolute',
-                            left: '4px',
-                            right: '4px',
+                            left: horizontalPos.left,
+                            right: horizontalPos.right,
+                            width: horizontalPos.width,
                             // Agregar borde fino si es parte de un grupo conectado
                             border: isConnectedEvent(appointment.id) 
                               ? `2px solid ${getConnectionColor(appointment.id)}` 
