@@ -105,7 +105,10 @@ interface CustomDayViewProps {
 }
 
 const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDate, onEventClick, onSlotClick, onSlotRightClick, onEventMoved, onEventResized, isSpanish, t, staffFilter }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(() => {
+    // Initialize with Miami time
+    return new Date(new Date().toLocaleString("en-US", {timeZone: "America/New_York"}));
+  });
   const [draggedBooking, setDraggedBooking] = useState<any>(null);
   const [resizing, setResizing] = useState<{ bookingId: string; side: 'top' | 'bottom'; originalHeight: number; originalTop: number; startY: number } | null>(null);
   const [resizePreview, setResizePreview] = useState<{ bookingId: string; newStartTime: string; newEndTime: string; position: { top: number; left: number } } | null>(null);
@@ -332,10 +335,11 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
     return () => window.removeEventListener('resize', updateStaffAreaWidth);
   }, [filteredStaff.length]);
 
-  // Update current time every minute
+  // Update current time every minute (Miami timezone)
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      // Get current time in Miami timezone (EST/EDT)
+      setCurrentTime(new Date(new Date().toLocaleString("en-US", {timeZone: "America/New_York"})));
     }, 60000);
     return () => clearInterval(timer);
   }, []);
@@ -539,9 +543,10 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
     return { top: `${top}px`, height: `${height}px` };
   };
 
-  // Get current time position
+  // Get current time position (using Miami timezone)
   const getCurrentTimePosition = () => {
-    const now = new Date();
+    // Get current time in Miami timezone (EST/EDT)
+    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/New_York"}));
     const hour = now.getHours();
     const minute = now.getMinutes();
     
@@ -553,7 +558,9 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
   };
 
   const currentTimePosition = getCurrentTimePosition();
-  const isToday = moment(selectedDate).isSame(moment(), 'day');
+  // Check if selected date is today in Miami timezone
+  const miamiToday = new Date(new Date().toLocaleString("en-US", {timeZone: "America/New_York"}));
+  const isToday = moment(selectedDate).isSame(moment(miamiToday), 'day');
 
   const handleSlotClick = (timeSlot: string, staffId: string) => {
     const [hour, minute] = timeSlot.split(':').map(Number);
