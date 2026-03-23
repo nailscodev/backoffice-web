@@ -54,6 +54,7 @@ jobs:
     name: Deploy to Fly.io
     needs: [unit-tests, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Deploy-fly.io') && github.event_name == 'push'
     steps:
       - name: Checkout code
@@ -63,6 +64,6 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Run deploy
-        run: flyctl deploy --remote-only --strategy=immediate
+        run: flyctl deploy --local-only --strategy=immediate
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
