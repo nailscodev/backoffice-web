@@ -749,13 +749,9 @@ const ServicesList = () => {
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        onChange={(e) => {
-                          // Convert dollars to cents for backend
-                          const dollars = parseFloat(e.target.value) || 0;
-                          validation.setFieldValue('price', Math.round(dollars * 100));
-                        }}
+                        onChange={validation.handleChange}
                         onBlur={validation.handleBlur}
-                        value={(validation.values.price)}
+                        value={validation.values.price}
                         invalid={
                           validation.touched.price && validation.errors.price
                             ? true

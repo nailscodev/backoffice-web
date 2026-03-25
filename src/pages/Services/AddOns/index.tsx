@@ -201,7 +201,7 @@ const AddOns = () => {
       titleES: (selectedAddOn && selectedAddOn.titleES) || "",
       descriptionEN: (selectedAddOn && selectedAddOn.descriptionEN) || (selectedAddOn && selectedAddOn.description) || "",
       descriptionES: (selectedAddOn && selectedAddOn.descriptionES) || "",
-      price: (selectedAddOn && selectedAddOn.price / 100) || 0, // Convert from cents to dollars
+      price: (selectedAddOn && selectedAddOn.price) || 0,
       additionalTime: (selectedAddOn && selectedAddOn.additionalTime) || 0,
       compatibleServiceIds:
         (selectedAddOn && selectedAddOn.compatibleServiceIds) || [],
@@ -226,7 +226,7 @@ const AddOns = () => {
         const data = {
           name: values.titleEN, // Use English title as name
           description: values.descriptionEN, // Use English description
-          price: Math.round(values.price * 100), // Convert dollars to cents
+          price: values.price,
           additionalTime: values.additionalTime,
           compatibleServiceIds: values.compatibleServiceIds,
           isActive: values.isActive,
@@ -362,7 +362,7 @@ const AddOns = () => {
             <UncontrolledDropdown>
               <DropdownToggle
                 href="#"
-                className="btn btn-soft-secondary btn-sm"
+                className="btn btn-secondary btn-sm"
                 tag="button"
               >
                 <i className="ri-more-fill" />
