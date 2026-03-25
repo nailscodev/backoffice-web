@@ -1232,6 +1232,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         // Usar bufferTime del servicio o el global del sistema (default: 15)
         const bufferTime = service.bufferTime !== undefined ? service.bufferTime : 15;
 
+        // Calcular el precio individual de este servicio incluyendo sus addons
+        const serviceIndividualPrice = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0);
+
         // Para VIP Combo: usar tiempo base (simultáneo)
         // Para consecutivo: usar tiempo actual (secuencial)
         const serviceStartTime = isVIPCombo ? moment(baseStartTime) : moment(currentStartTime);
@@ -1251,7 +1254,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           duration: totalDuration,
           addOnIds: allAddOns.map(a => a.id),
           status: 'in_progress', // Marcar como "en progreso" para reflejar que el servicio está activo desde el inicio
-          totalPrice: index === selectedServices.length - 1 ? totals.totalPrice : service.price,
+          totalPrice: serviceIndividualPrice,
           notes: index === 0 
             ? (notes || (isVIPCombo ? t('booking.notes.vip_combo') : '')) 
             : (isVIPCombo ? t('booking.notes.vip_combo_part', { index: index + 1 }) : t('booking.notes.consecutive_part', { index: index + 1, total: selectedServices.length })),
