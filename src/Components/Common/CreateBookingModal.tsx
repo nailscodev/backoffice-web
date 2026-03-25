@@ -239,6 +239,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     },
   });
 
+  // Helper function para calcular precio con service fee del 6%
+  const calculatePriceWithServiceFee = (basePrice: number): number => {
+    return Math.round((basePrice * 1.06) * 100) / 100; // 6% service fee, redondeado a 2 decimales
+  };
+
   // Calcular duración y precio total
   const totals = useMemo(() => {
     let totalDuration = 0;
@@ -263,7 +268,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         totalPrice += removal.price;
       });
 
-    return { totalDuration, totalPrice };
+    // Aplicar service fee del 6% al precio total
+    const finalPrice = calculatePriceWithServiceFee(totalPrice);
+
+    return { totalDuration, totalPrice: finalPrice };
   }, [selectedServices, removalAddOns, selectedRemovalIds]);
 
   // Cargar incompatibilidades cuando cambian los servicios seleccionados
@@ -1233,7 +1241,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         const bufferTime = service.bufferTime !== undefined ? service.bufferTime : 15;
 
         // Calcular el precio individual de este servicio incluyendo sus addons
-        const serviceIndividualPrice = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0);
+        const basePriceWithAddons = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0);
+        // Aplicar service fee del 6% al precio individual del booking
+        const serviceIndividualPrice = calculatePriceWithServiceFee(basePriceWithAddons);
 
         // Para VIP Combo: usar tiempo base (simultáneo)
         // Para consecutivo: usar tiempo actual (secuencial)
