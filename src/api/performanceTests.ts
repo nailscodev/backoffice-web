@@ -51,26 +51,28 @@ const baseHeaders = () => {
 };
 
 export const startTest = async (type: TestType, baseUrl?: string): Promise<TestResult> => {
-  const { data } = await axios.post(
+  // api_helper.ts's global response interceptor unwraps response.data before returning,
+  // so axios calls receive the response body directly (not an AxiosResponse).
+  const body: any = await axios.post(
     `${API_URL}/api/v1/performance-tests/run`,
     { type, baseUrl },
     { headers: baseHeaders() },
   );
-  return data.data ?? data;
+  return body.data ?? body;
 };
 
 export const getTestResult = async (id: string): Promise<TestResult> => {
-  const { data } = await axios.get(`${API_URL}/api/v1/performance-tests/${id}`, {
+  const body: any = await axios.get(`${API_URL}/api/v1/performance-tests/${id}`, {
     headers: baseHeaders(),
   });
-  return data.data ?? data;
+  return body.data ?? body;
 };
 
 export const listTestResults = async (): Promise<TestResult[]> => {
-  const { data } = await axios.get(`${API_URL}/api/v1/performance-tests`, {
+  const body: any = await axios.get(`${API_URL}/api/v1/performance-tests`, {
     headers: baseHeaders(),
   });
-  const result = data.data ?? data;
+  const result = body.data ?? body;
   return Array.isArray(result) ? result : [];
 };
 
