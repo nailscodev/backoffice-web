@@ -2077,7 +2077,7 @@ const Calender = () => {
         payment: bookingDetails.paymentMethod || '',
         status: bookingDetails.status?.toLowerCase() || 'pending',
         notes: bookingDetails.notes || event.extendedProps.description || '',
-        web: bookingDetails.source === 'web',
+        web: bookingDetails.web || false,
         cancellationReason: bookingDetails.cancellationReason || '',
         serviceId: bookingDetails.serviceId || '',
         categoryId: bookingDetails.categoryId || '',
@@ -3029,6 +3029,32 @@ const Calender = () => {
       }
     },
   });
+
+  // Force formik to reinitialize with new values when selectedBooking changes (like in EcommerceOrders)
+  useEffect(() => {
+    if (selectedBooking) {
+      editValidation.setValues({
+        orderId: selectedBooking?.orderId || '',
+        customer: selectedBooking?.customer || '',
+        customerEmail: selectedBooking?.customerEmail || '',
+        customerPhone: selectedBooking?.customerPhone || '',
+        product: selectedBooking?.product || '',
+        categoryName: selectedBooking?.categoryName || '',
+        staffName: selectedBooking?.staffName || '',
+        staffId: selectedBooking?.staffId || '',
+        orderDate: selectedBooking?.orderDate || '',
+        startTime: selectedBooking?.startTime || '',
+        endTime: selectedBooking?.endTime || '',
+        ordertime: selectedBooking?.ordertime || '',
+        amount: selectedBooking?.amount || 0,
+        payment: selectedBooking?.payment || '',
+        status: selectedBooking?.status || '',
+        notes: selectedBooking?.notes || '',
+        web: selectedBooking?.web || false,
+        cancellationReason: selectedBooking?.cancellationReason || '',
+      });
+    }
+  }, [selectedBooking]);
 
   document.title = t('calendar.title') + " | Nails & Co Midtown - Admin Panel";
 
