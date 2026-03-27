@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import WorkInProgressOverlay from '../../common/WorkInProgressOverlay';
@@ -1641,31 +1640,47 @@ const Calender = () => {
   console.log('📅 [CALENDAR COMPONENT] View filter:', viewFilter);
 
   useEffect(() => {
-    // Cargar categorías solo una vez
+    // Cargar categorías y staff solo una vez
     dispatch(onGetCategories());
-    // Cargar staff y servicios para filtros
     loadStaff();
-    
-    // 🚨 TEMPORAL: Cargar eventos sin filtros para debug
-    console.log('🚨 [DEBUG] Loading events without filters for debugging...');
-    dispatch(onGetEvents({
-      page: 1,
-      limit: 1000,
-      startDate: '2026-02-20',
-      endDate: '2026-02-25'
-    }));
-    
-    // Cargar eventos iniciales con filtros por defecto
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    const defaultFilters = {
-      page: 1,
-      limit: 1000,
-      startDate: today.toISOString().split('T')[0],
-      endDate: nextMonth.toISOString().split('T')[0]
-    };
-    dispatch(onGetEvents(defaultFilters));
   }, [dispatch]);
+  
+  // Cargar eventos iniciales después de que el usuario y la fecha estén disponibles
+  useEffect(() => {
+    // Esperar a que el usuario esté disponible antes de cargar eventos
+    if (user !== undefined) {
+      console.log('📅 [INITIAL LOAD] Loading initial events with user:', user);
+      
+      // Si estamos en vista de día, cargar solo el día actual
+      let startDate, endDate;
+      if (viewFilter === 'timeGridDay') {
+        startDate = moment(selectedDate).format('YYYY-MM-DD');
+        endDate = startDate;
+      } else {
+        // Para otras vistas, cargar un rango más amplio
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        startDate = today.toISOString().split('T')[0];
+        endDate = nextMonth.toISOString().split('T')[0];
+      }
+      
+      const defaultFilters: any = {
+        page: 1,
+        limit: 1000,
+        startDate,
+        endDate
+      };
+      
+      // Apply staff filter for staff users
+      if (user && user.role === 'staff' && (user.staffId || user.id)) {
+        defaultFilters.staffId = user.staffId || user.id;
+        console.log('👤 [INITIAL LOAD] Staff user - applying initial staff filter:', defaultFilters.staffId);
+      }
+      
+      console.log('🚀 [INITIAL LOAD] Loading events with filters:', defaultFilters);
+      dispatch(onGetEvents(defaultFilters));
+    }
+  }, [dispatch, user, viewFilter, selectedDate]);
   
   useEffect(() => {
     // Cargar upcoming events cuando las categorías estén disponibles
@@ -1700,8 +1715,14 @@ const Calender = () => {
     }
   }, [user]); // Removed staffFilter from dependencies to prevent infinite loops
   
-  // Auto-reload events when filters change (similar to EcommerceOrders)
+  // Auto-reload events when filters change (only after initial load)
   useEffect(() => {
+    // Skip if this is the initial load (user is undefined)
+    if (user === undefined) {
+      console.log('⏳ [FILTER SKIP] Skipping filter reload - initial load in progress');
+      return;
+    }
+    
     console.log('🔄 [FILTER DEBUG] useEffect triggered');
     console.log('📋 [FILTER DEBUG] Input values:', { 
       staffFilter, 
@@ -1764,6 +1785,12 @@ const Calender = () => {
   
   // Auto-reload events when selectedDate changes in custom day view
   useEffect(() => {
+    // Skip if this is the initial load (user is undefined)
+    if (user === undefined) {
+      console.log('⏳ [DAY VIEW SKIP] Skipping day view reload - initial load in progress');
+      return;
+    }
+    
     if (viewFilter === 'timeGridDay') {
       console.log('📅 [CUSTOM DAY] Date changed:', selectedDate);
       console.log('📅 [CUSTOM DAY] Current events in state:', events);
@@ -4052,8 +4079,34 @@ const Calender = () => {
             }}
             onBookingCreated={() => {
               // Refrescar el calendario después de crear la reserva
-              applyFilters();
-              dispatch(onGetUpCommingEvent());
+              console.log('🔄 [BOOKING CREATED - CALENDAR] Reloading calendar data...');
+              
+              // Delay para asegurar que el backend esté actualizado
+              setTimeout(() => {
+                console.log('🚀 [BOOKING RELOAD] Applying filters and refreshing events...');
+                applyFilters();
+                dispatch(onGetUpCommingEvent());
+                
+                // Si estamos en vista de día, también forzar recarga específica del día
+                if (viewFilter === 'timeGridDay') {
+                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
+                  const filters: any = {
+                    page: 1,
+                    limit: 1000,
+                    startDate,
+                    endDate: startDate
+                  };
+                  
+                  // Apply staff filter if needed
+                  if (user && user.role === 'staff') {
+                    filters.staffId = user.staffId || user.id;
+                  } else if (staffFilter) {
+                    filters.staffId = staffFilter;
+                  }
+                  
+                  dispatch(onGetEvents(filters));
+                }
+              }, 500);
             }}
             preselectedDate={preselectedDate}
             preselectedTime={preselectedTime}
@@ -4067,8 +4120,34 @@ const Calender = () => {
             toggle={() => setGeneralCreateBookingModal(false)}
             onBookingCreated={() => {
               // Refrescar el calendario después de crear la reserva
-              applyFilters();
-              dispatch(onGetUpCommingEvent());
+              console.log('🔄 [BOOKING CREATED - BUTTON] Reloading calendar data...');
+              
+              // Delay para asegurar que el backend esté actualizado
+              setTimeout(() => {
+                console.log('🚀 [BOOKING RELOAD] Applying filters and refreshing events...');
+                applyFilters();
+                dispatch(onGetUpCommingEvent());
+                
+                // Si estamos en vista de día, también forzar recarga específica del día
+                if (viewFilter === 'timeGridDay') {
+                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
+                  const filters: any = {
+                    page: 1,
+                    limit: 1000,
+                    startDate,
+                    endDate: startDate
+                  };
+                  
+                  // Apply staff filter if needed
+                  if (user && user.role === 'staff') {
+                    filters.staffId = user.staffId || user.id;
+                  } else if (staffFilter) {
+                    filters.staffId = staffFilter;
+                  }
+                  
+                  dispatch(onGetEvents(filters));
+                }
+              }, 500);
             }}
           />
 
