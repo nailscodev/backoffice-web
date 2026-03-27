@@ -167,7 +167,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       const [customersData, servicesData, categoriesData, addOnsData, staffData] = await Promise.all([
         getCustomers(),
-        getServices(1, 100, undefined, undefined, true, currentLang),
+        getServices(1, 100, undefined, undefined, undefined, currentLang), // No filtrar por isActive
         getCategories(currentLang),
         getAddOns(1, 100, true, undefined, undefined, currentLang),
         getStaffList(),
@@ -177,7 +177,10 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       console.log('Customers loaded:', customersData);
       setCustomers(Array.isArray(customersData) ? customersData : []);
-      setServices(servicesData);
+      // Filtrar servicios activos en el frontend para tener control total
+      const activeServices = servicesData?.filter((service: Service) => service.isActive === true) || [];
+      console.log('Services loaded - Total:', servicesData?.length, 'Active:', activeServices.length);
+      setServices(activeServices);
       setCategories(Array.isArray(categoriesData) ? categoriesData.filter((c: Category) => c.isActive) : []);
       setAddOns(addOnsData);
       setStaff(staffData);

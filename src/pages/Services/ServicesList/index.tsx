@@ -34,6 +34,8 @@ import {
   createService,
   updateService,
   deleteService,
+  activateService,
+  deactivateService,
   getServiceCategories,
   Service,
 } from "../../../api/services";
@@ -232,7 +234,12 @@ const ServicesList = () => {
 
   const toggleStatus = async (service: Service) => {
     try {
-      await updateService(service.id, { isActive: !service.isActive });
+      // Use specific activate/deactivate endpoints instead of general update
+      if (service.isActive) {
+        await deactivateService(service.id);
+      } else {
+        await activateService(service.id);
+      }
       toast.success(!service.isActive ? 
         t('services.list.success.activated') || 'Service activated' : 
         t('services.list.success.deactivated') || 'Service deactivated'

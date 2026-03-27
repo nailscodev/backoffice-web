@@ -177,6 +177,22 @@ export const deleteService = async (id: string): Promise<any> => {
 };
 
 /**
+ * Activate a service
+ */
+export const activateService = async (id: string): Promise<Service> => {
+  const response = await api.patch(`${url.SERVICES}/${id}/activate`, {});
+  return response.data;
+};
+
+/**
+ * Deactivate a service
+ */
+export const deactivateService = async (id: string): Promise<Service> => {
+  const response = await api.patch(`${url.SERVICES}/${id}/deactivate`, {});
+  return response.data;
+};
+
+/**
  * Get service categories
  */
 export const getServiceCategories = async (): Promise<any[]> => {
