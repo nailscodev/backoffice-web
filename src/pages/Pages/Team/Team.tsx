@@ -551,7 +551,9 @@ const Team = () => {
     const fetchServices = async () => {
         try {
             const response = await getServices(1, 1000, undefined, undefined, undefined, currentLang);
-            setAvailableServices(response || []);
+            // Filter only active services on frontend
+            const activeServices = response?.filter((service: Service) => service.isActive === true) || [];
+            setAvailableServices(activeServices);
         } catch (error) {
             console.error('Error fetching services:', error);
             toast.error(t('team.toast.load_services_error'));

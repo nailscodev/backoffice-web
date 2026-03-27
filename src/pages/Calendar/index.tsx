@@ -2090,7 +2090,7 @@ const Calender = () => {
         orderId: bookingDetails.orderId || `ORD-${bookingId}`,
         customer: bookingDetails.customerName || event.title,
         customerEmail: bookingDetails.email || event.extendedProps.email || '',
-        customerPhone: bookingDetails.phone || event.extendedProps.location || '',
+        customerPhone: event.extendedProps.rawBooking.customerPhone || '',
         product: bookingDetails.serviceName || event.extendedProps.service || '',
         categoryName: bookingDetails.categoryName || event.extendedProps.category || '',
         staffName: staffName,
