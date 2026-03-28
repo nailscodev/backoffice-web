@@ -20,8 +20,9 @@
 }
 
 body {
-  * {
-    outline: none;
+  *:focus-visible {
+    outline: 2px solid var(--vz-primary, #3577f1);
+    outline-offset: 2px;
   }
 }
 

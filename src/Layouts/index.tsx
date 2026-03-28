@@ -142,12 +142,12 @@ const Layout = (props : any) => {
                 <Sidebar
                     layoutType={layoutType}
                 />
-                <div className="main-content">
+                <main className="main-content">
                     {props.children}
                     <Footer />
-                </div>
+                </main>
             </div>
-            {/* <RightSidebar /> */}
+            {/* <RightSidebar /> */}}
         </React.Fragment>
 
     );

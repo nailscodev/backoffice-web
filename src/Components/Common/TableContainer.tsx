@@ -288,7 +288,9 @@ const TableContainer = ({
                 {headerGroup.headers.map((header: any) => (
                   <th key={header.id} className={thClass}  {...{
                     onClick: header.column.getToggleSortingHandler(),
-                  }}>
+                  }}
+                    aria-sort={header.column.getIsSorted() === 'asc' ? 'ascending' : header.column.getIsSorted() === 'desc' ? 'descending' : header.column.getCanSort() ? 'none' : undefined}
+                  >
                     {header.isPlaceholder ? null : (
                       <React.Fragment>
                         {flexRender(
@@ -319,6 +321,8 @@ const TableContainer = ({
                 <tr 
                   key={row.id}
                   onClick={() => onRowClick && onRowClick(row.original)}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(row.original); } } : undefined}
                   style={onRowClick ? { cursor: 'pointer' } : {}}
                 >
                   {row.getVisibleCells().map((cell: any) => {

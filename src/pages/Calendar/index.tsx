@@ -874,6 +874,10 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                     return (
                       <div 
                         key={timeSlot}
+                        role={isClickable ? 'button' : undefined}
+                        tabIndex={isClickable ? 0 : undefined}
+                        aria-label={isClickable ? `Book appointment at ${timeSlot}` : undefined}
+                        aria-disabled={!isClickable || undefined}
                         style={{
                           ...styles.slot,
                           ...(timeSlot.endsWith('00') ? styles.slotHour : {}),
@@ -881,6 +885,12 @@ const CustomDayView: React.FC<CustomDayViewProps> = ({ events, staff, selectedDa
                           ...(!isStaffAvailable && !isPast ? styles.slotUnavailable : {})
                         }}
                         onClick={() => isClickable && onSlotClick(slotDate, staffMember.id)}
+                        onKeyDown={(e) => {
+                          if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            onSlotClick(slotDate, staffMember.id);
+                          }
+                        }}
                         onContextMenu={(e) => {
                           if (isClickable && onSlotRightClick) {
                             onSlotRightClick(e, slotDate, staffMember.id);

@@ -10,12 +10,12 @@ interface DeleteModalProps {
 
 const DeleteModal: React.FC<DeleteModalProps> = ({ show, onDeleteClick, onCloseClick, recordId }) => {
   return (
-    <Modal fade={true} isOpen={show} toggle={onCloseClick} centered={true}>
+    <Modal fade={true} isOpen={show} toggle={onCloseClick} centered={true} aria-labelledby="delete-modal-title">
       <ModalBody className="py-3 px-5">
         <div className="mt-2 text-center">
           <i className="ri-delete-bin-line display-5 text-danger"></i>
           <div className="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
-            <h4>Are you sure ?</h4>
+            <h4 id="delete-modal-title">Are you sure ?</h4>
             <p className="text-muted mx-4 mb-0">
               Are you sure you want to remove this record {recordId ? recordId : ""} ?
             </p>

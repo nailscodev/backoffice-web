@@ -15,7 +15,8 @@ const LightDark = ({ layoutMode, onChangeLayoutMode } : LightDarkProps) => {
         <div className="ms-1 header-item d-none d-sm-flex">
             <button
                 onClick={() => onChangeLayoutMode(mode)}
-                type="button" className="btn btn-icon btn-topbar btn-ghost-secondary rounded-circle light-dark-mode">
+                type="button" className="btn btn-icon btn-topbar btn-ghost-secondary rounded-circle light-dark-mode"
+                aria-label={layoutMode === LAYOUT_MODE_TYPES['DARKMODE'] ? 'Switch to light mode' : 'Switch to dark mode'}>
                 <i className='bx bx-moon fs-22'></i>
             </button>
         </div>

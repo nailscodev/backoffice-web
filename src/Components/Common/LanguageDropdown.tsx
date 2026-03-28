@@ -49,7 +49,7 @@ const LanguageDropdown = () => {
                         >
                             <img
                                 src={get(languages, `${key}.flag`)}
-                                alt="Skote"
+                                alt={get(languages, `${key}.label`) as string}
                                 className="me-2 rounded"
                                 height="18"
                             />
