@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Dropdown, DropdownItem, DropdownMenu, DropdownToggle } from 'reactstrap';
-import { get } from "lodash";
 
 //i18n
 import i18n from "../../i18n";
@@ -28,36 +27,43 @@ const LanguageDropdown = () => {
     const toggleLanguageDropdown = () => {
         setIsLanguageDropdown(!isLanguageDropdown);
     };
+
+    const languageKeys = Object.keys(languages) as Array<keyof typeof languages>;
+    const selectedLangKey = ((selectedLang in languages ? selectedLang : "en") as keyof typeof languages);
     return (
         <React.Fragment>
             <Dropdown isOpen={isLanguageDropdown} toggle={toggleLanguageDropdown} className="ms-1 topbar-head-dropdown header-item">
                 <DropdownToggle className="btn btn-icon btn-topbar btn-ghost-secondary rounded-circle" tag="button">
                     <img
-                        src={get(languages, `${selectedLang}.flag`)}
+                        src={languages[selectedLangKey].flag}
                         alt="Header Language"
                         height="20"
                         className="rounded"
                     />
                 </DropdownToggle>
                 <DropdownMenu className="notify-item language py-2">
-                    {Object.keys(languages).map(key => (
-                        <DropdownItem
-                            key={key}
-                            onClick={() => changeLanguageAction(key)}
-                            className={`notify-item ${selectedLang === key ? "active" : "none"
-                                }`}
-                        >
-                            <img
-                                src={get(languages, `${key}.flag`)}
-                                alt={get(languages, `${key}.label`) as string}
-                                className="me-2 rounded"
-                                height="18"
-                            />
-                            <span className="align-middle">
-                                {get(languages, `${key}.label`)}
-                            </span>
-                        </DropdownItem>
-                    ))}
+                    {languageKeys.map(key => {
+                        const { flag, label } = languages[key];
+
+                        return (
+                            <DropdownItem
+                                key={key}
+                                onClick={() => changeLanguageAction(key)}
+                                className={`notify-item ${selectedLang === key ? "active" : "none"
+                                    }`}
+                            >
+                                <img
+                                    src={flag}
+                                    alt={label ?? ""}
+                                    className="me-2 rounded"
+                                    height="18"
+                                />
+                                <span className="align-middle">
+                                    {label}
+                                </span>
+                            </DropdownItem>
+                        );
+                    })}
                 </DropdownMenu>
             </Dropdown>
         </React.Fragment>
