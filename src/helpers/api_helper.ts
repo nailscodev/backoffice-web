@@ -170,6 +170,13 @@ axios.interceptors.response.use(
       }
     }
     
+    // Handle 401 Unauthorized — JWT expired, redirect to login
+    if (error.response?.status === 401) {
+      sessionStorage.removeItem('authUser');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
     // Any status codes that falls outside the range of 2xx cause this function to trigger
     // Pass the full error object so calling code can access response data
     return Promise.reject(error);
