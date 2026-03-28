@@ -127,13 +127,17 @@
   },
   "jest": {
     "moduleNameMapper": {
+      "\\.(css|less|sass|scss)$": "identity-obj-proxy",
+      "^swiper/react$": "<rootDir>/src/__mocks__/swiperReactMock.js",
+      "^swiper(.*)$": "identity-obj-proxy",
       "^axios$": "<rootDir>/node_modules/axios/dist/node/axios.cjs"
     },
     "transformIgnorePatterns": [
       "/node_modules/(?!(feather-icons-react)/)"
     ],
     "testMatch": [
-      "<rootDir>/src/__tests__/**/*.{ts,tsx,js,jsx}"
+      "<rootDir>/src/__tests__/**/*.{ts,tsx,js,jsx}",
+      "<rootDir>/src/*.{test,spec}.{ts,tsx,js,jsx}"
     ]
   }
 }

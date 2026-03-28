@@ -143,4 +143,66 @@ describe('api_helper', () => {
       expect(window.location.href).toBe('/login');
     });
   });
+
+  // ─── Request interceptor: CSRF bypass ────────────────────────────────────
+
+  describe('request interceptor — CSRF bypass', () => {
+    it('does NOT fetch a CSRF token for GET requests', async () => {
+      mock.onGet('/api/v1/services/list').reply(200, { data: [] });
+
+      await axios.get('/api/v1/services/list');
+
+      // The CSRF endpoint must not have been called
+      const csrfCalls = mock.history.get.filter((r) => r.url?.includes('/csrf/token'));
+      expect(csrfCalls).toHaveLength(0);
+    });
+
+    it('skips CSRF fetch for /auth/login even though it is a POST', async () => {
+      mock.onPost('/api/v1/auth/login').reply(200, { data: { token: 'jwt' } });
+
+      await axios.post('/api/v1/auth/login', { email: 'a@b.com', password: 'pw' });
+
+      const csrfCalls = mock.history.get.filter((r) => r.url?.includes('/csrf/token'));
+      expect(csrfCalls).toHaveLength(0);
+    });
+  });
+
+  // ─── Response interceptor: CSRF retry ────────────────────────────────────
+
+  describe('response interceptor — CSRF retry', () => {
+    beforeEach(() => {
+      // Pre-populate sessionStorage so the retry path can update the token
+      sessionStorage.setItem('authUser', JSON.stringify({ token: 'jwt', csrfToken: 'old-csrf' }));
+    });
+
+    it('retries the request once on a 400 CsrfTokenMalformedException', async () => {
+      mock
+        .onPost('/api/v1/bookings')
+        .replyOnce(400, { error: 'CsrfTokenMalformedException', message: 'CSRF token malformed' })
+        .onPost('/api/v1/bookings')
+        .replyOnce(201, { data: { id: 1 } });
+
+      // CSRF refresh endpoint
+      mock.onGet('/api/v1/csrf/token').reply(200, { data: { token: 'fresh-csrf-token' } });
+
+      await axios.post('/api/v1/bookings', { serviceId: 1 });
+
+      // Original call + 1 retry = 2 POST calls total
+      expect(mock.history.post.filter((r) => r.url === '/api/v1/bookings')).toHaveLength(2);
+    });
+
+    it('retries the request once on a 403 containing "csrf" in message', async () => {
+      mock
+        .onPut('/api/v1/bookings/5')
+        .replyOnce(403, { message: 'Invalid csrf token' })
+        .onPut('/api/v1/bookings/5')
+        .replyOnce(200, { data: { id: 5 } });
+
+      mock.onGet('/api/v1/csrf/token').reply(200, { data: { token: 'fresh-csrf-token' } });
+
+      await axios.put('/api/v1/bookings/5', { status: 'confirmed' });
+
+      expect(mock.history.put.filter((r) => r.url === '/api/v1/bookings/5')).toHaveLength(2);
+    });
+  });
 });

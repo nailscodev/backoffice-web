@@ -6,6 +6,9 @@ import { configureStore } from '@reduxjs/toolkit';
 import rootReducer from './slices';
 import App from './App';
 
+// Mock the route tree so ESM-only page deps (FullCalendar, Swiper…) are never loaded.
+jest.mock('./Routes', () => () => <div data-testid="routes-mock" />);
+
 const store = configureStore({ reducer: rootReducer, devTools: false });
 
 test('renders without crashing', () => {

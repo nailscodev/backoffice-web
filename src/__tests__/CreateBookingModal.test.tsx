@@ -104,11 +104,10 @@ const renderModal = (props = {}) =>
 // ---------------------------------------------------------------------------
 
 describe('CreateBookingModal — Render', () => {
-  it('renders without crashing when isOpen=true', async () => {
+  it('renders the modal dialog when isOpen=true', async () => {
     renderModal();
-    // The modal header / step indicator should be visible
     await waitFor(() => {
-      expect(document.body).toBeTruthy();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
   });
 

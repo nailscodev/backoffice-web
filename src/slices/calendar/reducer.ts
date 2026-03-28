@@ -71,7 +71,7 @@ const calendarSlice = createSlice({
       var flags: any = {};
       flags[flag] = value;
 
-      // state.flags = action.payload;
+      state.flags = flags;
     });
 
     builder.addCase(resetCalendar.rejected, (state: any, action: any) => {

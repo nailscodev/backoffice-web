@@ -140,4 +140,19 @@ describe('calendarReducer', () => {
     });
     expect(state.error).toBeNull();
   });
+
+  // ── resetCalendar ─────────────────────────────────────────────────────────
+
+  it('resetCalendar/fulfilled → sets state.flags with the given flag/value pair', () => {
+    const state = calendarReducer(initialState, {
+      type: 'calendar/resetCalendar/fulfilled',
+      payload: { flag: 'isOpen', value: true },
+    });
+    expect(state.flags).toEqual({ isOpen: true });
+  });
+
+  it('resetCalendar/rejected → stores error message in state.error', () => {
+    const state = calendarReducer(initialState, rejected('resetCalendar', 'Reset failed'));
+    expect(state.error).toBe('Reset failed');
+  });
 });
