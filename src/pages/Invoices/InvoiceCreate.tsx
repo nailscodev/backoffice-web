@@ -25,8 +25,10 @@ const InvoiceCreate = () => {
   // Check if user is owner to enable/disable date field
   const isOwner = currentUser?.role === 'owner';
   
-  // Get today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
+  // Get today's date in Miami timezone (YYYY-MM-DD format)
+  const today = new Date().toLocaleDateString('en-CA', { 
+    timeZone: 'America/New_York' // Miami timezone
+  });
 
   document.title = `${t('invoices.form.title', 'Manual Adjustment')} | Nails & Co Midtown - Admin Panel`;
 
