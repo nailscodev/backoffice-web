@@ -491,6 +491,7 @@
     "common.addons": "Add-ons",
     "common.not_available": "Not available",
     "common.select_date": "Select date",
+    "common.error_loading_data": "Error loading data",
 
     "invoices.form.date": "Date",
     "invoices.form.owner_only": "Owner access only",
@@ -916,6 +917,9 @@
     "reservations.filters.payment_method": "Payment Method",
     "reservations.filters.filters": "Filters",
 
+    "reservations.messages.booking_updated_success": "Booking updated successfully",
+    "reservations.messages.booking_update_error": "Error updating booking",
+
     "global_filters.common.search": "Search",
     "global_filters.common.filters": "Filters", 
     "global_filters.common.select_date": "Select a date",
@@ -1075,8 +1079,11 @@
     
     "calendar.success.event_rescheduled": "Event rescheduled successfully",
     "calendar.success.duration_updated": "Event duration updated successfully",
+    "calendar.success.resize_updated": "Event duration updated successfully",
     "calendar.error.reschedule_failed": "Failed to reschedule event",
     "calendar.error.duration_update_failed": "Failed to update event duration",
+    "calendar.error.resize_failed": "Failed to update event duration",
+    "calendar.create_break": "Create Break",
     
     "calendar.refresh": "Refresh",
     "calendar.this_week": "This Week",

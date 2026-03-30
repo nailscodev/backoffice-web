@@ -46,6 +46,11 @@ import {
   updateOrder as onUpdateOrder,
 } from "../../../slices/thunks";
 
+// Import calendar actions for refreshing calendar after booking updates
+import {
+  getEvents as onGetEvents,
+} from "../../../slices/thunks";
+
 import Loader from "../../../Components/Common/Loader";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -394,7 +399,8 @@ const EcommerceOrders = () => {
         
         try {
           await dispatch(onUpdateOrder({ id: order.id, ...updatePayload }));
-          // Refresh bookings after update
+          
+          // Refresh bookings list after update
           const filters = {
             page: currentPage,
             limit: pageSize,
@@ -404,6 +410,24 @@ const EcommerceOrders = () => {
             ...(searchTerm ? { search: searchTerm } : {}),
           };
           dispatch(onGetOrders(filters));
+          
+          // Also refresh calendar data to reflect the changes
+          const today = new Date();
+          const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+          const calendarFilters: any = {
+            page: 1,
+            limit: 1000,
+            startDate: today.toISOString().split('T')[0],
+            endDate: nextMonth.toISOString().split('T')[0]
+          };
+          
+          // Apply staff filter to calendar if user is staff
+          if (user && user.role === 'staff' && (user.staffId || user.id)) {
+            calendarFilters.staffId = user.staffId || user.id;
+          }
+          
+          console.log('📅 [REFRESH] Reloading calendar after booking update with filters:', calendarFilters);
+          dispatch(onGetEvents(calendarFilters));
         } catch (err) {
           // Error handled by thunk toast
         }
@@ -2076,6 +2100,24 @@ const EcommerceOrders = () => {
                     }
                     if (searchTerm) filters.search = searchTerm;
                     dispatch(onGetOrders(filters));
+                    
+                    // Also refresh calendar data to reflect the new booking
+                    const today = new Date();
+                    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+                    const calendarFilters: any = {
+                      page: 1,
+                      limit: 1000,
+                      startDate: today.toISOString().split('T')[0],
+                      endDate: nextMonth.toISOString().split('T')[0]
+                    };
+                    
+                    // Apply staff filter to calendar if user is staff
+                    if (user && user.role === 'staff' && (user.staffId || user.id)) {
+                      calendarFilters.staffId = user.staffId || user.id;
+                    }
+                    
+                    console.log('📅 [REFRESH] Reloading calendar after booking creation with filters:', calendarFilters);
+                    dispatch(onGetEvents(calendarFilters));
                   }}
                 />
                 

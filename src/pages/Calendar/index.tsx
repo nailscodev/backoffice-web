@@ -2197,6 +2197,56 @@ const Calender = () => {
       toast.error(t('common.error_loading_data'));
     }
   };
+
+  /**
+   * Centralized function to reload all calendar data
+   */
+  const reloadCalendarData = () => {
+    console.log('🔄 [RELOAD CALENDAR] Starting complete calendar data reload...');
+    
+    // 1. Reload upcoming events
+    dispatch(onGetUpCommingEvent());
+    
+    // 2. Apply current filters and reload events
+    if (viewFilter === 'timeGridDay') {
+      // For custom day view, reload with current date
+      const startDate = moment(selectedDate).format('YYYY-MM-DD');
+      const endDate = moment(selectedDate).format('YYYY-MM-DD');
+      
+      // Apply same filter logic as main filter
+      let finalStaffId = null;
+      if (user && user.role === 'staff') {
+        finalStaffId = user.staffId || user.id;
+      } else if (staffFilter && staffFilter.trim() !== '') {
+        finalStaffId = staffFilter;
+      }
+      
+      const filters: any = {
+        page: 1,
+        limit: 1000,
+        startDate,
+        endDate
+      };
+      
+      if (finalStaffId) {
+        filters.staffId = finalStaffId;
+      }
+      
+      if (statusFilter && statusFilter.trim() !== '') {
+        filters.status = statusFilter;
+      }
+      
+      console.log('🔄 [RELOAD CALENDAR] Day view reload with filters:', filters);
+      dispatch(onGetEvents(filters));
+    } else {
+      // For other views, use applyFilters
+      console.log('🔄 [RELOAD CALENDAR] Standard view reload using applyFilters');
+      applyFilters();
+    }
+    
+    console.log('✅ [RELOAD CALENDAR] Calendar data reload completed');
+  };
+
   /**
    * On delete event
    */
@@ -2622,47 +2672,13 @@ const Calender = () => {
       // Update in database
       await updateBooking(bookingId, updateData);
       
-      // Reload events to maintain consistency
-      if (viewFilter === 'timeGridDay') {
-        // For custom day view, reload with current date
-        const startDate = moment(selectedDate).format('YYYY-MM-DD');
-        const endDate = moment(selectedDate).format('YYYY-MM-DD');
-        
-        // Apply same filter logic as main filter
-        let finalStaffId = null;
-        if (user && user.role === 'staff') {
-          finalStaffId = user.staffId || user.id;
-        } else if (staffFilter && staffFilter.trim() !== '') {
-          finalStaffId = staffFilter;
-        }
-        
-        const filters: any = {
-          page: 1,
-          limit: 1000,
-          startDate,
-          endDate
-        };
-        
-        if (finalStaffId) {
-          filters.staffId = finalStaffId;
-        }
-        
-        if (statusFilter && statusFilter.trim() !== '') {
-          filters.status = statusFilter;
-        }
-        
-        dispatch(onGetEvents(filters));
-      } else {
-        applyFilters();
-      }
+      // Centralized calendar data reload  
+      reloadCalendarData();
       
-      // Reload upcoming events
-      dispatch(onGetUpCommingEvent());
-      
-      toast.success('Event duration updated successfully');
+      toast.success(t('calendar.success.resize_updated'));
     } catch (error) {
       console.error('Error resizing event:', error);
-      toast.error('Failed to update event duration');
+      toast.error(t('calendar.error.resize_failed'));
     }
   };
 
@@ -2715,11 +2731,8 @@ const Calender = () => {
       // Actualizar en la base de datos
       await updateBooking(event.id, updateData);
       
-      // Recargar eventos para mantener consistencia
-      applyFilters();
-      
-      // Recargar upcoming events
-      dispatch(onGetUpCommingEvent());
+      // Centralized calendar data reload
+      reloadCalendarData();
       
       toast.success(t('calendar.success.event_rescheduled'));
     } catch (error) {
@@ -2748,11 +2761,8 @@ const Calender = () => {
       // Actualizar en la base de datos
       await updateBooking(event.id, updateData);
       
-      // Recargar eventos para mantener consistencia
-      applyFilters();
-      
-      // Recargar upcoming events
-      dispatch(onGetUpCommingEvent());
+      // Centralized calendar data reload
+      reloadCalendarData();
       
       toast.success(t('calendar.success.duration_updated'));
     } catch (error) {
@@ -3202,8 +3212,9 @@ const Calender = () => {
           await updateBooking(selectedBooking.id, updatePayload);
           toast.success(t('reservations.messages.booking_updated_success'));
           
-          // Refresh calendar events
-          applyFilters();
+          // Centralized calendar data reload
+          reloadCalendarData();
+          
           setEditModal(false);
           setSelectedBooking(null);
           setIsEditBooking(false);
@@ -4264,34 +4275,12 @@ const Calender = () => {
               setPreselectedStaffId(undefined);
             }}
             onBookingCreated={() => {
-              // Refrescar el calendario después de crear la reserva
+              // Centralized calendar data reload
               console.log('🔄 [BOOKING CREATED - CALENDAR] Reloading calendar data...');
               
-              // Delay para asegurar que el backend esté actualizado
+              // Small delay to ensure backend is updated
               setTimeout(() => {
-                console.log('🚀 [BOOKING RELOAD] Applying filters and refreshing events...');
-                applyFilters();
-                dispatch(onGetUpCommingEvent());
-                
-                // Si estamos en vista de día, también forzar recarga específica del día
-                if (viewFilter === 'timeGridDay') {
-                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
-                  const filters: any = {
-                    page: 1,
-                    limit: 1000,
-                    startDate,
-                    endDate: startDate
-                  };
-                  
-                  // Apply staff filter if needed
-                  if (user && user.role === 'staff') {
-                    filters.staffId = user.staffId || user.id;
-                  } else if (staffFilter) {
-                    filters.staffId = staffFilter;
-                  }
-                  
-                  dispatch(onGetEvents(filters));
-                }
+                reloadCalendarData();
               }, 500);
             }}
             preselectedDate={preselectedDate}
@@ -4305,34 +4294,12 @@ const Calender = () => {
             isOpen={generalCreateBookingModal}
             toggle={() => setGeneralCreateBookingModal(false)}
             onBookingCreated={() => {
-              // Refrescar el calendario después de crear la reserva
+              // Centralized calendar data reload
               console.log('🔄 [BOOKING CREATED - BUTTON] Reloading calendar data...');
               
-              // Delay para asegurar que el backend esté actualizado
+              // Small delay to ensure backend is updated
               setTimeout(() => {
-                console.log('🚀 [BOOKING RELOAD] Applying filters and refreshing events...');
-                applyFilters();
-                dispatch(onGetUpCommingEvent());
-                
-                // Si estamos en vista de día, también forzar recarga específica del día
-                if (viewFilter === 'timeGridDay') {
-                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
-                  const filters: any = {
-                    page: 1,
-                    limit: 1000,
-                    startDate,
-                    endDate: startDate
-                  };
-                  
-                  // Apply staff filter if needed
-                  if (user && user.role === 'staff') {
-                    filters.staffId = user.staffId || user.id;
-                  } else if (staffFilter) {
-                    filters.staffId = staffFilter;
-                  }
-                  
-                  dispatch(onGetEvents(filters));
-                }
+                reloadCalendarData();
               }, 500);
             }}
           />
@@ -4342,45 +4309,13 @@ const Calender = () => {
             isOpen={generalCreateBreakModal}
             toggle={() => setGeneralCreateBreakModal(false)}
             onBreakCreated={() => {
-              // Refrescar el calendario después de crear el break
+              // Centralized calendar data reload
               console.log('🔄 [BREAK CREATED - BUTTON] Reloading calendar data...');
               
-              // Delay para asegurar que el backend esté actualizado
+              // Small delay to ensure backend is updated  
               setTimeout(() => {
-                applyFilters();
-                dispatch(onGetUpCommingEvent());
-                
-                // Si estamos en vista de día, forzar recarga específica
-                if (viewFilter === 'timeGridDay') {
-                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
-                  const endDate = moment(selectedDate).format('YYYY-MM-DD');
-                  
-                  let finalStaffId = null;
-                  if (user && user.role === 'staff') {
-                    finalStaffId = user.staffId || user.id;
-                  } else if (staffFilter && staffFilter.trim() !== '') {
-                    finalStaffId = staffFilter;
-                  }
-                  
-                  const filters: any = {
-                    page: 1,
-                    limit: 1000,
-                    startDate,
-                    endDate
-                  };
-                  
-                  if (finalStaffId) {
-                    filters.staffId = finalStaffId;
-                  }
-                  
-                  if (statusFilter && statusFilter.trim() !== '') {
-                    filters.status = statusFilter;
-                  }
-                  
-                  console.log('🔄 [BREAK CREATED - BUTTON] Custom day view - reloading events with filters:', filters);
-                  dispatch(onGetEvents(filters));
-                }
-              }, 500); // 500ms delay para asegurar que el backend esté actualizado
+                reloadCalendarData();
+              }, 500);
             }}
           />
 
@@ -4392,45 +4327,13 @@ const Calender = () => {
             preselectedTime={preselectedBreakTime}
             preselectedStaffId={preselectedBreakStaffId}
             onBreakCreated={() => {
-              // Refrescar el calendario después de crear el break
+              // Centralized calendar data reload
               console.log('🔄 [BREAK CREATED - CALENDAR] Reloading calendar data...');
               
-              // Delay para asegurar que el backend esté actualizado
+              // Small delay to ensure backend is updated
               setTimeout(() => {
-                applyFilters();
-                dispatch(onGetUpCommingEvent());
-                
-                // Si estamos en vista de día, forzar recarga específica
-                if (viewFilter === 'timeGridDay') {
-                  const startDate = moment(selectedDate).format('YYYY-MM-DD');
-                  const endDate = moment(selectedDate).format('YYYY-MM-DD');
-                  
-                  let finalStaffId = null;
-                  if (user && user.role === 'staff') {
-                    finalStaffId = user.staffId || user.id;
-                  } else if (staffFilter && staffFilter.trim() !== '') {
-                    finalStaffId = staffFilter;
-                  }
-                  
-                  const filters: any = {
-                    page: 1,
-                    limit: 1000,
-                    startDate,
-                    endDate
-                  };
-                  
-                  if (finalStaffId) {
-                    filters.staffId = finalStaffId;
-                  }
-                  
-                  if (statusFilter && statusFilter.trim() !== '') {
-                    filters.status = statusFilter;
-                  }
-                  
-                  console.log('🔄 [BREAK CREATED - CALENDAR] Custom day view - reloading events with filters:', filters);
-                  dispatch(onGetEvents(filters));
-                }
-              }, 500); // 500ms delay para asegurar que el backend esté actualizado
+                reloadCalendarData();
+              }, 500);
             }}
           />
 

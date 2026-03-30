@@ -91,6 +91,9 @@
   "reservations.filters.payment_method": "Método de Pago",
   "reservations.filters.filters": "Filtros",
 
+  "reservations.messages.booking_updated_success": "Reserva actualizada exitosamente",
+  "reservations.messages.booking_update_error": "Error al actualizar la reserva",
+
   "global_filters.common.search": "Buscar",
   "global_filters.common.filters": "Filtros", 
   "global_filters.common.select_date": "Seleccionar fecha",
@@ -209,6 +212,7 @@
   "common.minutes_short": "min",
   "common.loading": "Cargando...",
   "common.select_date": "Seleccionar fecha",
+  "common.error_loading_data": "Error al cargar datos",
   "common.page_title_reservations": "Reservas | Nails & Co Midtown - Panel de Administraci\u00f3n",
   "reservations.id.copy_tooltip": "Clic para copiar: {{id}}",
   "reservations.id.copy_success": "ID copiado al portapapeles",

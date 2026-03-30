@@ -1153,11 +1153,6 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           staffId: firstService.staffId, // Heredar del primer servicio
           staffName: firstService.staffName, // Heredar nombre también
         };
-        
-        // Si el primer servicio no tiene staff asignado, mostrar advertencia
-        if (!firstService.staffId) {
-          toast.warning(t('booking.toast.assign_staff_first_service_consecutive'));
-        }
       } else {
         // VIP COMBO: Técnicos diferentes automáticamente 'any'
         newService = {
