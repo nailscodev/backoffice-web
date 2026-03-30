@@ -3589,40 +3589,30 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           <div>
             {removalAddOns.map(removal => {
               const isSelected = selectedRemovalIds.includes(removal.id);
-              const isIncompatible = hasMultipleCategories && 
-                incompatibleRemovalIds.includes(removal.id) && 
+              const isIncompatible = incompatibleRemovalIds.includes(removal.id) && 
                 !isSelected;
               
               const handleToggle = async () => {
                 if (isIncompatible) return;
 
-                if (hasMultipleCategories) {
-                  // Checkbox behavior: multiple selection
-                  if (isSelected) {
-                    // Remove
-                    setSelectedRemovalIds(prev => prev.filter(id => id !== removal.id));
-                  } else {
-                    // Before adding, check incompatibilities
-                    try {
-                      const incompatibles = await getIncompatibleAddOns([removal.id]);
-                      const hasConflict = selectedRemovalIds.some(id => incompatibles.includes(id));
-                      
-                      if (hasConflict) {
-                        toast.warning(t('booking.removal.incompatible_warning') || 'This removal is incompatible with your current selection');
-                        return;
-                      }
-                      
-                      setSelectedRemovalIds(prev => [...prev, removal.id]);
-                    } catch (error) {
-                      console.error('Error checking incompatibilities:', error);
-                    }
-                  }
+                // Always use checkbox behavior: multiple selection
+                if (isSelected) {
+                  // Remove
+                  setSelectedRemovalIds(prev => prev.filter(id => id !== removal.id));
                 } else {
-                  // Radio behavior: single selection
-                  if (isSelected) {
-                    setSelectedRemovalIds([]);
-                  } else {
-                    setSelectedRemovalIds([removal.id]);
+                  // Before adding, check incompatibilities
+                  try {
+                    const incompatibles = await getIncompatibleAddOns([removal.id]);
+                    const hasConflict = selectedRemovalIds.some(id => incompatibles.includes(id));
+                    
+                    if (hasConflict) {
+                      toast.warning(t('booking.removal.incompatible_warning') || 'This removal is incompatible with your current selection');
+                      return;
+                    }
+                    
+                    setSelectedRemovalIds(prev => [...prev, removal.id]);
+                  } catch (error) {
+                    console.error('Error checking incompatibilities:', error);
                   }
                 }
               };
@@ -3647,7 +3637,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                   <div className="d-flex align-items-start justify-content-between">
                     <div className="form-check mb-0">
                       <Input
-                        type={hasMultipleCategories ? 'checkbox' : 'radio'}
+                        type="checkbox"
                         name="removal-selection"
                         className="form-check-input"
                         checked={isSelected}
@@ -3673,7 +3663,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
               );
             })}
 
-            {hasMultipleCategories && selectedRemovalIds.length > 0 && (
+            {selectedRemovalIds.length > 0 && (
               <Alert color="info" className="mt-3 small mb-0">
                 <i className="ri-information-line me-1"></i>
                 {t('booking.removal.multiple_selection_note') || 'You can select multiple removals. Incompatible options are disabled.'}
