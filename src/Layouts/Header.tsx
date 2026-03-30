@@ -80,7 +80,7 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass } : any) => {
                         <div className="d-flex">
 
                             <div className="navbar-brand-box horizontal-logo">
-                                <Link to="/" className="logo logo-dark">
+                                <Link to="/" className="logo logo-dark" aria-label="Nails & Co. — Home">
                                     <span className="logo-sm">
                                         <img src={logoSm} alt="" height="22" />
                                     </span>
@@ -89,7 +89,7 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass } : any) => {
                                     </span>
                                 </Link>
 
-                                <Link to="/" className="logo logo-light">
+                                <Link to="/" className="logo logo-light" aria-label="Nails & Co. — Home">
                                     <span className="logo-sm">
                                         <img src={logoSm} alt="" height="22" />
                                     </span>
@@ -103,7 +103,10 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass } : any) => {
                                 onClick={toogleMenuBtn}
                                 type="button"
                                 className="btn btn-sm px-3 fs-16 header-item vertical-menu-btn topnav-hamburger"
-                                id="topnav-hamburger-icon">
+                                id="topnav-hamburger-icon"
+                                aria-label="Toggle navigation"
+                                aria-expanded={sidebarVisibilitytype === 'show'}
+                                aria-controls="navbar-nav">
                                 <span className="hamburger-icon">
                                     <span></span>
                                     <span></span>
@@ -126,7 +129,7 @@ const Header = ({ onChangeLayoutMode, layoutModeType, headerClass } : any) => {
                                         <div className="form-group m-0">
                                             <div className="input-group">
                                                 <input type="text" className="form-control" placeholder="Search ..."
-                                                    aria-label="Recipient's username" />
+                                                    aria-label="Search" />
                                                 <button className="btn btn-primary" type="submit"><i
                                                     className="mdi mdi-magnify"></i></button>
                                             </div>

@@ -124,7 +124,7 @@ export const addNewEvent = createAsyncThunk("calendar/addNewEvent", async (event
     const response = addNewEventApi(event);
     return response;
   } catch (error) {
-    return error;
+    throw error;
   }
 });
 
@@ -134,7 +134,7 @@ export const updateEvent = createAsyncThunk("calendar/updateEvent", async (event
     const modifiedevent = await response;
     return modifiedevent;
   } catch (error) {
-    return error;
+    throw error;
   }
 });
 
@@ -143,7 +143,7 @@ export const deleteEvent = createAsyncThunk("calendar/deleteEvent", async (event
     const response = deleteEventApi(event);
     return response;
   } catch (error) {
-    return error;
+    throw error;
   }
 });
 

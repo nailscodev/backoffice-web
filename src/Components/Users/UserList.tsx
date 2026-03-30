@@ -50,10 +50,10 @@ const UserList = () => {
           ))}
         </tbody>
       </Table>
-      <Modal isOpen={showForm} toggle={() => setShowForm(false)}>
+      <Modal isOpen={showForm} toggle={() => setShowForm(false)} aria-label={selectedUser ? 'Edit user' : 'Add user'}>
         <UserForm user={selectedUser} onClose={() => setShowForm(false)} />
       </Modal>
-      <Modal isOpen={showRoles} toggle={() => setShowRoles(false)}>
+      <Modal isOpen={showRoles} toggle={() => setShowRoles(false)} aria-label="Assign roles">
         <RoleAssignment user={selectedUser} onClose={() => setShowRoles(false)} />
       </Modal>
     </div>

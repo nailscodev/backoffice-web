@@ -6,19 +6,22 @@ import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import rootReducer from "./slices";
+import ErrorBoundary from "./Components/ErrorBoundary";
 
-const store = configureStore({ reducer: rootReducer, devTools: true });
+const store = configureStore({ reducer: rootReducer, devTools: process.env.NODE_ENV !== 'production' });
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <Provider store={store}>
-    <React.Fragment>
-      <BrowserRouter basename={process.env.PUBLIC_URL}>
-        <App />
-      </BrowserRouter>
-    </React.Fragment>
+    <ErrorBoundary>
+      <React.Fragment>
+        <BrowserRouter basename={process.env.PUBLIC_URL}>
+          <App />
+        </BrowserRouter>
+      </React.Fragment>
+    </ErrorBoundary>
   </Provider>
 );
 

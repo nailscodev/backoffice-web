@@ -12,15 +12,6 @@ import { DateRangeProvider } from './contexts/DateRangeContext';
 // Import AppInitializer for proper app initialization
 import AppInitializer from './Components/AppInitializer';
 
-// Import Firebase Configuration file
-// import { initFirebaseBackend } from "./helpers/firebase_helper";
-
-// Fake Backend 
-import fakeBackend from "./helpers/AuthType/fakeBackend";
-
-// Activating fake backend
-fakeBackend();
-
 // const firebaseConfig = {
 //   apiKey: process.env.REACT_APP_APIKEY,
 //   authDomain: process.env.REACT_APP_AUTHDOMAIN,

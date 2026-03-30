@@ -65,9 +65,9 @@ const Sidebar = ({ layoutType } : any) => {
 
   return (
     <React.Fragment>
-      <div className="app-menu navbar-menu">
+      <nav className="app-menu navbar-menu" aria-label="Sidebar navigation">
         <div className="navbar-brand-box">
-          <Link to="/" className="logo logo-dark">
+          <Link to="/" className="logo logo-dark" aria-label="Nails & Co. — Home">
             <span className="logo-sm" style={{ padding: '10px' }}>
               <img src={logoSm} alt="" height="auto" width="100%" />
             </span>
@@ -76,7 +76,7 @@ const Sidebar = ({ layoutType } : any) => {
             </span>
           </Link>
 
-          <Link to="/" className="logo logo-light">
+          <Link to="/" className="logo logo-light" aria-label="Nails & Co. — Home">
             <span className="logo-sm" style={{ padding: '10px' }}>
               <img src={logoSm} alt="" height="auto" width="100%" />
             </span>
@@ -89,6 +89,7 @@ const Sidebar = ({ layoutType } : any) => {
             type="button"
             className="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover"
             id="vertical-hover"
+            aria-label="Collapse sidebar"
           >
             <i className="ri-record-circle-line"></i>
           </button>
@@ -120,7 +121,7 @@ const Sidebar = ({ layoutType } : any) => {
             <div className="sidebar-background"></div>
           </React.Fragment>
         )}
-      </div>
+      </nav>
       <div className="vertical-overlay"></div>
     </React.Fragment>
   );

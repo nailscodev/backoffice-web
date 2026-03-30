@@ -19,14 +19,14 @@ const calendarSlice = createSlice({
       state.events = action.payload;
     });
     builder.addCase(getEvents.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
     builder.addCase(addNewEvent.fulfilled, (state: any, action: any) => {
       state.events.push(action.payload);
     });
     builder.addCase(addNewEvent.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
     builder.addCase(updateEvent.fulfilled, (state: any, action: any) => {
@@ -38,7 +38,7 @@ const calendarSlice = createSlice({
     });
 
     builder.addCase(updateEvent.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
     builder.addCase(deleteEvent.fulfilled, (state: any, action: any) => {
@@ -47,14 +47,14 @@ const calendarSlice = createSlice({
       );
     });
     builder.addCase(deleteEvent.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
     builder.addCase(getCategories.fulfilled, (state: any, action: any) => {
       state.categories = action.payload;
     });
     builder.addCase(getCategories.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
     builder.addCase(getUpCommingEvent.fulfilled, (state: any, action: any) => {
@@ -62,7 +62,7 @@ const calendarSlice = createSlice({
     });
 
     builder.addCase(getUpCommingEvent.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
     builder.addCase(resetCalendar.fulfilled, (state: any, action: any) => {
@@ -71,11 +71,11 @@ const calendarSlice = createSlice({
       var flags: any = {};
       flags[flag] = value;
 
-      // state.flags = action.payload;
+      state.flags = flags;
     });
 
     builder.addCase(resetCalendar.rejected, (state: any, action: any) => {
-      state.error = action.payload.error || null;
+      state.error = action.error?.message || null;
     });
 
   },

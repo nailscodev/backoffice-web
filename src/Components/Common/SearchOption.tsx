@@ -103,6 +103,7 @@ const SearchOption = () => {
                 <div className="position-relative">
                     <Input type="text" className="form-control" placeholder="Search..."
                         id="search-options"
+                        aria-label="Search navigation"
                         value={searchTerm}
                         onKeyDown={onKeyDownPress}
                         onChange={handleChange}
