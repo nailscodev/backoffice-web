@@ -448,6 +448,12 @@
   
   "booking.services.no_addons_available": "No hay complementos disponibles para este servicio",
   "booking.services.no_removals_available": "No hay servicios de remoción disponibles",
+  "booking.removal.title": "¿Necesita Servicio de Remoción?",
+  "booking.removal.no_removals_available": "No hay servicios de remoción disponibles para sus servicios seleccionados",
+  "booking.removal.no_removal_needed": "NO NECESITO REMOCIÓN",
+  "booking.removal.incompatible": "Incompatible",
+  "booking.removal.incompatible_warning": "Esta remoción es incompatible con su selección actual",
+  "booking.removal.multiple_selection_note": "Puede seleccionar múltiples remociones. Las opciones incompatibles están deshabilitadas.",
   "roles.assignment.success": "Permisos guardados exitosamente para {{role}}! {{count}} pantallas configuradas.",
   "roles.assignment.error": "Error guardando permisos para {{role}}: {{error}}",
   

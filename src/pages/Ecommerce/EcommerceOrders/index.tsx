@@ -162,6 +162,11 @@ const EcommerceOrders = () => {
   const [orderList, setOrderList] = useState<any>([]);
   const [order, setOrder] = useState<any>(null);
 
+  // Helper function para calcular precio con service fee del 6%
+  const calculatePriceWithServiceFee = (basePrice: number): number => {
+    return Math.round((basePrice * 1.06) * 100) / 100; // 6% service fee, redondeado a 2 decimales
+  };
+
   const orderstatus = [
     {
       options: [
@@ -360,9 +365,10 @@ const EcommerceOrders = () => {
           updatePayload.addOnIds = allAddOns.map(addon => addon.id);
           
           // Update total price based on selected service, addons, and removals
-          const newTotalPrice = selectedService.price + 
+          const basePrice = selectedService.price + 
             selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
             selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
+          const newTotalPrice = calculatePriceWithServiceFee(basePrice);
           updatePayload.totalPrice = newTotalPrice.toFixed(2);
         }
         
@@ -885,7 +891,8 @@ const EcommerceOrders = () => {
     }
     
     try {
-      const response = await getRemovalAddonsByServices([serviceId]);
+      const languageCode = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
+      const response = await getRemovalAddonsByServices([serviceId], languageCode);
       setRemovalAddons(response || []);
     } catch (error) {
       console.error('Error loading removal addons:', error);
@@ -940,8 +947,9 @@ const EcommerceOrders = () => {
       // 3. Fetch addon details if addOnIds exist
       let addons = [];
       if (bookingDetails.addOnIds && bookingDetails.addOnIds.length > 0) {
+        const languageCode = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
         const addonPromises = bookingDetails.addOnIds.map((addonId: string) => 
-          getAddOn(addonId).catch(err => {
+          getAddOn(addonId, languageCode).catch(err => {
             console.error(`Failed to fetch addon ${addonId}:`, err);
             return null;
           })

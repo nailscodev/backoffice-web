@@ -31,6 +31,8 @@ import {
 import * as Yup from "yup";
 import { useFormik } from "formik";
 import classnames from "classnames";
+import moment from "moment";
+import { toast } from 'react-toastify';
 
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -64,11 +66,10 @@ import { servicesByCategory, staffMembers } from "../../common/data/calender";
 import { getStaffList, Staff, WeeklySchedule } from "../../api/staff";
 import { getCategories, Category } from "../../api/categories";
 import { updateBooking, getBookingById } from "../../api/bookings";
-import { getServicesList, Service, getRemovalAddonsByServices } from "../../api/services";
+import { getServices, Service, getRemovalAddonsByServices } from "../../api/services";
 import { getAddOns, AddOn, getAddOn } from "../../api/addons";
-import { toast, ToastContainer } from 'react-toastify';
+import { toast as toastDuplicate, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import moment from "moment";
 import "moment/locale/es";
 
 // Import FullCalendar locales
@@ -2036,8 +2037,9 @@ const Calender = () => {
       // 3. Fetch addon details if addOnIds exist
       let addons = [];
       if (bookingDetails.addOnIds && bookingDetails.addOnIds.length > 0) {
+        const languageCode = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
         const addonPromises = bookingDetails.addOnIds.map((addonId: string) => 
-          getAddOn(addonId).catch(err => {
+          getAddOn(addonId, languageCode).catch(err => {
             console.error(`Error fetching addon ${addonId}:`, err);
             return null;
           })
@@ -2083,10 +2085,11 @@ const Calender = () => {
       
       // Set selected addons from booking
       if (addons && addons.length > 0) {
+        // Separate normal addons from removal addons
         const normalAddons = addons.filter((addon: any) => !addon.removal);
-        const removalAddons = addons.filter((addon: any) => addon.removal);
-        setSelectedAddons(normalAddons || []);
-        setSelectedRemovalAddons(removalAddons || []);
+        const removalAddons = addons.filter((addon: any) => addon.removal === true);
+        setSelectedAddons(normalAddons);
+        setSelectedRemovalAddons(removalAddons);
         console.log('📋 Set normal addons:', normalAddons);
         console.log('📋 Set removal addons:', removalAddons);
       } else {
@@ -2118,8 +2121,8 @@ const Calender = () => {
         cancellationReason: bookingDetails.cancellationReason || '',
         serviceId: bookingDetails.serviceId || '',
         categoryId: bookingDetails.categoryId || '',
-        addons: addons || [],
-        removalAddons: addons ? addons.filter((addon: any) => addon.removal) : []
+        addons: addons, // Include fetched addons
+        ...(bookingDetails.serviceId ? { serviceId: bookingDetails.serviceId } : {}) // Only include serviceId if it exists
       };
       
       console.log('📋 Booking data prepared for edit modal:', booking);
@@ -2131,8 +2134,38 @@ const Calender = () => {
       setSelectedBooking(booking);
       setIsEditBooking(true);
       
-      // Cargar datos necesarios para el modal
-      await loadModalData();
+      // Load all necessary data when opening modal (same as EcommerceOrders)
+      try {
+        const [staffData, servicesData, categoriesData, addonsData] = await Promise.all([
+          getStaffList(),
+          getServices(1, 100, undefined, undefined, true, (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN'),
+          getCategories((i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN'),
+          getAddOns(1, 100, true, undefined, undefined, (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN')
+        ]);
+        
+        setStaff(staffData);
+        setAllServices(servicesData);
+        setAllCategories(Array.isArray(categoriesData) ? categoriesData.filter((c: Category) => c.isActive) : []);
+        setAllAddons(addonsData);
+        
+        // Load removal addons 
+        const removalAddonsData = addonsData?.filter((addon: any) => addon.removal) || [];
+        setRemovalAddons(removalAddonsData);
+        
+        // Group services by category
+        const grouped: {[key: string]: Service[]} = {};
+        servicesData.forEach((service: Service) => {
+          if (!grouped[service.categoryId]) {
+            grouped[service.categoryId] = [];
+          }
+          grouped[service.categoryId].push(service);
+        });
+        setServicesByCategory(grouped);
+        
+      } catch (error) {
+        console.error('Error loading modal data:', error);
+        toast.error(t('booking.toast.load_error'));
+      }
       
       // Actualizar los valores del formulario después de cargar todos los datos
       editValidation.setValues({
@@ -2307,145 +2340,7 @@ const Calender = () => {
     setIsEditButton(true);
   };
 
-  /**
-   * Calculate total duration for service and addons
-   */
-  const calculateTotalDuration = (service?: Service, addons?: AddOn[], removalAddons?: AddOn[]) => {
-    let totalDuration = 0;
-    
-    const currentService = service || selectedService;
-    const currentAddons = addons || selectedAddons;
-    const currentRemovalAddons = removalAddons || selectedRemovalAddons;
-    
-    if (currentService) {
-      const serviceDuration = currentService.duration || 0;
-      const bufferTime = currentService.bufferTime !== undefined ? currentService.bufferTime : 15;
-      totalDuration += serviceDuration + bufferTime;
-    }
-    
-    currentAddons.forEach(addon => {
-      const addonTime = addon.additionalTime || 0;
-      totalDuration += addonTime;
-    });
-    
-    currentRemovalAddons.forEach(addon => {
-      const addonTime = addon.additionalTime || 0;
-      totalDuration += addonTime;
-    });
-    
-    return totalDuration;
-  };
-
-  /**
-   * Update end time based on start time and total duration
-   */
-  const updateEndTimeFromDuration = (service?: Service, addons?: AddOn[], removalAddons?: AddOn[]) => {
-    const startTime = editValidation.values.startTime;
-    if (!startTime) return;
-
-    const totalDuration = calculateTotalDuration(service, addons, removalAddons);
-    if (totalDuration <= 0) return;
-
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    
-    const endDate = new Date(startDate.getTime() + (totalDuration * 60000));
-    const endTime = endDate.toTimeString().slice(0, 5);
-    
-    editValidation.setFieldValue('endTime', endTime);
-  };
-
-  /**
-   * Handle service selection change
-   */
-  const handleServiceChange = (serviceId: string) => {
-    const service = allServices.find(s => s.id === serviceId);
-    if (service) {
-      setSelectedService(service);
-      setSelectedAddons([]);
-      setSelectedRemovalAddons([]);
-      editValidation.setFieldValue('product', service.name);
-      const newAmount = service.price;
-      editValidation.setFieldValue('amount', newAmount);
-      
-      setTimeout(() => updateEndTimeFromDuration(service, [], []), 100);
-    }
-  };
-
-  /**
-   * Handle addon toggle on/off
-   */
-  const handleAddonToggle = (addon: AddOn) => {
-    const isSelected = selectedAddons.find(a => a.id === addon.id);
-    let newAddons: AddOn[];
-    
-    if (isSelected) {
-      newAddons = selectedAddons.filter(a => a.id !== addon.id);
-    } else {
-      newAddons = [...selectedAddons, addon];
-    }
-    
-    setSelectedAddons(newAddons);
-    
-    if (selectedService) {
-      const newAmount = selectedService.price + 
-        newAddons.reduce((sum, addon) => sum + addon.price, 0) +
-        selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
-      editValidation.setFieldValue('amount', newAmount);
-    }
-    
-    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, newAddons, selectedRemovalAddons), 100);
-  };
-
-  /**
-   * Handle removal addon toggle on/off
-   */
-  const handleRemovalAddonToggle = (addon: AddOn) => {
-    const isSelected = selectedRemovalAddons.find(a => a.id === addon.id);
-    let newRemovals: AddOn[];
-    
-    if (isSelected) {
-      newRemovals = selectedRemovalAddons.filter(a => a.id !== addon.id);
-    } else {
-      newRemovals = [...selectedRemovalAddons, addon];
-    }
-    
-    setSelectedRemovalAddons(newRemovals);
-    
-    if (selectedService) {
-      const newAmount = selectedService.price + 
-        selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
-        newRemovals.reduce((sum, addon) => sum + addon.price, 0);
-      editValidation.setFieldValue('amount', newAmount);
-    }
-    
-    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, selectedAddons, newRemovals), 100);
-  };
-
-  /**
-   * Get compatible addons for a service
-   */
-  const getCompatibleAddons = (serviceId: string) => {
-    if (!serviceId) return [];
-    
-    return allAddons.filter(addon => 
-      addon.isActive && 
-      !addon.removal &&
-      (
-        !addon.services || 
-        addon.services.length === 0 ||
-        addon.services.some(service => service.id === serviceId)
-      )
-    );
-  };
-
-  /**
-   * Get compatible removal addons
-   */
-  const getCompatibleRemovalAddons = () => {
-    return removalAddons.filter(addon => addon.isActive);
-  };
+  // Service and addon management functions already defined above
 
   /**
    * Handle calendar dates change (when user changes view or navigates)
@@ -2925,48 +2820,258 @@ const Calender = () => {
     }
   };
 
-  // Load modal data (services, categories, addons)
-  const loadModalData = async () => {
-    try {
-      const currentLang = i18n.language?.toLowerCase();
-      const isSpanish = currentLang === 'sp' || currentLang === 'es';
+  // Helper function para calcular precio con service fee del 6%
+  const calculatePriceWithServiceFee = (basePrice: number): number => {
+    return Math.round((basePrice * 1.06) * 100) / 100; // 6% service fee, redondeado a 2 decimales
+  };
+
+  // Calculate total duration including service, addons and buffer time
+  const calculateTotalDuration = (service?: Service, addons?: AddOn[], removalAddons?: AddOn[]) => {
+    let totalDuration = 0;
+    
+    // Use passed service or current selectedService
+    const currentService = service || selectedService;
+    // Use passed addons or current selected ones
+    const currentAddons = addons || selectedAddons;
+    const currentRemovalAddons = removalAddons || selectedRemovalAddons;
+    
+    // Add service duration + buffer time
+    if (currentService) {
+      totalDuration += currentService.duration;
+      // Don't add buffer time to visible duration (only for actual booking)
+      console.log('  - Service:', currentService.name, currentService.duration, 'min');
+    }
+    
+    // Add addons duration (both normal and removal addons)
+    currentAddons.forEach(addon => {
+      if (addon.additionalTime) {
+        totalDuration += addon.additionalTime;
+        console.log('  - Addon:', addon.name, addon.additionalTime, 'min');
+      }
+    });
+    
+    currentRemovalAddons.forEach(addon => {
+      if (addon.additionalTime) {
+        totalDuration += addon.additionalTime;
+        console.log('  - Removal:', addon.name, addon.additionalTime, 'min');
+      }
+    });
+    
+    console.log('  - TOTAL DURATION:', totalDuration, 'min');
+    return totalDuration;
+  };
+
+  // Update end time based on start time and total duration
+  const updateEndTimeFromDuration = (service?: Service, addons?: AddOn[], removalAddons?: AddOn[]) => {
+    const startTime = editValidation.values.startTime;
+    if (!startTime) return;
+
+    const totalDuration = calculateTotalDuration(service, addons, removalAddons);
+    if (totalDuration <= 0) return;
+
+    // Parse start time and add duration
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDate = new Date();
+    startDate.setHours(hours, minutes, 0, 0);
+    
+    // Add total duration in minutes
+    const endDate = new Date(startDate.getTime() + (totalDuration * 60000));
+    
+    // Format end time as HH:mm
+    const endTime = endDate.toTimeString().slice(0, 5);
+    
+    // Update the form values
+    editValidation.setFieldValue('endTime', endTime);
+    editValidation.setFieldValue('ordertime', `${startTime} - ${endTime}`);
+  };
+
+  const handleTimeInputChange = (fieldName: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    editValidation.handleChange(e);
+    
+    // If start time is changed and we have service selected, update end time automatically
+    if (fieldName === 'startTime' && selectedService) {
+      setTimeout(() => updateEndTimeFromDuration(), 100);
+    }
+    
+    // Update the combined ordertime field for consistency
+    setTimeout(() => {
+      const currentStartTime = fieldName === 'startTime' ? value : editValidation.values.startTime;
+      const currentEndTime = fieldName === 'endTime' ? value : editValidation.values.endTime;
       
-      const [servicesResponse, categoriesResponse, addonsResponse] = await Promise.all([
-        getServicesList(undefined, isSpanish ? 'es' : 'en'),
-        getCategories(isSpanish ? 'es' : 'en'), 
-        getAddOns(1, 100, true, undefined, undefined, isSpanish ? 'es' : 'en')
-      ]);
+      if (currentStartTime && currentEndTime) {
+        const newOrderTime = `${currentStartTime} - ${currentEndTime}`;
+        if (editValidation.values.ordertime !== newOrderTime) {
+          editValidation.setFieldValue('ordertime', newOrderTime);
+        }
+      }
+    }, 0);
+  };
+
+  // Service and addon management functions
+  const handleServiceChange = (serviceId: string) => {
+    const service = allServices.find(s => s.id === serviceId);
+    if (service) {
+      setSelectedService(service);
       
-      setAllServices(servicesResponse || []);
-      setAllCategories(categoriesResponse || []);
-      setAllAddons(addonsResponse?.filter((addon: any) => !addon.removal) || []);
-      setRemovalAddons(addonsResponse?.filter((addon: any) => addon.removal) || []);
+      // Load removal addons for the selected service
+      loadRemovalAddonsForService(service.id);
       
-      // Group services by category
-      const grouped = (servicesResponse || []).reduce((acc: any, service: any) => {
-        const catId = service.categoryId;
-        if (!acc[catId]) acc[catId] = [];
-        acc[catId].push(service);
-        return acc;
-      }, {});
-      setServicesByCategory(grouped);
+      // Update amount based on service and addons
+      let totalPrice = service.price; 
+      selectedAddons.forEach(addon => totalPrice += addon.price);
+      selectedRemovalAddons.forEach(addon => totalPrice += addon.price);
       
-    } catch (error) {
-      console.error('Error loading modal data:', error);
+      // Apply service fee
+      const finalPrice = calculatePriceWithServiceFee(totalPrice);
+      editValidation.setFieldValue('amount', finalPrice);
+      
+      // Update end time based on new service
+      setTimeout(() => updateEndTimeFromDuration(service), 100);
+      setShowServiceEditor(true);
     }
   };
-  
+
+  const handleAddonToggle = (addon: AddOn) => {
+    const isSelected = selectedAddons.find(a => a.id === addon.id);
+    let newAddons: AddOn[];
+    
+    if (isSelected) {
+      newAddons = selectedAddons.filter(a => a.id !== addon.id);
+    } else {
+      newAddons = [...selectedAddons, addon];
+    }
+    
+    setSelectedAddons(newAddons);
+    
+    // Update amount based on service, addons, and removals
+    if (selectedService) {
+      const basePrice = selectedService.price + 
+        newAddons.reduce((sum, a) => sum + a.price, 0) +
+        selectedRemovalAddons.reduce((sum, a) => sum + a.price, 0);
+      const finalPrice = calculatePriceWithServiceFee(basePrice);
+      editValidation.setFieldValue('amount', finalPrice);
+    }
+    
+    // Update end time based on new addon selection - pass the updated addon list
+    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, newAddons, selectedRemovalAddons), 100);
+  };
+
+  const getCompatibleAddons = (serviceId: string) => {
+    if (!serviceId) return [];
+    
+    const compatibleAddons = allAddons.filter(addon => 
+      addon.isActive && 
+      !addon.removal &&
+      (
+        !addon.services || 
+        addon.services.length === 0 ||
+        addon.services.some(service => service.id === serviceId)
+      )
+    );
+    
+    return compatibleAddons;
+  };
+
+  const getCompatibleRemovalAddons = () => {
+    return removalAddons.filter(addon => addon.isActive);
+  };
+
+  const loadRemovalAddonsForService = async (serviceId: string) => {
+    if (!serviceId) {
+      setRemovalAddons([]);
+      return;
+    }
+
+    try {
+      const languageCode = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
+      const response = await getRemovalAddonsByServices([serviceId], languageCode);
+      setRemovalAddons(response || []);
+    } catch (error) {
+      console.error('Error loading removal addons for service:', error);
+      setRemovalAddons([]);
+    }
+  };
+
+  const handleRemovalAddonToggle = (addon: AddOn) => {
+    const isSelected = selectedRemovalAddons.find(a => a.id === addon.id);
+    let newRemovals: AddOn[];
+    
+    if (isSelected) {
+      newRemovals = selectedRemovalAddons.filter(a => a.id !== addon.id);
+    } else {
+      newRemovals = [...selectedRemovalAddons, addon];
+    }
+    
+    setSelectedRemovalAddons(newRemovals);
+    
+    // Update amount based on service, addons, and removals
+    if (selectedService) {
+      const basePrice = selectedService.price + 
+        selectedAddons.reduce((sum, a) => sum + a.price, 0) +
+        newRemovals.reduce((sum, a) => sum + a.price, 0);
+      const finalPrice = calculatePriceWithServiceFee(basePrice);
+      editValidation.setFieldValue('amount', finalPrice);
+    }
+    
+    // Update end time based on new removal addon selection - pass the updated removal addon list
+    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, selectedAddons, newRemovals), 100);
+  };
+
   // Toggle edit modal
-  const toggleEditModal = () => {
+  const toggleEditModal = async () => {
     if (editModal) {
       setEditModal(false);
       setSelectedBooking(null);
+      setIsEditBooking(false);
+      // Reset service editing states
       setSelectedService(null);
       setSelectedAddons([]);
       setSelectedRemovalAddons([]);
       setShowServiceEditor(false);
     } else {
       setEditModal(true);
+      // Load all necessary data when opening modal
+      try {
+        const [staffData, servicesData, categoriesData, addonsData] = await Promise.all([
+          getStaffList(),
+          getServices(1, 100, undefined, undefined, true, (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN'),
+          getCategories((i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN'),
+          getAddOns(1, 100, true, undefined, undefined, (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN')
+        ]);
+        
+        setStaff(staffData);
+        setAllServices(servicesData);
+        setAllCategories(Array.isArray(categoriesData) ? categoriesData.filter((c: Category) => c.isActive) : []);
+        setAllAddons(addonsData);
+        
+        // Load removal addons 
+        const removalAddonsData = addonsData?.filter((addon: any) => addon.removal) || [];
+        console.log('🔄 Loading removal addons from API in edit modal:', removalAddonsData);
+        // Only set initial removal addons if no service is selected yet
+        if (!selectedService) {
+          setRemovalAddons(removalAddonsData);
+        }
+        
+        // Group services by category
+        const grouped: {[key: string]: Service[]} = {};
+        servicesData.forEach((service: Service) => {
+          if (!grouped[service.categoryId]) {
+            grouped[service.categoryId] = [];
+          }
+          grouped[service.categoryId].push(service);
+        });
+        setServicesByCategory(grouped);
+        
+      } catch (error) {
+        console.error('Error loading modal data:', error);
+        toast.error(t('booking.toast.load_error'));
+        setStaff([]);
+        setAllServices([]);
+        setAllCategories([]);
+        setAllAddons([]);
+        setRemovalAddons([]);
+      }
     }
   };
 
@@ -3009,60 +3114,109 @@ const Calender = () => {
         then: (schema) => schema.required(t("reservations.validation.cancellation_reason_required")),
         otherwise: (schema) => schema
       })
+    }).test('completed-validations', '', function(values) {
+      const { status } = values;
+      
+      if (status === 'completed') {
+        // Access form values correctly through this.from
+        const formData = this.from?.[0]?.value;
+        const amount = formData?.amount;
+        const orderDate = formData?.orderDate;
+        
+        // Validate amount is not zero (amount is in dollars, so should be > 0)
+        if (!amount || amount === 0) {
+          return this.createError({
+            path: 'amount',
+            message: t("reservations.validation.completed_cannot_have_zero_amount")
+          });
+        }
+        
+        // Validate date is not in the future
+        if (orderDate) {
+          const selectedDate = moment(orderDate);
+          const today = moment();
+          if (selectedDate.isAfter(today, 'day')) {
+            return this.createError({
+              path: 'orderDate',
+              message: t("reservations.validation.completed_cannot_have_future_date")
+            });
+          }
+        }
+      }
+      
+      return true;
     }),
     onSubmit: async (values) => {
       if (isEditBooking && selectedBooking) {
+        // Handle different status updates with appropriate fields
+        let updatePayload: any = {
+          status: values.status,
+          notes: values.notes || '',
+          staffId: values.staffId,
+          appointmentDate: values.orderDate,
+          startTime: values.startTime || '',
+          endTime: values.endTime || '',
+        };
+        
+        // Include service and addons changes if service editor was used
+        if (selectedService) {
+          updatePayload.serviceId = selectedService.id;
+          
+          // Combine normal addons and removal addons into a single array
+          // Following the same pattern as EcommerceOrders
+          const allAddOnIds = [
+            ...selectedAddons,
+            ...selectedRemovalAddons.filter(addon => addon.id) // Include selected removal addons
+          ];
+          updatePayload.addOnIds = allAddOnIds.map(addon => addon.id);
+          
+          // Update total price based on selected service, addons, and removals
+          const basePrice = selectedService.price + 
+            selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
+            selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
+          const newTotalPrice = calculatePriceWithServiceFee(basePrice);
+          updatePayload.totalPrice = newTotalPrice.toFixed(2);
+        }
+        
+        // Include notes if provided
+        if (values.notes) {
+          updatePayload.notes = values.notes;
+        }
+        
+        // Only include paymentMethod for completed bookings
+        if (values.status === 'completed' && values.payment) {
+          updatePayload.paymentMethod = values.payment.toUpperCase();
+        }
+        
+        // For cancelled bookings, include cancellation reason
+        if (values.status === 'cancelled' && values.cancellationReason) {
+          updatePayload.cancellationReason = values.cancellationReason;
+        }
+        
+        // Remove serviceId if it's empty or invalid to avoid validation errors
+        if (updatePayload.serviceId === '' || updatePayload.serviceId === null || updatePayload.serviceId === undefined) {
+          delete updatePayload.serviceId;
+        }
+        
         try {
-          const updatePayload: any = {
-            status: values.status,
-            staffId: values.staffId,
-            appointmentDate: values.orderDate,
-            startTime: values.startTime || '',
-            endTime: values.endTime || '',
-          };
-          
-          // Include service and addons changes if service editor was used
-          if (selectedService) {
-            updatePayload.serviceId = selectedService.id;
-          }
-          
-          if (selectedAddons.length > 0) {
-            updatePayload.addons = selectedAddons.map(addon => ({ id: addon.id }));
-          }
-          
-          if (selectedRemovalAddons.length > 0) {
-            updatePayload.removalAddons = selectedRemovalAddons.map(addon => ({ id: addon.id }));
-          }
-          
-          // Include notes if provided
-          if (values.notes) {
-            updatePayload.notes = values.notes;
-          }
-          
-          // Only include paymentMethod for completed bookings
-          if (values.status === 'completed' && values.payment) {
-            updatePayload.paymentMethod = values.payment.toUpperCase();
-          }
-          
-          // For cancelled bookings, include cancellation reason
-          if (values.status === 'cancelled' && values.cancellationReason) {
-            updatePayload.cancellationReason = values.cancellationReason;
-          }
-          
-          // Update booking via API
           await updateBooking(selectedBooking.id, updatePayload);
+          toast.success(t('reservations.messages.booking_updated_success'));
           
           // Refresh calendar events
           applyFilters();
-          dispatch(onGetUpCommingEvent());
-          
-          toast.success(t('reservations.success.updated'));
-          toggleEditModal();
-          
+          setEditModal(false);
+          setSelectedBooking(null);
+          setIsEditBooking(false);
+          // Reset service editing states
+          setSelectedService(null);
+          setSelectedAddons([]);
+          setSelectedRemovalAddons([]);
+          setShowServiceEditor(false);
         } catch (err) {
           console.error('Error updating booking:', err);
-          toast.error(t('reservations.error.update_failed'));
+          toast.error(t('reservations.messages.booking_update_error'));
         }
+        editValidation.resetForm();
       }
     },
   });
@@ -3070,6 +3224,28 @@ const Calender = () => {
   // Force formik to reinitialize with new values when selectedBooking changes (like in EcommerceOrders)
   useEffect(() => {
     if (selectedBooking) {
+      // Set selected service from booking
+      if (selectedBooking.serviceId && allServices.length > 0) {
+        const service = allServices.find(s => s.id === selectedBooking.serviceId);
+        if (service) {
+          setSelectedService(service);
+          // Load removal addons for the selected service
+          loadRemovalAddonsForService(service.id);
+        }
+      }
+      
+      // Set selected addons from booking
+      if (selectedBooking.addons && selectedBooking.addons.length > 0) {
+        // Separate normal addons from removal addons
+        const normalAddons = selectedBooking.addons.filter((addon: any) => !addon.removal);
+        const removalAddons = selectedBooking.addons.filter((addon: any) => addon.removal === true);
+        setSelectedAddons(normalAddons);
+        setSelectedRemovalAddons(removalAddons);
+      } else {
+        setSelectedAddons([]);
+        setSelectedRemovalAddons([]);
+      }
+      
       editValidation.setValues({
         orderId: selectedBooking?.orderId || '',
         customer: selectedBooking?.customer || '',
@@ -3091,7 +3267,7 @@ const Calender = () => {
         cancellationReason: selectedBooking?.cancellationReason || '',
       });
     }
-  }, [selectedBooking]);
+  }, [selectedBooking, allServices]);
 
   document.title = t('calendar.title') + " | Nails & Co Midtown - Admin Panel";
 
