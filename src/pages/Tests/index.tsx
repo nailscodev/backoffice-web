@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import {
   Container, Row, Col, Card, CardBody, CardHeader, Button, Badge, Spinner,
 } from "reactstrap";
-import ReactApexChart from "react-apexcharts";
+import ApexCharts from "apexcharts";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
 import { toast, ToastContainer } from "react-toastify";
 import {
@@ -253,6 +253,76 @@ const DarkNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
+// ─── StableChart ───────────────────────────────────────────────────────────
+// react-apexcharts 1.7 always calls updateSeries() on every render because
+// deepEqual(chart.w.config.series, props.series) always returns false —
+// ApexCharts augments internal series with color/index/type fields that our
+// plain {name, data} prop objects don't have. This causes updateSeries()
+// (with animate=true) to fire on every 2-second poll, restarting the 350ms
+// draw-animation from 0 each time, so lines never finish rendering.
+// This component uses the ApexCharts imperative API directly and only calls
+// updateSeries when the data-point count actually changes.
+interface StableChartProps {
+  options: ApexCharts.ApexOptions;
+  series: { name: string; data: { x: number; y: number }[] }[];
+  height: number;
+}
+const StableChart: React.FC<StableChartProps> = ({ options, series, height }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef     = useRef<ApexCharts | null>(null);
+  const prevDataKey  = useRef<string>('');
+  const prevOptsKey  = useRef<string>('');
+  const didMountOpts = useRef(false);
+
+  // Create the chart once on mount
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const chart = new ApexCharts(containerRef.current, {
+      ...options,
+      chart: {
+        type: 'line' as const,
+        height,
+        ...options.chart,
+        // Disable entry animation so an incoming data update can never
+        // interrupt a draw in progress and leave lines blank.
+        animations: { enabled: false },
+      },
+      noData: { text: 'Esperando datos…', style: { color: D_SUB, fontSize: '12px' } },
+      series,
+    });
+    chart.render();
+    chartRef.current   = chart;
+    prevDataKey.current = series.map((s) => s.data.length).join(',');
+    prevOptsKey.current = JSON.stringify({ colors: options.colors });
+    return () => { chart.destroy(); chartRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update series data on every render; bail out if data-point counts unchanged
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const key = series.map((s) => s.data.length).join(',');
+    if (key === prevDataKey.current) return;
+    (chartRef.current as any).updateSeries(series, false); // animate=false
+    prevDataKey.current = key;
+  });
+
+  // Update only the color-sensitive parts when a threshold-crossing flips
+  useEffect(() => {
+    if (!didMountOpts.current) { didMountOpts.current = true; return; }
+    if (!chartRef.current) return;
+    const key = JSON.stringify({ colors: options.colors });
+    if (key === prevOptsKey.current) return;
+    chartRef.current.updateOptions(
+      { colors: options.colors, annotations: options.annotations, legend: options.legend },
+      false, // redrawPaths
+      false, // animate
+    );
+    prevOptsKey.current = key;
+  }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <div ref={containerRef} />;
+};
+
 // ─── Main component ────────────────────────────────────────────────────────
 const PerformanceTests: React.FC = () => {
   const [selectedTest, setSelectedTest]     = useState<TestResult | null>(null);
@@ -384,10 +454,9 @@ const PerformanceTests: React.FC = () => {
   const isRunning = selectedTest?.status === "running";
   const isDone    = selectedTest?.status === "completed";
 
-  // Series are NOT memoized — they change on every poll and must flow freely
-  // so react-apexcharts calls the lightweight updateSeries() path only.
-  // Memoizing series alongside options caused both to update simultaneously,
-  // which triggered updateOptions() (full animated redraw) and blanked the canvas.
+  // Series are NOT memoized — they flow freely each render.
+  // StableChart does its own O(1) data-length check to decide whether to
+  // call updateSeries, so there is no risk of redundant redraws here.
   const rtSeries = [
     { name: "p95 Latencia", data: ts.map((p) => ({ x: p.time, y: p.p95 })) },
     { name: "p50 Mediana",  data: ts.map((p) => ({ x: p.time, y: p.p50 })) },
@@ -397,9 +466,9 @@ const PerformanceTests: React.FC = () => {
     { name: "Virtual Users", data: ts.map((p) => ({ x: p.time, y: p.vus })) },
   ];
 
-  // Options are memoized and depend ONLY on threshold-crossing booleans, not on
-  // ts.length — so updateOptions() fires at most once per test (when a threshold
-  // is breached), never on routine data-point additions.
+  // Options are memoized on threshold-crossing booleans only — updateOptions
+  // fires at most once per test (when a threshold is breached), never on
+  // routine data-point additions.
   const p95Exceeded = !!(last && last.p95 > p95T);
   const errExceeded = !!(last && last.errorRate > errT);
   const rtOpts    = useMemo(
@@ -413,27 +482,26 @@ const PerformanceTests: React.FC = () => {
     [selectedTest?.id, errT, errExceeded],
   );
 
-  // Once a test produces its first data point the chart container must stay
-  // mounted for the entire test run — even if a poll temporarily returns an
-  // empty timeSeries. We use a plain ref (not state) to avoid extra renders.
-  const hasChartDataRef = useRef(false);
-  const prevTestIdRef   = useRef<string | undefined>(undefined);
+  // Persist the most-recent data point across renders so KPI tiles stay
+  // visible even when a poll transiently returns timeSeries:[] (e.g. after
+  // the backend saves the completed result to DB and rowToResult returns []).
+  const stableLastRef = useRef<TimeSeriesPoint | undefined>(undefined);
+  const prevTestIdRef = useRef<string | undefined>(undefined);
   if (selectedTest?.id !== prevTestIdRef.current) {
-    // Different test selected — reset the flag
-    hasChartDataRef.current = ts.length > 0;
-    prevTestIdRef.current   = selectedTest?.id;
-  } else if (ts.length > 0) {
-    hasChartDataRef.current = true;
+    prevTestIdRef.current = selectedTest?.id;
+    stableLastRef.current = last;
+  } else if (last) {
+    stableLastRef.current = last;
   }
-  const showCharts = hasChartDataRef.current;
+  const stableLast = stableLastRef.current;
 
-  const kpiTiles = last ? [
-    { label: "VUs Activos",   value: `${last.vus}`,          good: true,                       icon: "ri-user-line",        desc: "Usuarios concurrentes simulados ahora mismo" },
-    { label: "Req/seg",       value: `${last.rps}`,          good: true,                       icon: "ri-speed-up-line",    desc: "Throughput instantáneo del backend" },
-    { label: "p50 Latencia",  value: `${last.p50}ms`,        good: last.p50 < p95T * 0.6,     icon: "ri-timer-line",       desc: "La mitad de los requests son más rápidos que este valor" },
-    { label: "p95 Latencia",  value: `${last.p95}ms`,        good: last.p95 <= p95T,          icon: "ri-timer-2-line",     desc: `SLA crítico: debe ser < ${p95T}ms` },
-    { label: "Error Rate",    value: `${last.errorRate}%`,   good: last.errorRate <= errT,    icon: "ri-alert-line",       desc: `Debe ser < ${errT}%. Si sube, el backend está saturado` },
-    { label: "Total Requests",value: `${last.totalRequests}`,good: true,                       icon: "ri-bar-chart-2-line", desc: "Total de requests enviados hasta ahora" },
+  const kpiTiles = stableLast ? [
+    { label: "VUs Activos",   value: `${stableLast.vus}`,          good: true,                               icon: "ri-user-line",        desc: "Usuarios concurrentes simulados ahora mismo" },
+    { label: "Req/seg",       value: `${stableLast.rps}`,          good: true,                               icon: "ri-speed-up-line",    desc: "Throughput instantáneo del backend" },
+    { label: "p50 Latencia",  value: `${stableLast.p50}ms`,        good: stableLast.p50 < p95T * 0.6,       icon: "ri-timer-line",       desc: "La mitad de los requests son más rápidos que este valor" },
+    { label: "p95 Latencia",  value: `${stableLast.p95}ms`,        good: stableLast.p95 <= p95T,            icon: "ri-timer-2-line",     desc: `SLA crítico: debe ser < ${p95T}ms` },
+    { label: "Error Rate",    value: `${stableLast.errorRate}%`,   good: stableLast.errorRate <= errT,      icon: "ri-alert-line",       desc: `Debe ser < ${errT}%. Si sube, el backend está saturado` },
+    { label: "Total Requests",value: `${stableLast.totalRequests}`,good: true,                               icon: "ri-bar-chart-2-line", desc: "Total de requests enviados hasta ahora" },
   ] : [];
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -632,25 +700,24 @@ const PerformanceTests: React.FC = () => {
                 </Row>
               )}
 
-              {/* Charts */}
-              {showCharts && (
-                <Row className="g-3 mb-2">
+              {/* Charts — StableChart handles its own "Esperando datos…" placeholder,
+                  so there is no need to gate rendering on having data first */}
+              <Row className="g-3 mb-2">
                   {/* Response time chart */}
                   <Col xl={7}>
                     <div style={{
                       background: D_SURFACE, border: `1px solid ${D_BORDER}`,
                       borderRadius: 10, padding: "16px 16px 12px",
                     }}>
-                      <ReactApexChart
+                      <StableChart
                         key={`rt-${selectedTest?.id}`}
                         options={rtOpts}
                         series={rtSeries}
-                        type="line"
                         height={260}
                       />
                       <DarkNote>
                         <strong style={{ color: D_TEXT }}>Cómo leer este gráfico: </strong>
-                        <span style={{ color: last && last.p95 <= p95T ? GREEN : RED }}>p95</span>{" "}
+                        <span style={{ color: stableLast && stableLast.p95 <= p95T ? GREEN : RED }}>p95</span>{" "}
                         = el 95% de los requests fueron más rápidos que este valor — es el{" "}
                         <strong style={{ color: D_TEXT }}>SLA crítico</strong>. Si cruza la línea
                         roja punteada, el test falló.{" "}
@@ -667,17 +734,16 @@ const PerformanceTests: React.FC = () => {
                       background: D_SURFACE, border: `1px solid ${D_BORDER}`,
                       borderRadius: 10, padding: "16px 16px 12px",
                     }}>
-                      <ReactApexChart
+                      <StableChart
                         key={`errvú-${selectedTest?.id}`}
                         options={errVuOpts}
                         series={errVuSeries}
-                        type="line"
                         height={260}
                       />
                       <DarkNote>
                         <strong style={{ color: D_TEXT }}>Cómo leer este gráfico: </strong>
                         La{" "}
-                        <span style={{ color: last && last.errorRate <= errT ? GREEN : RED }}>
+                        <span style={{ color: stableLast && stableLast.errorRate <= errT ? GREEN : RED }}>
                           tasa de error
                         </span>{" "}
                         debe mantenerse cerca de 0%. Comparala con los{" "}
@@ -688,7 +754,6 @@ const PerformanceTests: React.FC = () => {
                     </div>
                   </Col>
                 </Row>
-              )}
 
               {/* ── Summary (only on completion) ─────────────────────────── */}
               {isDone && selectedTest.summary && (
