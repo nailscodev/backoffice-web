@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Container, Row, Col, Card, CardBody, CardHeader, Button, Badge, Spinner,
 } from "reactstrap";
@@ -388,17 +388,40 @@ const PerformanceTests: React.FC = () => {
   const isRunning = selectedTest?.status === "running";
   const isDone    = selectedTest?.status === "completed";
 
-  const rtSeries = [
+  const rtSeries = useMemo(() => [
     { name: "p95 Latencia", data: ts.map((p) => ({ x: p.time, y: p.p95 })) },
     { name: "p50 Mediana",  data: ts.map((p) => ({ x: p.time, y: p.p50 })) },
-  ];
-  const errVuSeries = [
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [selectedTest?.id, ts.length]);
+
+  const errVuSeries = useMemo(() => [
     { name: "Error Rate %",  data: ts.map((p) => ({ x: p.time, y: p.errorRate })) },
     { name: "Virtual Users", data: ts.map((p) => ({ x: p.time, y: p.vus })) },
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [selectedTest?.id, ts.length]);
 
-  const rtOpts    = buildRtOptions(ts, p95T);
-  const errVuOpts = buildErrVuOptions(ts, errT);
+  // Memoize options so ApexCharts does not destroy+recreate the chart on every
+  // 2-second poll — only recalculate when the test changes or new data arrives.
+  const rtOpts    = useMemo(() => buildRtOptions(ts, p95T),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedTest?.id, ts.length, p95T]);
+  const errVuOpts = useMemo(() => buildErrVuOptions(ts, errT),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedTest?.id, ts.length, errT]);
+
+  // Once a test produces its first data point the chart container must stay
+  // mounted for the entire test run — even if a poll temporarily returns an
+  // empty timeSeries. We use a plain ref (not state) to avoid extra renders.
+  const hasChartDataRef = useRef(false);
+  const prevTestIdRef   = useRef<string | undefined>(undefined);
+  if (selectedTest?.id !== prevTestIdRef.current) {
+    // Different test selected — reset the flag
+    hasChartDataRef.current = ts.length > 0;
+    prevTestIdRef.current   = selectedTest?.id;
+  } else if (ts.length > 0) {
+    hasChartDataRef.current = true;
+  }
+  const showCharts = hasChartDataRef.current;
 
   const kpiTiles = last ? [
     { label: "VUs Activos",   value: `${last.vus}`,          good: true,                       icon: "ri-user-line",        desc: "Usuarios concurrentes simulados ahora mismo" },
@@ -606,7 +629,7 @@ const PerformanceTests: React.FC = () => {
               )}
 
               {/* Charts */}
-              {ts.length > 0 && (
+              {showCharts && (
                 <Row className="g-3 mb-2">
                   {/* Response time chart */}
                   <Col xl={7}>
@@ -615,6 +638,7 @@ const PerformanceTests: React.FC = () => {
                       borderRadius: 10, padding: "16px 16px 12px",
                     }}>
                       <ReactApexChart
+                        key={`rt-${selectedTest?.id}`}
                         options={rtOpts}
                         series={rtSeries}
                         type="line"
@@ -640,6 +664,7 @@ const PerformanceTests: React.FC = () => {
                       borderRadius: 10, padding: "16px 16px 12px",
                     }}>
                       <ReactApexChart
+                        key={`errvú-${selectedTest?.id}`}
                         options={errVuOpts}
                         series={errVuSeries}
                         type="line"
