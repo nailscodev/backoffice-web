@@ -297,9 +297,14 @@ const StableChart: React.FC<StableChartProps> = ({ options, series, height }) =>
     return () => { chart.destroy(); chartRef.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update series data on every render; bail out if data-point counts unchanged
+  // Update series data on every render; bail out if:
+  // - every series is empty (hard guard: never wipe a drawn chart — this happens
+  //   when the backend stops returning timeSeries after saving result to DB, or on
+  //   a brief React re-render before stable-series refs are repopulated), or
+  // - data-point counts are unchanged since last update (O(1) check)
   useEffect(() => {
     if (!chartRef.current) return;
+    if (series.every((s) => s.data.length === 0)) return;
     const key = series.map((s) => s.data.length).join(',');
     if (key === prevDataKey.current) return;
     (chartRef.current as any).updateSeries(series, false); // animate=false
