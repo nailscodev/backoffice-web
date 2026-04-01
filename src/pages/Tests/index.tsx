@@ -485,15 +485,24 @@ const PerformanceTests: React.FC = () => {
   // Persist the most-recent data point across renders so KPI tiles stay
   // visible even when a poll transiently returns timeSeries:[] (e.g. after
   // the backend saves the completed result to DB and rowToResult returns []).
-  const stableLastRef = useRef<TimeSeriesPoint | undefined>(undefined);
-  const prevTestIdRef = useRef<string | undefined>(undefined);
+  const stableLastRef        = useRef<TimeSeriesPoint | undefined>(undefined);
+  const stableRtSeriesRef    = useRef<typeof rtSeries | undefined>(undefined);
+  const stableErrVuSeriesRef = useRef<typeof errVuSeries | undefined>(undefined);
+  const prevTestIdRef        = useRef<string | undefined>(undefined);
   if (selectedTest?.id !== prevTestIdRef.current) {
-    prevTestIdRef.current = selectedTest?.id;
-    stableLastRef.current = last;
-  } else if (last) {
-    stableLastRef.current = last;
+    prevTestIdRef.current        = selectedTest?.id;
+    stableLastRef.current        = last;
+    stableRtSeriesRef.current    = ts.length > 0 ? rtSeries : undefined;
+    stableErrVuSeriesRef.current = ts.length > 0 ? errVuSeries : undefined;
+  } else if (ts.length > 0) {
+    stableLastRef.current        = last;
+    stableRtSeriesRef.current    = rtSeries;
+    stableErrVuSeriesRef.current = errVuSeries;
   }
-  const stableLast = stableLastRef.current;
+  const stableLast        = stableLastRef.current;
+  const showCharts        = !!stableRtSeriesRef.current;
+  const stableRtSeries    = stableRtSeriesRef.current    ?? rtSeries;
+  const stableErrVuSeries = stableErrVuSeriesRef.current ?? errVuSeries;
 
   const kpiTiles = stableLast ? [
     { label: "VUs Activos",   value: `${stableLast.vus}`,          good: true,                               icon: "ri-user-line",        desc: "Usuarios concurrentes simulados ahora mismo" },
@@ -700,8 +709,10 @@ const PerformanceTests: React.FC = () => {
                 </Row>
               )}
 
-              {/* Charts — StableChart handles its own "Esperando datos…" placeholder,
-                  so there is no need to gate rendering on having data first */}
+              {/* Charts — shown once first data arrives; stable-series refs keep the
+                  frozen final state after test completes (backend stops returning
+                  timeSeries once result is saved to DB) */}
+              {showCharts && (
               <Row className="g-3 mb-2">
                   {/* Response time chart */}
                   <Col xl={7}>
@@ -712,7 +723,7 @@ const PerformanceTests: React.FC = () => {
                       <StableChart
                         key={`rt-${selectedTest?.id}`}
                         options={rtOpts}
-                        series={rtSeries}
+                        series={stableRtSeries}
                         height={260}
                       />
                       <DarkNote>
@@ -737,7 +748,7 @@ const PerformanceTests: React.FC = () => {
                       <StableChart
                         key={`errvú-${selectedTest?.id}`}
                         options={errVuOpts}
-                        series={errVuSeries}
+                        series={stableErrVuSeries}
                         height={260}
                       />
                       <DarkNote>
@@ -754,6 +765,7 @@ const PerformanceTests: React.FC = () => {
                     </div>
                   </Col>
                 </Row>
+              )}
 
               {/* ── Summary (only on completion) ─────────────────────────── */}
               {isDone && selectedTest.summary && (
