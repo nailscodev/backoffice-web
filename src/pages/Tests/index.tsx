@@ -91,12 +91,10 @@ const STATUS_CFG: Record<string, { color: string; label: string }> = {
 
 // ─── Chart option builders ─────────────────────────────────────────────────
 function buildRtOptions(
-  ts: TimeSeriesPoint[],
   p95Threshold: number,
+  p95Exceeded: boolean,
 ): ApexCharts.ApexOptions {
-  const last    = ts[ts.length - 1];
-  const p95Good = !last || last.p95 <= p95Threshold;
-  const p95Line = p95Good ? GREEN : RED;
+  const p95Line = p95Exceeded ? RED : GREEN;
 
   return {
     chart: {
@@ -152,12 +150,10 @@ function buildRtOptions(
 }
 
 function buildErrVuOptions(
-  ts: TimeSeriesPoint[],
   errThreshold: number,
+  errExceeded: boolean,
 ): ApexCharts.ApexOptions {
-  const last    = ts[ts.length - 1];
-  const errGood = !last || last.errorRate <= errThreshold;
-  const errLine = errGood ? GREEN : RED;
+  const errLine = errExceeded ? RED : GREEN;
 
   return {
     chart: {
@@ -388,26 +384,34 @@ const PerformanceTests: React.FC = () => {
   const isRunning = selectedTest?.status === "running";
   const isDone    = selectedTest?.status === "completed";
 
-  const rtSeries = useMemo(() => [
+  // Series are NOT memoized — they change on every poll and must flow freely
+  // so react-apexcharts calls the lightweight updateSeries() path only.
+  // Memoizing series alongside options caused both to update simultaneously,
+  // which triggered updateOptions() (full animated redraw) and blanked the canvas.
+  const rtSeries = [
     { name: "p95 Latencia", data: ts.map((p) => ({ x: p.time, y: p.p95 })) },
     { name: "p50 Mediana",  data: ts.map((p) => ({ x: p.time, y: p.p50 })) },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [selectedTest?.id, ts.length]);
-
-  const errVuSeries = useMemo(() => [
+  ];
+  const errVuSeries = [
     { name: "Error Rate %",  data: ts.map((p) => ({ x: p.time, y: p.errorRate })) },
     { name: "Virtual Users", data: ts.map((p) => ({ x: p.time, y: p.vus })) },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [selectedTest?.id, ts.length]);
+  ];
 
-  // Memoize options so ApexCharts does not destroy+recreate the chart on every
-  // 2-second poll — only recalculate when the test changes or new data arrives.
-  const rtOpts    = useMemo(() => buildRtOptions(ts, p95T),
+  // Options are memoized and depend ONLY on threshold-crossing booleans, not on
+  // ts.length — so updateOptions() fires at most once per test (when a threshold
+  // is breached), never on routine data-point additions.
+  const p95Exceeded = !!(last && last.p95 > p95T);
+  const errExceeded = !!(last && last.errorRate > errT);
+  const rtOpts    = useMemo(
+    () => buildRtOptions(p95T, p95Exceeded),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedTest?.id, ts.length, p95T]);
-  const errVuOpts = useMemo(() => buildErrVuOptions(ts, errT),
+    [selectedTest?.id, p95T, p95Exceeded],
+  );
+  const errVuOpts = useMemo(
+    () => buildErrVuOptions(errT, errExceeded),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedTest?.id, ts.length, errT]);
+    [selectedTest?.id, errT, errExceeded],
+  );
 
   // Once a test produces its first data point the chart container must stay
   // mounted for the entire test run — even if a poll temporarily returns an
