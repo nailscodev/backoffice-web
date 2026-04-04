@@ -33,10 +33,6 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: 
     // Obtener bookings del rango de fechas visible con filtros aplicados
     const response = await getBookingsList(apiFilters);
     
-    console.log('🔥 [CALENDAR THUNK] Raw response from API:', response);
-    console.log('🔥 [CALENDAR THUNK] Bookings data:', response.data);
-    console.log('🔥 [CALENDAR THUNK] Available categories:', categories);
-    
     // Transformar los bookings al formato de FullCalendar
     const events = response.data.map((booking: any) => {
       // Combinar fecha y hora de inicio - SIN timezone para interpretar como fecha local
@@ -108,9 +104,6 @@ export const getEvents = createAsyncThunk("calendar/getEvents", async (filters: 
         }
       };
     });
-    
-    console.log('🎯 [CALENDAR THUNK] Transformed events for FullCalendar:', events);
-    console.log('🎯 [CALENDAR THUNK] Events count:', events.length);
     
     return events;
   } catch (error) {
@@ -260,6 +253,6 @@ export const resetCalendar = createAsyncThunk("calendar/resetCalendar", async ()
     const response = '';
     return response;
   } catch (error) {
-    return error;
+    throw error;
   }
 })
