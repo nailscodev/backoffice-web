@@ -2050,10 +2050,10 @@ const Calender = () => {
         console.log('📋 Loaded addons:', addons);
       }
       
-      // Extract numeric amount - use totalPrice directly as it's already in correct format
+      // Extract numeric amount - apply 6% service fee (backend stores base price only)
       let numericAmount = 0;
       if (bookingDetails.totalPrice) {
-        numericAmount = Number(bookingDetails.totalPrice);
+        numericAmount = Math.round(Number(bookingDetails.totalPrice) * 1.06 * 100) / 100;
       } else if (bookingDetails.amount) {
         if (typeof bookingDetails.amount === 'string') {
           numericAmount = parseFloat(bookingDetails.amount.replace(/[$,]/g, ''));
