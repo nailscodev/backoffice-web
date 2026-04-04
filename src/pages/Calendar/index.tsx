@@ -2050,10 +2050,10 @@ const Calender = () => {
         console.log('📋 Loaded addons:', addons);
       }
       
-      // Extract numeric amount - apply 6% service fee (backend stores base price only)
+      // Extract numeric amount - base price from backend (fee shown separately in UI)
       let numericAmount = 0;
       if (bookingDetails.totalPrice) {
-        numericAmount = Math.round(Number(bookingDetails.totalPrice) * 1.06 * 100) / 100;
+        numericAmount = Number(bookingDetails.totalPrice);
       } else if (bookingDetails.amount) {
         if (typeof bookingDetails.amount === 'string') {
           numericAmount = parseFloat(bookingDetails.amount.replace(/[$,]/g, ''));
@@ -4120,7 +4120,18 @@ const Calender = () => {
                       {t("reservations.form.amount")}
                     </Label>
                     <div className="text-muted">
-                      ${(editValidation.values.amount || 0).toFixed(2)}
+                      <div className="d-flex justify-content-between">
+                        <span>{t("reservations.form.subtotal")}</span>
+                        <span>${(editValidation.values.amount || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span>{t("reservations.form.service_fee")}</span>
+                        <span>${(Math.round((editValidation.values.amount || 0) * 0.06 * 100) / 100).toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between fw-semibold border-top pt-1 mt-1">
+                        <span>{t("reservations.form.total")}</span>
+                        <span>${(Math.round((editValidation.values.amount || 0) * 1.06 * 100) / 100).toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="col-md-6">

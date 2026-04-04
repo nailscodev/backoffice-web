@@ -52,7 +52,7 @@ export const getOrders = createAsyncThunk("ecommerce/getOrders", async (filters?
       orderDate: booking.appointmentDate,
       startTime: booking.startTime,
       endTime: booking.endTime,
-      amount: `$${(Math.round(booking.totalPrice * 1.06 * 100) / 100).toFixed(2)}`,
+      amount: `$${booking.totalPrice.toFixed(2)}`,
       payment: booking.paymentMethod === 'CASH' ? 'Cash' : booking.paymentMethod === 'CARD' ? 'Bank' : 'Pending',
       status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1).toLowerCase(),
       web: booking.web,

@@ -1908,7 +1908,18 @@ const EcommerceOrders = () => {
                             {t("reservations.form.amount")}
                           </Label>
                           <div className="text-muted">
-                            ${(validation.values.amount || 0).toFixed(2)}
+                            <div className="d-flex justify-content-between">
+                              <span>{t("reservations.form.subtotal")}</span>
+                              <span>${(validation.values.amount || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="d-flex justify-content-between">
+                              <span>{t("reservations.form.service_fee")}</span>
+                              <span>${(Math.round((validation.values.amount || 0) * 0.06 * 100) / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="d-flex justify-content-between fw-semibold border-top pt-1 mt-1">
+                              <span>{t("reservations.form.total")}</span>
+                              <span>${(Math.round((validation.values.amount || 0) * 1.06 * 100) / 100).toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
                         <div className="col-md-6">
