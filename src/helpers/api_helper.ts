@@ -15,8 +15,13 @@ axios.defaults.xsrfHeaderName = 'X-CSRF-Token';
 axios.defaults.headers.post["Content-Type"] = "application/json";
 
 // content type
-const authUser: any = sessionStorage.getItem("authUser")
-const token = JSON.parse(authUser) ? JSON.parse(authUser).token : null;
+let token: string | null = null;
+try {
+  const authUser = sessionStorage.getItem("authUser");
+  token = authUser ? (JSON.parse(authUser)?.token ?? null) : null;
+} catch {
+  token = null;
+}
 if (token)
   axios.defaults.headers.common["Authorization"] = "Bearer " + token;
 
