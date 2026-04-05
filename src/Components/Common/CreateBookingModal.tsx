@@ -242,10 +242,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     },
   });
 
-  // Helper function para calcular precio con service fee del 6%
-  const calculatePriceWithServiceFee = (basePrice: number): number => {
-    return Math.round((basePrice * 1.06) * 100) / 100; // 6% service fee, redondeado a 2 decimales
-  };
+  // Note: Service fee is only shown in UI, not stored in database
 
   // Calcular duración y precio total
   const totals = useMemo(() => {
@@ -271,10 +268,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         totalPrice += removal.price;
       });
 
-    // Aplicar service fee del 6% al precio total
-    const finalPrice = calculatePriceWithServiceFee(totalPrice);
-
-    return { totalDuration, totalPrice: finalPrice };
+    // Return base price without service fee (service fee only shown in UI)
+    return { totalDuration, totalPrice };
   }, [selectedServices, removalAddOns, selectedRemovalIds]);
 
   // Cargar incompatibilidades cuando cambian los servicios seleccionados
@@ -1355,10 +1350,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         // Usar bufferTime del servicio o el global del sistema (default: 15)
         const bufferTime = service.bufferTime !== undefined ? service.bufferTime : 15;
 
-        // Calcular el precio individual de este servicio incluyendo sus addons
-        const basePriceWithAddons = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0);
-        // Aplicar service fee del 6% al precio individual del booking
-        const serviceIndividualPrice = calculatePriceWithServiceFee(basePriceWithAddons);
+        // Calcular el precio individual de este servicio incluyendo sus addons (sin service fee)
+        const serviceIndividualPrice = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0);
 
         // Para VIP Combo: usar tiempo base (simultáneo)
         // Para consecutivo: usar tiempo actual (secuencial)
@@ -2498,7 +2491,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
             {selectedServices.length > 0 && (
               <Card className="border mb-3">
                 <CardHeader className="d-flex justify-content-between align-items-center">
-                  <h6 className="mb-0">Servicios Agregados ({selectedServices.length})</h6>
+                  <h6 className="mb-0">{t('booking.services.added_services', { count: selectedServices.length })}</h6>
                   {isVIPCombo && (
                     <Badge color="warning" pill>
                       <i className="ri-star-fill me-1"></i>
@@ -2665,7 +2658,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           )}
                         </div>
                         {isIncompatible && (
-                          <Badge color="danger">Incompatible</Badge>
+                          <Badge color="danger">{t('booking.services.incompatible')}</Badge>
                         )}
                       </div>
                     </CardHeader>
@@ -2871,7 +2864,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                           {isFirstService ? (
                             // Solo el primer servicio permite selección manual
                             <FormGroup>
-                              <Label className="small text-muted">Seleccionar técnico para {service.name}:</Label>
+                              <Label className="small text-muted">{t('booking.staff.select_technician_for', { serviceName: service.name })}</Label>
                               <Input
                                 type="select"
                                 value={staffId || ''}
@@ -3066,7 +3059,11 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                     ✅ <strong>Días validados con disponibilidad real:</strong> {validWorkingDays.length > 0 ? validWorkingDays.map(d => ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d]).join(', ') : 'Ninguno disponible'}
                     <br />
                     <small className="text-success">
-                      ✓ <strong>Validación completa:</strong> días de trabajo, turnos existentes, horarios reales para <strong>{isVIPCombo ? 'servicios simultáneos (VIP)' : 'servicios consecutivos'}</strong>
+                      {t('booking.validation.complete_validation', { 
+                        serviceType: isVIPCombo 
+                          ? t('booking.validation.simultaneous_services') 
+                          : t('booking.validation.consecutive_services')
+                      })}
                     </small>
                   </div>
                 )}
@@ -3578,7 +3575,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         {loadingRemovals ? (
           <div className="text-center py-4">
             <Spinner color="primary" />
-            <p className="mt-2 text-muted">Loading removal options...</p>
+            <p className="mt-2 text-muted">{t('booking.removal.loading_options')}</p>
           </div>
         ) : removalAddOns.length === 0 ? (
           <Alert color="info">

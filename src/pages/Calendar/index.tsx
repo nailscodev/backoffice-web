@@ -1650,6 +1650,170 @@ const Calender = () => {
   console.log('📅 [CALENDAR COMPONENT] Selected date:', selectedDate);
   console.log('📅 [CALENDAR COMPONENT] View filter:', viewFilter);
 
+  // Validation para el modal de edición (moved up to be available before use)
+  const editValidation: any = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      orderId: selectedBooking?.orderId || '',
+      customer: selectedBooking?.customer || '',
+      customerEmail: selectedBooking?.customerEmail || '',
+      customerPhone: selectedBooking?.customerPhone || '',
+      product: selectedBooking?.product || '',
+      categoryName: selectedBooking?.categoryName || '',
+      staffName: selectedBooking?.staffName || '',
+      staffId: selectedBooking?.staffId || '',
+      orderDate: selectedBooking?.orderDate || '',
+      startTime: selectedBooking?.startTime || '',
+      endTime: selectedBooking?.endTime || '',
+      ordertime: selectedBooking?.ordertime || '',
+      amount: selectedBooking?.amount || 0,
+      payment: selectedBooking?.payment || '',
+      status: selectedBooking?.status || '',
+      notes: selectedBooking?.notes || '',
+      web: selectedBooking?.web || false,
+      cancellationReason: selectedBooking?.cancellationReason || '',
+    },
+    validationSchema: Yup.object({
+      status: Yup.string()
+        .required(t("reservations.validation.status_required"))
+        .oneOf(["pending", "in_progress", "completed", "cancelled"], t("reservations.validation.status_invalid")),
+      payment: Yup.string().when('status', {
+        is: 'completed',
+        then: (schema) => schema
+          .required(t("reservations.validation.payment_required_for_completed"))
+          .notOneOf(['pending', ''], t("reservations.validation.payment_cannot_be_pending")),
+        otherwise: (schema) => schema
+      }),
+      cancellationReason: Yup.string().when('status', {
+        is: 'cancelled',
+        then: (schema) => schema.required(t("reservations.validation.cancellation_reason_required")),
+        otherwise: (schema) => schema
+      })
+    }).test('completed-validations', '', function(values) {
+      const { status } = values;
+      
+      if (status === 'completed') {
+        // Access form values correctly through this.from
+        const formData = this.from?.[0]?.value;
+        const amount = formData?.amount;
+        const orderDate = formData?.orderDate;
+        
+        // Validate amount is not zero (amount is in dollars, so should be > 0)
+        if (!amount || amount === 0) {
+          return this.createError({
+            path: 'amount',
+            message: t("reservations.validation.completed_cannot_have_zero_amount")
+          });
+        }
+        
+        // Validate date is not in the future
+        if (orderDate) {
+          const selectedDate = moment(orderDate);
+          const today = moment();
+          if (selectedDate.isAfter(today, 'day')) {
+            return this.createError({
+              path: 'orderDate',
+              message: t("reservations.validation.completed_cannot_have_future_date")
+            });
+          }
+        }
+      }
+      
+      return true;
+    }),
+    onSubmit: async (values) => {
+      if (isEditBooking && selectedBooking) {
+        // Handle different status updates with appropriate fields
+        let updatePayload: any = {
+          status: values.status,
+          notes: values.notes || '',
+          staffId: values.staffId,
+          appointmentDate: values.orderDate,
+          startTime: values.startTime || '',
+          endTime: values.endTime || '',
+        };
+        
+        // Include service and addons changes if service editor was used
+        if (selectedService) {
+          updatePayload.serviceId = selectedService.id;
+          
+          // Combine normal addons and removal addons into a single array
+          // Following the same pattern as EcommerceOrders
+          const allAddOnIds = [
+            ...selectedAddons,
+            ...selectedRemovalAddons.filter(addon => addon.id) // Include selected removal addons
+          ];
+          updatePayload.addOnIds = allAddOnIds.map(addon => addon.id);
+          
+          // Update total price based on selected service, addons, and removals
+          const basePrice = selectedService.price + 
+            selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
+            selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
+          const newTotalPrice = calculatePriceWithFees(basePrice, values.notes);
+          updatePayload.totalPrice = newTotalPrice.toFixed(2);
+        }
+        
+        // Include notes if provided
+        if (values.notes) {
+          updatePayload.notes = values.notes;
+        }
+        
+        // Only include paymentMethod for completed bookings
+        if (values.status === 'completed' && values.payment) {
+          updatePayload.paymentMethod = values.payment.toUpperCase();
+        }
+        
+        // For cancelled bookings, include cancellation reason
+        if (values.status === 'cancelled' && values.cancellationReason) {
+          updatePayload.cancellationReason = values.cancellationReason;
+        }
+        
+        // Remove serviceId if it's empty or invalid to avoid validation errors
+        if (updatePayload.serviceId === '' || updatePayload.serviceId === null || updatePayload.serviceId === undefined) {
+          delete updatePayload.serviceId;
+        }
+        
+        try {
+          await updateBooking(selectedBooking.id, updatePayload);
+          toast.success(t('reservations.messages.booking_updated_success'));
+          
+          // Centralized calendar data reload
+          reloadCalendarData();
+          
+          setEditModal(false);
+          setSelectedBooking(null);
+          setIsEditBooking(false);
+          // Reset service editing states
+          setSelectedService(null);
+          setSelectedAddons([]);
+          setSelectedRemovalAddons([]);
+          setShowServiceEditor(false);
+        } catch (err) {
+          console.error('Error updating booking:', err);
+          toast.error(t('reservations.messages.booking_update_error'));
+        }
+        editValidation.resetForm();
+      }
+    },
+  });
+
+  // Helper functions that depend on editValidation
+  const loadRemovalAddonsForService = async (serviceId: string) => {
+    if (!serviceId) {
+      setRemovalAddons([]);
+      return;
+    }
+
+    try {
+      const languageCode = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
+      const response = await getRemovalAddonsByServices([serviceId], languageCode);
+      setRemovalAddons(response || []);
+    } catch (error) {
+      console.error('Error loading removal addons for service:', error);
+      setRemovalAddons([]);
+    }
+  };
+
   useEffect(() => {
     // Cargar categorías y staff solo una vez
     dispatch(onGetCategories());
@@ -2830,9 +2994,13 @@ const Calender = () => {
     }
   };
 
-  // Helper function para calcular precio con service fee del 6%
-  const calculatePriceWithServiceFee = (basePrice: number): number => {
-    return Math.round((basePrice * 1.06) * 100) / 100; // 6% service fee, redondeado a 2 decimales
+  // Helper function para calcular precio con service fee y VIP combo fee
+  const calculatePriceWithFees = (basePrice: number, notes?: string): number => {
+    const isVIP = notes && String(notes).toLowerCase().includes('vip');
+    const vipFee = isVIP ? 7.5 : 0; // $7.5 fixed amount
+    const baseWithVIP = basePrice + vipFee;
+    const serviceFee = baseWithVIP * 0.06; // 6% on base + VIP
+    return Math.round((baseWithVIP + serviceFee) * 100) / 100;
   };
 
   // Calculate total duration including service, addons and buffer time
@@ -2932,8 +3100,8 @@ const Calender = () => {
       selectedAddons.forEach(addon => totalPrice += addon.price);
       selectedRemovalAddons.forEach(addon => totalPrice += addon.price);
       
-      // Apply service fee
-      const finalPrice = calculatePriceWithServiceFee(totalPrice);
+      // Apply service fee and VIP combo fee
+      const finalPrice = calculatePriceWithFees(totalPrice, editValidation.values.notes);
       editValidation.setFieldValue('amount', finalPrice);
       
       // Update end time based on new service
@@ -2959,12 +3127,12 @@ const Calender = () => {
       const basePrice = selectedService.price + 
         newAddons.reduce((sum, a) => sum + a.price, 0) +
         selectedRemovalAddons.reduce((sum, a) => sum + a.price, 0);
-      const finalPrice = calculatePriceWithServiceFee(basePrice);
+      const finalPrice = calculatePriceWithFees(basePrice, editValidation.values.notes);
       editValidation.setFieldValue('amount', finalPrice);
     }
     
-    // Update end time based on new addon selection - pass the updated addon list
-    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, newAddons, selectedRemovalAddons), 100);
+    // Update end time based on new addon selection
+    setTimeout(() => updateEndTimeFromDuration(), 100);
   };
 
   const getCompatibleAddons = (serviceId: string) => {
@@ -2987,22 +3155,6 @@ const Calender = () => {
     return removalAddons.filter(addon => addon.isActive);
   };
 
-  const loadRemovalAddonsForService = async (serviceId: string) => {
-    if (!serviceId) {
-      setRemovalAddons([]);
-      return;
-    }
-
-    try {
-      const languageCode = (i18n.language?.toUpperCase() === 'SP' || i18n.language?.toUpperCase() === 'ES') ? 'ES' : 'EN';
-      const response = await getRemovalAddonsByServices([serviceId], languageCode);
-      setRemovalAddons(response || []);
-    } catch (error) {
-      console.error('Error loading removal addons for service:', error);
-      setRemovalAddons([]);
-    }
-  };
-
   const handleRemovalAddonToggle = (addon: AddOn) => {
     const isSelected = selectedRemovalAddons.find(a => a.id === addon.id);
     let newRemovals: AddOn[];
@@ -3020,11 +3172,11 @@ const Calender = () => {
       const basePrice = selectedService.price + 
         selectedAddons.reduce((sum, a) => sum + a.price, 0) +
         newRemovals.reduce((sum, a) => sum + a.price, 0);
-      const finalPrice = calculatePriceWithServiceFee(basePrice);
+      const finalPrice = calculatePriceWithFees(basePrice, editValidation.values.notes);
       editValidation.setFieldValue('amount', finalPrice);
     }
     
-    // Update end time based on new removal addon selection - pass the updated removal addon list
+    // Update end time based on new removal addon selection
     setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, selectedAddons, newRemovals), 100);
   };
 
@@ -3084,153 +3236,6 @@ const Calender = () => {
       }
     }
   };
-
-  // Validation para el modal de edición
-  const editValidation: any = useFormik({
-    enableReinitialize: true,
-    initialValues: {
-      orderId: selectedBooking?.orderId || '',
-      customer: selectedBooking?.customer || '',
-      customerEmail: selectedBooking?.customerEmail || '',
-      customerPhone: selectedBooking?.customerPhone || '',
-      product: selectedBooking?.product || '',
-      categoryName: selectedBooking?.categoryName || '',
-      staffName: selectedBooking?.staffName || '',
-      staffId: selectedBooking?.staffId || '',
-      orderDate: selectedBooking?.orderDate || '',
-      startTime: selectedBooking?.startTime || '',
-      endTime: selectedBooking?.endTime || '',
-      ordertime: selectedBooking?.ordertime || '',
-      amount: selectedBooking?.amount || 0,
-      payment: selectedBooking?.payment || '',
-      status: selectedBooking?.status || '',
-      notes: selectedBooking?.notes || '',
-      web: selectedBooking?.web || false,
-      cancellationReason: selectedBooking?.cancellationReason || '',
-    },
-    validationSchema: Yup.object({
-      status: Yup.string()
-        .required(t("reservations.validation.status_required"))
-        .oneOf(["pending", "in_progress", "completed", "cancelled"], t("reservations.validation.status_invalid")),
-      payment: Yup.string().when('status', {
-        is: 'completed',
-        then: (schema) => schema
-          .required(t("reservations.validation.payment_required_for_completed"))
-          .notOneOf(['pending', ''], t("reservations.validation.payment_cannot_be_pending")),
-        otherwise: (schema) => schema
-      }),
-      cancellationReason: Yup.string().when('status', {
-        is: 'cancelled',
-        then: (schema) => schema.required(t("reservations.validation.cancellation_reason_required")),
-        otherwise: (schema) => schema
-      })
-    }).test('completed-validations', '', function(values) {
-      const { status } = values;
-      
-      if (status === 'completed') {
-        // Access form values correctly through this.from
-        const formData = this.from?.[0]?.value;
-        const amount = formData?.amount;
-        const orderDate = formData?.orderDate;
-        
-        // Validate amount is not zero (amount is in dollars, so should be > 0)
-        if (!amount || amount === 0) {
-          return this.createError({
-            path: 'amount',
-            message: t("reservations.validation.completed_cannot_have_zero_amount")
-          });
-        }
-        
-        // Validate date is not in the future
-        if (orderDate) {
-          const selectedDate = moment(orderDate);
-          const today = moment();
-          if (selectedDate.isAfter(today, 'day')) {
-            return this.createError({
-              path: 'orderDate',
-              message: t("reservations.validation.completed_cannot_have_future_date")
-            });
-          }
-        }
-      }
-      
-      return true;
-    }),
-    onSubmit: async (values) => {
-      if (isEditBooking && selectedBooking) {
-        // Handle different status updates with appropriate fields
-        let updatePayload: any = {
-          status: values.status,
-          notes: values.notes || '',
-          staffId: values.staffId,
-          appointmentDate: values.orderDate,
-          startTime: values.startTime || '',
-          endTime: values.endTime || '',
-        };
-        
-        // Include service and addons changes if service editor was used
-        if (selectedService) {
-          updatePayload.serviceId = selectedService.id;
-          
-          // Combine normal addons and removal addons into a single array
-          // Following the same pattern as EcommerceOrders
-          const allAddOnIds = [
-            ...selectedAddons,
-            ...selectedRemovalAddons.filter(addon => addon.id) // Include selected removal addons
-          ];
-          updatePayload.addOnIds = allAddOnIds.map(addon => addon.id);
-          
-          // Update total price based on selected service, addons, and removals
-          const basePrice = selectedService.price + 
-            selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
-            selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
-          const newTotalPrice = calculatePriceWithServiceFee(basePrice);
-          updatePayload.totalPrice = newTotalPrice.toFixed(2);
-        }
-        
-        // Include notes if provided
-        if (values.notes) {
-          updatePayload.notes = values.notes;
-        }
-        
-        // Only include paymentMethod for completed bookings
-        if (values.status === 'completed' && values.payment) {
-          updatePayload.paymentMethod = values.payment.toUpperCase();
-        }
-        
-        // For cancelled bookings, include cancellation reason
-        if (values.status === 'cancelled' && values.cancellationReason) {
-          updatePayload.cancellationReason = values.cancellationReason;
-        }
-        
-        // Remove serviceId if it's empty or invalid to avoid validation errors
-        if (updatePayload.serviceId === '' || updatePayload.serviceId === null || updatePayload.serviceId === undefined) {
-          delete updatePayload.serviceId;
-        }
-        
-        try {
-          await updateBooking(selectedBooking.id, updatePayload);
-          toast.success(t('reservations.messages.booking_updated_success'));
-          
-          // Centralized calendar data reload
-          reloadCalendarData();
-          
-          setEditModal(false);
-          setSelectedBooking(null);
-          setIsEditBooking(false);
-          // Reset service editing states
-          setSelectedService(null);
-          setSelectedAddons([]);
-          setSelectedRemovalAddons([]);
-          setShowServiceEditor(false);
-        } catch (err) {
-          console.error('Error updating booking:', err);
-          toast.error(t('reservations.messages.booking_update_error'));
-        }
-        editValidation.resetForm();
-      }
-    },
-  });
 
   // Force formik to reinitialize with new values when selectedBooking changes (like in EcommerceOrders)
   useEffect(() => {
@@ -4120,18 +4125,37 @@ const Calender = () => {
                       {t("reservations.form.amount")}
                     </Label>
                     <div className="text-muted">
-                      <div className="d-flex justify-content-between">
-                        <span>{t("reservations.form.subtotal")}</span>
-                        <span>${(editValidation.values.amount || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between">
-                        <span>{t("reservations.form.service_fee")}</span>
-                        <span>${(Math.round((editValidation.values.amount || 0) * 0.06 * 100) / 100).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between fw-semibold border-top pt-1 mt-1">
-                        <span>{t("reservations.form.total")}</span>
-                        <span>${(Math.round((editValidation.values.amount || 0) * 1.06 * 100) / 100).toFixed(2)}</span>
-                      </div>
+                      {(() => {
+                        const baseAmount = editValidation.values.amount || 0;
+                        const isVIP = editValidation.values.notes && String(editValidation.values.notes).toLowerCase().includes('vip');
+                        const vipFee = isVIP ? 7.5 : 0; // $7.5 fixed amount
+                        const baseWithVIP = baseAmount + vipFee;
+                        const serviceFee = Math.round(baseWithVIP * 0.06 * 100) / 100; // 6% on base + VIP
+                        const totalAmount = Math.round((baseWithVIP + serviceFee) * 100) / 100;
+                        
+                        return (
+                          <>
+                            <div className="d-flex justify-content-between">
+                              <span>{t("reservations.form.subtotal")}</span>
+                              <span>${baseAmount.toFixed(2)}</span>
+                            </div>
+                            {isVIP && (
+                              <div className="d-flex justify-content-between">
+                                <span className="text-warning">{t("reservations.form.vip_combo_fee", "VIP Combo Fee")}</span>
+                                <span className="text-warning">$7.50</span>
+                              </div>
+                            )}
+                            <div className="d-flex justify-content-between">
+                              <span>{t("reservations.form.service_fee")}</span>
+                              <span>${serviceFee.toFixed(2)}</span>
+                            </div>
+                            <div className="d-flex justify-content-between fw-semibold border-top pt-1 mt-1">
+                              <span>{t("reservations.form.total")}</span>
+                              <span>${totalAmount.toFixed(2)}</span>
+                            </div>
+                          </>
+                        );
+                      })()} 
                     </div>
                   </div>
                   <div className="col-md-6">
@@ -4240,10 +4264,18 @@ const Calender = () => {
                     <div className="text-muted">
                       {editValidation.values.notes}
                     </div>
+                    {editValidation.values.notes && String(editValidation.values.notes).toLowerCase().includes('vip') && (
+                      <div className="alert alert-warning mt-2 py-2">
+                        <small>
+                          <i className="ri-star-line me-1"></i>
+                          {t("reservations.form.vip_combo_note", "Este booking incluye VIP Combo Fee ($7.50) adicional al Service Fee")}
+                        </small>
+                      </div>
+                    )}
                   </div>
                 )}
               </ModalBody>
-              <ModalFooter>
+              <ModalFooter>                
                 {/* Mostrar mensaje de solo lectura para usuarios staff */}
                 {isStaffUser && (
                   <div className="w-100 text-center mb-2">
@@ -4353,17 +4385,6 @@ const Calender = () => {
       <ToastContainer />
     </React.Fragment>
   );
-};
-
-Calender.propTypes = {
-  events: PropTypes.any,
-  categories: PropTypes.array,
-  className: PropTypes.string,
-  onGetEvents: PropTypes.func,
-  onAddNewEvent: PropTypes.func,
-  onUpdateEvent: PropTypes.func,
-  onDeleteEvent: PropTypes.func,
-  onGetCategories: PropTypes.func,
 };
 
 export default Calender;
