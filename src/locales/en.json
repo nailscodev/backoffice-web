@@ -1513,5 +1513,12 @@
     "booking.confirm.removal_services": "Removal Services",
     "booking.confirm.date_time": "Date & Time",
     "booking.confirm.notes": "Notes",
-    "booking.confirm.total": "Total:"
+    "booking.confirm.subtotal": "Subtotal",
+    "booking.confirm.base_price": "Base Price",
+    "booking.confirm.vip_combo_fee": "VIP Combo",
+    "booking.confirm.service_fee": "Service Fee",
+    "booking.confirm.service_fee_note": "Final amount will be calculated automatically",
+    "booking.confirm.total": "Total:",
+    "booking.confirm.final_total": "Total",
+    "booking.confirm.calculated_automatically": "Calculated automatically"
 }

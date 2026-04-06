@@ -242,7 +242,31 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     },
   });
 
-  // Note: Service fee is only shown in UI, not stored in database
+  // Note: totals.totalPrice is the sum of base prices of services and addons
+  // We calculate service fee forward from this base price
+  
+  // Helper function para calcular VIP combo fee
+  const calculateVIPComboFee = (): number => {
+    return isVIPCombo ? selectedServices.length * 7.50 : 0;
+  };
+  
+  // Helper function para calcular subtotal (base price + VIP combo fee)
+  const calculateSubtotal = (): number => {
+    return totals.totalPrice + calculateVIPComboFee();
+  };
+  
+  // Helper function para calcular service fee desde subtotal (cálculo hacia adelante)
+  const calculateServiceFeeFromSubtotal = (): number => {
+    const subtotal = calculateSubtotal();
+    return Math.round((subtotal * 0.06) * 100) / 100; // 6% service fee
+  };
+  
+  // Helper function para calcular precio total final
+  const calculateFinalTotal = (): number => {
+    const subtotal = calculateSubtotal();
+    const serviceFee = calculateServiceFeeFromSubtotal();
+    return Math.round((subtotal + serviceFee) * 100) / 100;
+  };
 
   // Calcular duración y precio total
   const totals = useMemo(() => {
@@ -268,9 +292,9 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         totalPrice += removal.price;
       });
 
-    // Return base price without service fee (service fee only shown in UI)
+    // Return base price without VIP fee and service fee (both shown separately in UI)
     return { totalDuration, totalPrice };
-  }, [selectedServices, removalAddOns, selectedRemovalIds]);
+  }, [selectedServices, removalAddOns, selectedRemovalIds, isVIPCombo]);
 
   // Cargar incompatibilidades cuando cambian los servicios seleccionados
   useEffect(() => {
@@ -1329,6 +1353,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
 
       console.log('\n=== 🎯 CREATING BOOKINGS ===');
       console.log(`Mode: ${isVIPCombo ? '🌟 VIP COMBO (SIMULTANEOUS)' : '📋 CONSECUTIVE'}`);
+      console.log(`isVIPCombo value: ${isVIPCombo}`);
       console.log(`Services: ${selectedServices.length}`);
       console.log(`Date: ${appointmentDate}`);
       console.log(`Time: ${selectedTime}`);
@@ -1350,8 +1375,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         // Usar bufferTime del servicio o el global del sistema (default: 15)
         const bufferTime = service.bufferTime !== undefined ? service.bufferTime : 15;
 
-        // Calcular el precio individual de este servicio incluyendo sus addons (sin service fee)
-        const serviceIndividualPrice = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0);
+        // Calcular el precio base individual de este servicio incluyendo sus addons
+        // Backend will automatically apply 6% service fee, so we send base price only
+        // En VIP Combo, agregar $7.50 adicional por servicio
+        const vipFee = isVIPCombo ? 7.50 : 0;
+        console.log(`🔍 VIP Fee Debug - isVIPCombo: ${isVIPCombo}, vipFee: $${vipFee}`);
+        const serviceIndividualBasePrice = service.price + allAddOns.reduce((sum, addon) => sum + addon.price, 0) + vipFee;
 
         // Para VIP Combo: usar tiempo base (simultáneo)
         // Para consecutivo: usar tiempo actual (secuencial)
@@ -1372,7 +1401,7 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
           duration: totalDuration,
           addOnIds: allAddOns.map(a => a.id),
           status: 'in_progress', // Marcar como "en progreso" para reflejar que el servicio está activo desde el inicio
-          totalPrice: serviceIndividualPrice,
+          totalPrice: serviceIndividualBasePrice, // Backend will apply 6% service fee automatically
           notes: index === 0 
             ? (notes || (isVIPCombo ? t('booking.notes.vip_combo') : '')) 
             : (isVIPCombo ? t('booking.notes.vip_combo_part', { index: index + 1 }) : t('booking.notes.consecutive_part', { index: index + 1, total: selectedServices.length })),
@@ -1382,6 +1411,12 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
         console.log(`\n📦 Booking ${index + 1}/${selectedServices.length}:`);
         console.log(`  Service: ${service.name}`);
         console.log(`  Staff: ${staffName} (${staffId})`);
+        console.log(`  Price calculation:`);
+        console.log(`    - Service price: $${service.price}`);
+        console.log(`    - Add-ons: $${allAddOns.reduce((sum, addon) => sum + addon.price, 0)}`);
+        console.log(`    - VIP fee (isVIPCombo=${isVIPCombo}): $${vipFee}`);
+        console.log(`    - Total base price: $${serviceIndividualBasePrice}`);
+        console.log(`    - Backend will apply 6% service fee automatically`);
         console.log(`  Start: ${serviceStartTime.format('YYYY-MM-DD HH:mm:ss')}`);
         console.log(`  End: ${serviceEndTime.format('YYYY-MM-DD HH:mm:ss')} (includes ${bufferTime}min buffer)`);
         console.log(`  Duration: ${totalDuration} min (service + addons)`);
@@ -3495,9 +3530,24 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
                 )}
 
                 <div className="bg-light p-3 rounded">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">{t('booking.confirm.total')}</h5>
-                    <h4 className="mb-0 text-primary">${totals.totalPrice.toFixed(2)}</h4>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="text-muted">{t('booking.confirm.base_price')}</span>
+                    <span>${totals.totalPrice.toFixed(2)}</span>
+                  </div>
+                  {isVIPCombo && (
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="text-muted">{t('booking.confirm.vip_combo_fee')}</span>
+                      <span>${calculateVIPComboFee().toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="text-muted small">{t('booking.confirm.service_fee')} (6%)</span>
+                    <span className="small">${calculateServiceFeeFromSubtotal().toFixed(2)}</span>
+                  </div>
+                  <hr className="my-2" />
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h5 className="mb-0">{t('booking.confirm.final_total')}</h5>
+                    <h4 className="mb-0 text-primary">${calculateFinalTotal().toFixed(2)}</h4>
                   </div>
                 </div>
               </CardBody>

@@ -172,6 +172,11 @@ const EcommerceOrders = () => {
     return Math.round((basePrice * 1.06) * 100) / 100; // 6% service fee, redondeado a 2 decimales
   };
 
+  // Helper function para calcular precio base desde precio con service fee (cuenta inversa)
+  const calculateBasePriceFromTotal = (totalPrice: number): number => {
+    return Math.round((totalPrice / 1.06) * 100) / 100; // Remover el 6% service fee
+  };
+
   const orderstatus = [
     {
       options: [
@@ -284,7 +289,7 @@ const EcommerceOrders = () => {
       ordertime: order?.ordertime || '',
       startTime: order?.ordertime ? order.ordertime.split(' - ')[0] || '' : '',
       endTime: order?.ordertime ? order.ordertime.split(' - ')[1] || '' : '',
-      amount: order?.amount || 0,
+      amount: order?.amount ? calculateBasePriceFromTotal(order.amount) : 0, // Mostrar precio base (sin service fee)
       payment: order?.payment || '',
       status: order?.status || '',
       notes: order?.notes || '',
@@ -375,6 +380,14 @@ const EcommerceOrders = () => {
             selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
           const newTotalPrice = calculatePriceWithServiceFee(basePrice);
           updatePayload.totalPrice = newTotalPrice.toFixed(2);
+          
+          console.log('💰 Price calculation for update:', {
+            servicePrice: selectedService.price,
+            addonsPrice: selectedAddons.reduce((sum, addon) => sum + addon.price, 0),
+            removalsPrice: selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0),
+            basePrice: basePrice,
+            finalPrice: newTotalPrice
+          });
         }
         
         // Include notes if provided
@@ -496,7 +509,7 @@ const EcommerceOrders = () => {
         ordertime: order?.ordertime || '',
         startTime: order?.ordertime ? order.ordertime.split(' - ')[0] || '' : '',
         endTime: order?.ordertime ? order.ordertime.split(' - ')[1] || '' : '',
-        amount: order?.amount || 0,
+        amount: order?.amount ? calculateBasePriceFromTotal(order.amount) : 0, // Mostrar precio base
         payment: order?.payment || '',
         status: order?.status || '',
         notes: order?.notes || '',
@@ -852,9 +865,9 @@ const EcommerceOrders = () => {
       loadRemovalAddonsForService(service.id);
       // Update the form values
       validation.setFieldValue('product', service.name);
-      // Update amount based on service price only (removal addons will be updated when loaded)
+      // Update amount based on service price only (mostrar precio base sin service fee en la UI)
       const newAmount = service.price;
-      validation.setFieldValue('amount', newAmount);
+      validation.setFieldValue('amount', newAmount); // Mostrar precio base sin service fee en UI
       
       // Update end time based on new service duration - pass the service and cleared addons
       setTimeout(() => updateEndTimeFromDuration(service, [], []), 100);
@@ -875,12 +888,12 @@ const EcommerceOrders = () => {
     
     setSelectedAddons(newAddons);
     
-    // Update amount based on service, addons, and removals
+    // Update amount based on service, addons, and removals (mostrar precio base en UI)
     if (selectedService) {
       const newAmount = selectedService.price + 
         newAddons.reduce((sum, addon) => sum + addon.price, 0) +
         selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
-      validation.setFieldValue('amount', newAmount);
+      validation.setFieldValue('amount', newAmount); // Mostrar precio base sin service fee en UI
     }
     
     // Update end time based on new addon selection - pass the updated addon list
@@ -938,12 +951,12 @@ const EcommerceOrders = () => {
     
     setSelectedRemovalAddons(newRemovals);
     
-    // Update amount based on service, addons, and removals
+    // Update amount based on service, addons, and removals (mostrar precio base en UI)
     if (selectedService) {
       const newAmount = selectedService.price + 
         selectedAddons.reduce((sum, addon) => sum + addon.price, 0) +
         newRemovals.reduce((sum, addon) => sum + addon.price, 0);
-      validation.setFieldValue('amount', newAmount);
+      validation.setFieldValue('amount', newAmount); // Mostrar precio base sin service fee en UI
     }
     
     // Update end time based on new removal addon selection - pass the updated removal addon list
@@ -1164,27 +1177,26 @@ const EcommerceOrders = () => {
           
           // Remove $ symbol and convert to number
           const cleanAmount = String(rawAmount).replace(/[$,]/g, '');
-          const amount = parseFloat(cleanAmount);
-          if (isNaN(amount)) {
+          const totalAmount = parseFloat(cleanAmount);
+          if (isNaN(totalAmount)) {
             return <div style={{ minWidth: '80px' }}>-</div>;
           }
           
-          // Check if it's VIP combo (notes contain "VIP")
-          const isVIP = row.notes && String(row.notes).toLowerCase().includes('vip');
+          // REVERSE CALCULATION: Total amount from backend already includes 6% service fee
+          // Calculate base price by removing the 6% service fee
+          const basePrice = calculateBasePriceFromTotal(totalAmount);
+          const serviceFee = totalAmount - basePrice;
           
-          // Calculate fees: Base + VIP combo fee, then apply 6% service fee on total
-          const vipFee = isVIP ? 7.5 : 0; // $7.5 fixed amount
-          const baseWithVIP = amount + vipFee;
-          const serviceFee = baseWithVIP * 0.06; // 6% on base + VIP
-          const totalAmount = baseWithVIP + serviceFee;
+          // Check if it's VIP combo (notes contain "VIP") 
+          const isVIP = row.notes && String(row.notes).toLowerCase().includes('vip');
           
           return (
             <div style={{ minWidth: '80px' }}>
               <div className="fw-semibold">${totalAmount.toFixed(2)}</div>
               {isVIP ? (
-                <small className="text-muted">(${amount.toFixed(2)} + $7.5 VIP + 6%)</small>
+                <small className="text-muted">(Base: ${basePrice.toFixed(2)} + 6% VIP)</small>
               ) : (
-                <small className="text-muted">(${amount.toFixed(2)} + 6%)</small>
+                <small className="text-muted">(Base: ${basePrice.toFixed(2)} + 6%)</small>
               )}
             </div>
           );

@@ -1545,6 +1545,34 @@ const Calender = () => {
   const currentLang = i18n.language || 'en';
   const isSpanish = currentLang === 'sp' || currentLang === 'es';
   
+  // Helper functions para cálculos de precios (deben estar antes de su uso)
+  // Helper function para calcular precio base desde precio total (cuenta inversa)
+  const calculateBasePriceFromTotal = (totalPrice: number, notes?: string): number => {
+    const isVIP = notes && String(notes).toLowerCase().includes('vip');
+    if (isVIP) {
+      // For VIP: total = (base + 7.5) * 1.06
+      // So: base = (total / 1.06) - 7.5
+      const baseWithVIP = totalPrice / 1.06;
+      return Math.round((baseWithVIP - 7.5) * 100) / 100;
+    } else {
+      // For non-VIP: total = base * 1.06
+      // So: base = total / 1.06
+      return Math.round((totalPrice / 1.06) * 100) / 100;
+    }
+  };
+
+  // Helper function para calcular service fee desde precio total
+  const calculateServiceFeeFromTotal = (totalPrice: number, notes?: string): number => {
+    const isVIP = notes && String(notes).toLowerCase().includes('vip');
+    if (isVIP) {
+      const baseWithVIP = totalPrice / 1.06;
+      return Math.round((totalPrice - baseWithVIP) * 100) / 100;
+    } else {
+      const basePrice = calculateBasePriceFromTotal(totalPrice, notes);
+      return Math.round((totalPrice - basePrice) * 100) / 100;
+    }
+  };
+  
   // Date format functions
   const formatShortDate = (date: Date) => {
     const day = date.getDate();
@@ -1666,7 +1694,7 @@ const Calender = () => {
       startTime: selectedBooking?.startTime || '',
       endTime: selectedBooking?.endTime || '',
       ordertime: selectedBooking?.ordertime || '',
-      amount: selectedBooking?.amount || 0,
+      amount: selectedBooking?.amount || 0, // Backend ya envía precio base 
       payment: selectedBooking?.payment || '',
       status: selectedBooking?.status || '',
       notes: selectedBooking?.notes || '',
@@ -3275,7 +3303,7 @@ const Calender = () => {
         startTime: selectedBooking?.startTime || '',
         endTime: selectedBooking?.endTime || '',
         ordertime: selectedBooking?.ordertime || '',
-        amount: selectedBooking?.amount || 0,
+        amount: selectedBooking?.amount || 0, // Backend ya envía precio base
         payment: selectedBooking?.payment || '',
         status: selectedBooking?.status || '',
         notes: selectedBooking?.notes || '',
@@ -4126,12 +4154,13 @@ const Calender = () => {
                     </Label>
                     <div className="text-muted">
                       {(() => {
-                        const baseAmount = editValidation.values.amount || 0;
+                        const totalAmount = editValidation.values.amount || 0;
                         const isVIP = editValidation.values.notes && String(editValidation.values.notes).toLowerCase().includes('vip');
-                        const vipFee = isVIP ? 7.5 : 0; // $7.5 fixed amount
-                        const baseWithVIP = baseAmount + vipFee;
-                        const serviceFee = Math.round(baseWithVIP * 0.06 * 100) / 100; // 6% on base + VIP
-                        const totalAmount = Math.round((baseWithVIP + serviceFee) * 100) / 100;
+                        
+                        // REVERSE CALCULATION: Backend sends total amount with service fee included
+                        const baseAmount = calculateBasePriceFromTotal(totalAmount, editValidation.values.notes);
+                        const vipFee = isVIP ? 7.5 : 0;
+                        const serviceFee = calculateServiceFeeFromTotal(totalAmount, editValidation.values.notes);
                         
                         return (
                           <>
