@@ -1169,23 +1169,9 @@ const EcommerceOrders = () => {
             return <div style={{ minWidth: '80px' }}>-</div>;
           }
           
-          // Check if it's VIP combo (notes contain "VIP")
-          const isVIP = row.notes && String(row.notes).toLowerCase().includes('vip');
-          
-          // Calculate fees: Base + VIP combo fee, then apply 6% service fee on total
-          const vipFee = isVIP ? 7.5 : 0; // $7.5 fixed amount
-          const baseWithVIP = amount + vipFee;
-          const serviceFee = baseWithVIP * 0.06; // 6% on base + VIP
-          const totalAmount = baseWithVIP + serviceFee;
-          
           return (
             <div style={{ minWidth: '80px' }}>
-              <div className="fw-semibold">${totalAmount.toFixed(2)}</div>
-              {isVIP ? (
-                <small className="text-muted">(${amount.toFixed(2)} + $7.5 VIP + 6%)</small>
-              ) : (
-                <small className="text-muted">(${amount.toFixed(2)} + 6%)</small>
-              )}
+              <div className="fw-semibold">${amount.toFixed(2)}</div>
             </div>
           );
         },
@@ -1936,37 +1922,7 @@ const EcommerceOrders = () => {
                             {t("reservations.form.amount")}
                           </Label>
                           <div className="text-muted">
-                            {(() => {
-                              const baseAmount = validation.values.amount || 0;
-                              const isVIP = validation.values.notes && String(validation.values.notes).toLowerCase().includes('vip');
-                              const vipFee = isVIP ? 7.5 : 0; // $7.5 fixed amount
-                              const baseWithVIP = baseAmount + vipFee;
-                              const serviceFee = Math.round(baseWithVIP * 0.06 * 100) / 100; // 6% on base + VIP
-                              const totalAmount = Math.round((baseWithVIP + serviceFee) * 100) / 100;
-                              
-                              return (
-                                <>
-                                  <div className="d-flex justify-content-between">
-                                    <span>{t("reservations.form.subtotal")}</span>
-                                    <span>${baseAmount.toFixed(2)}</span>
-                                  </div>
-                                  {isVIP && (
-                                    <div className="d-flex justify-content-between">
-                                      <span className="text-warning">{t("reservations.form.vip_combo_fee", "VIP Combo Fee")}</span>
-                                      <span className="text-warning">$7.50</span>
-                                    </div>
-                                  )}
-                                  <div className="d-flex justify-content-between">
-                                    <span>{t("reservations.form.service_fee")}</span>
-                                    <span>${serviceFee.toFixed(2)}</span>
-                                  </div>
-                                  <div className="d-flex justify-content-between fw-semibold border-top pt-1 mt-1">
-                                    <span>{t("reservations.form.total")}</span>
-                                    <span>${totalAmount.toFixed(2)}</span>
-                                  </div>
-                                </>
-                              );
-                            })()} 
+                            ${(validation.values.amount || 0).toFixed(2)}
                           </div>
                         </div>
                         <div className="col-md-6">
