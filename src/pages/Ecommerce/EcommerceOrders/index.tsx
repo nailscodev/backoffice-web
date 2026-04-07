@@ -380,14 +380,6 @@ const EcommerceOrders = () => {
             selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0);
           const newTotalPrice = calculatePriceWithServiceFee(basePrice);
           updatePayload.totalPrice = newTotalPrice.toFixed(2);
-          
-          console.log('💰 Price calculation for update:', {
-            servicePrice: selectedService.price,
-            addonsPrice: selectedAddons.reduce((sum, addon) => sum + addon.price, 0),
-            removalsPrice: selectedRemovalAddons.reduce((sum, addon) => sum + addon.price, 0),
-            basePrice: basePrice,
-            finalPrice: newTotalPrice
-          });
         }
         
         // Include notes if provided
