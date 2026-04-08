@@ -43,6 +43,8 @@
   "reservations.form.vip_combo_fee": "Tarifa VIP Combo",
   "reservations.form.vip_combo_note": "Este booking incluye VIP Combo Fee ($7.50) adicional al Service Fee",
   "reservations.form.vip_combo_help": "Para aplicar VIP Combo Fee ($7.50), incluya la palabra 'VIP' en las notas del booking",
+  "reservations.vip_combo_removed": "VIP combo removido del booking relacionado",
+  "reservations.vip_combo_error": "Error al remover VIP combo del booking relacionado",
   "reservations.form.total": "Total",
   "booking.staff.select_technician_for": "Seleccionar técnico para {serviceName}:",
   "booking.services.added_services": "Servicios Agregados ({count})",

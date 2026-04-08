@@ -58,7 +58,7 @@ import { createSelector } from "reselect";
 import moment from "moment";
 import "moment/locale/es"; // Import Spanish locale for moment
 import { servicesByCategory, staffMembers } from "../../../common/data/calender";
-import { getBookingById } from "../../../api/bookings";
+import { getBookingById, updateBooking, getBookingsList } from "../../../api/bookings";
 import { getAddOn, AddOn as AddonType, getAddOns } from "../../../api/addons";
 import { getStaffList, Staff } from "../../../api/staff";
 import { getServices, Service, getRemovalAddonsByServices } from "../../../api/services";
@@ -196,6 +196,126 @@ const EcommerceOrders = () => {
     } else {
       const basePrice = calculateBasePriceFromTotal(totalPrice, notes);
       return Math.round((totalPrice - basePrice) * 100) / 100;
+    }
+  };
+
+  // Helper function para manejar VIP combo cuando se cancela un booking
+  const handleVipComboRemoval = async (editingBooking: any) => {
+    try {
+      // Verificar si el booking que se está editando es VIP combo
+      const isVipCombo = editingBooking.notes && 
+        String(editingBooking.notes).toLowerCase().includes('vip');
+      
+      if (!isVipCombo) {
+        console.log('📝 [VIP COMBO] Booking no es VIP combo, no hay nada que hacer');
+        return;
+      }
+
+      console.log('🔍 [VIP COMBO] Detectado booking VIP siendo cancelado, buscando booking relacionado...');
+      
+      // Parse appointment date and start time from the booking object
+      const appointmentDate = editingBooking.orderDate || editingBooking.appointmentDate;
+      const ordertime = editingBooking.ordertime || '';
+      const startTime = ordertime.includes(' - ') ? ordertime.split(' - ')[0] : '';
+      const customerEmail = editingBooking.customerEmail || '';
+      const customerName = editingBooking.customer || editingBooking.customerName || '';
+      
+      if (!appointmentDate || !startTime) {
+        console.log('⚠️ [VIP COMBO] No se puede procesar: faltan appointmentDate o startTime');
+        return;
+      }
+      
+      // Buscar todos los bookings del mismo día
+      const bookingDate = new Date(appointmentDate);
+      const startDate = bookingDate.toISOString().split('T')[0];
+      const endDate = startDate;
+      
+      const relatedBookingsResponse = await getBookingsList({
+        startDate,
+        endDate,
+        limit: 1000 // Usar un límite alto para obtener todos los bookings del día
+      });
+      
+      if (!relatedBookingsResponse.success) {
+        console.error('❌ [VIP COMBO] Error al buscar bookings relacionados:', relatedBookingsResponse);
+        return;
+      }
+
+      // Filtrar para encontrar el booking relacionado:
+      // - Mismo cliente (por email o nombre)
+      // - Misma hora de inicio
+      // - Diferente ID (no es el mismo booking)
+      // - También debe tener "VIP" en las notas
+      // - NO debe estar cancelado
+      const relatedBooking = relatedBookingsResponse.data.find((booking: any) => {
+        const sameCustomer = (customerEmail && booking.customerEmail === customerEmail) || 
+                           (customerName && booking.customerName === customerName);
+        const sameStartTime = booking.startTime === startTime;
+        const differentBooking = booking.id !== editingBooking.id;
+        const isAlsoVip = booking.notes && String(booking.notes).toLowerCase().includes('vip');
+        const isNotCancelled = booking.status !== 'cancelled';
+        
+        console.log('🔍 [VIP COMBO] Verificando booking:', {
+          id: booking.id,
+          customer: booking.customerName,
+          sameCustomer,
+          sameStartTime,
+          differentBooking,
+          isAlsoVip,
+          isNotCancelled,
+          status: booking.status
+        });
+        
+        return sameCustomer && sameStartTime && differentBooking && isAlsoVip && isNotCancelled;
+      });
+
+      if (!relatedBooking) {
+        console.log('⚠️ [VIP COMBO] No se encontró booking relacionado para remover VIP combo');
+        return;
+      }
+
+      console.log('✅ [VIP COMBO] Encontrado booking relacionado:', {
+        id: relatedBooking.id,
+        customer: relatedBooking.customerName,
+        service: relatedBooking.serviceName,
+        startTime: relatedBooking.startTime
+      });
+
+      // Remover "VIP" de las notas del booking relacionado estableciendo notas como string vacío
+      const finalNotes = '';
+
+      // Recalcular precio removiendo VIP combo fee ($7.50)
+      const currentPrice = relatedBooking.totalPrice || 0;
+      console.log('💰 [VIP COMBO] Precio actual del booking relacionado:', currentPrice);
+      
+      // Calcular precio base removiendo VIP combo fee
+      const basePrice = calculateBasePriceFromTotal(currentPrice, relatedBooking.notes);
+      console.log('💰 [VIP COMBO] Precio base sin VIP:', basePrice);
+      
+      // Recalcular precio final sin VIP combo fee (solo service fee 6%)
+      const newPrice = calculatePriceWithServiceFee(basePrice);
+      console.log('💰 [VIP COMBO] Nuevo precio sin VIP combo:', newPrice);
+
+      // Actualizar el booking relacionado (notas y precio)
+      await updateBooking(relatedBooking.id, {
+        notes: finalNotes,
+        totalPrice: newPrice.toFixed(2)
+      });
+
+      console.log('🎉 [VIP COMBO] VIP combo removido exitosamente del booking relacionado');
+      console.log('💰 [VIP COMBO] Precio actualizado de $' + currentPrice + ' a $' + newPrice.toFixed(2));
+      
+      toast.success(
+        t('reservations.vip_combo_removed', 'VIP combo removido del booking relacionado'),
+        { position: "top-right", autoClose: 3000 }
+      );
+      
+    } catch (error) {
+      console.error('❌ [VIP COMBO] Error al manejar VIP combo:', error);
+      toast.error(
+        t('reservations.vip_combo_error', 'Error al remover VIP combo del booking relacionado'),
+        { position: "top-right", autoClose: 5000 }
+      );
     }
   };
 
@@ -422,6 +542,11 @@ const EcommerceOrders = () => {
         // Remove serviceId if it's empty or invalid to avoid validation errors
         if (updatePayload.serviceId === '' || updatePayload.serviceId === null || updatePayload.serviceId === undefined) {
           delete updatePayload.serviceId;
+        }
+
+        // Handle VIP combo removal if booking is being cancelled
+        if (values.status === 'cancelled') {
+          await handleVipComboRemoval(order);
         }
         
         try {
