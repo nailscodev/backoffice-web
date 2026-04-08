@@ -173,8 +173,30 @@ const EcommerceOrders = () => {
   };
 
   // Helper function para calcular precio base desde precio con service fee (cuenta inversa)
-  const calculateBasePriceFromTotal = (totalPrice: number): number => {
-    return Math.round((totalPrice / 1.06) * 100) / 100; // Remover el 6% service fee
+  const calculateBasePriceFromTotal = (totalPrice: number, notes?: string): number => {
+    const isVIP = notes && String(notes).toLowerCase().includes('vip');
+    if (isVIP) {
+      // For VIP: total = (base + 7.5) * 1.06
+      // So: base = (total / 1.06) - 7.5
+      const baseWithVIP = totalPrice / 1.06;
+      return Math.round((baseWithVIP - 7.5) * 100) / 100;
+    } else {
+      // For non-VIP: total = base * 1.06
+      // So: base = total / 1.06
+      return Math.round((totalPrice / 1.06) * 100) / 100;
+    }
+  };
+
+  // Helper function para calcular service fee desde precio total
+  const calculateServiceFeeFromTotal = (totalPrice: number, notes?: string): number => {
+    const isVIP = notes && String(notes).toLowerCase().includes('vip');
+    if (isVIP) {
+      const baseWithVIP = totalPrice / 1.06;
+      return Math.round((totalPrice - baseWithVIP) * 100) / 100;
+    } else {
+      const basePrice = calculateBasePriceFromTotal(totalPrice, notes);
+      return Math.round((totalPrice - basePrice) * 100) / 100;
+    }
   };
 
   const orderstatus = [
@@ -289,7 +311,7 @@ const EcommerceOrders = () => {
       ordertime: order?.ordertime || '',
       startTime: order?.ordertime ? order.ordertime.split(' - ')[0] || '' : '',
       endTime: order?.ordertime ? order.ordertime.split(' - ')[1] || '' : '',
-      amount: order?.amount ? calculateBasePriceFromTotal(order.amount) : 0, // Mostrar precio base (sin service fee)
+      amount: order?.amount ? calculateBasePriceFromTotal(order.amount, order?.notes) : 0, // Mostrar precio base
       payment: order?.payment || '',
       status: order?.status || '',
       notes: order?.notes || '',
@@ -509,7 +531,7 @@ const EcommerceOrders = () => {
         ordertime: order?.ordertime || '',
         startTime: order?.ordertime ? order.ordertime.split(' - ')[0] || '' : '',
         endTime: order?.ordertime ? order.ordertime.split(' - ')[1] || '' : '',
-        amount: order?.amount ? calculateBasePriceFromTotal(order.amount) : 0, // Mostrar precio base
+        amount: order?.amount ? calculateBasePriceFromTotal(order.amount, order?.notes) : 0, // Mostrar precio base
         payment: order?.payment || '',
         status: order?.status || '',
         notes: order?.notes || '',
@@ -1182,19 +1204,20 @@ const EcommerceOrders = () => {
             return <div style={{ minWidth: '80px' }}>-</div>;
           }
           
-          // REVERSE CALCULATION: Total amount from backend already includes 6% service fee
-          // Calculate base price by removing the 6% service fee
-          const basePrice = calculateBasePriceFromTotal(totalAmount);
-          const serviceFee = totalAmount - basePrice;
-          
           // Check if it's VIP combo (notes contain "VIP") 
           const isVIP = row.notes && String(row.notes).toLowerCase().includes('vip');
+          
+          // REVERSE CALCULATION: Total amount from backend already includes fees
+          // Calculate base price and service fee considering VIP status
+          const basePrice = calculateBasePriceFromTotal(totalAmount, row.notes);
+          const serviceFee = calculateServiceFeeFromTotal(totalAmount, row.notes);
+          const vipFee = isVIP ? 7.5 : 0;
           
           return (
             <div style={{ minWidth: '80px' }}>
               <div className="fw-semibold">${totalAmount.toFixed(2)}</div>
               {isVIP ? (
-                <small className="text-muted">(Base: ${basePrice.toFixed(2)} + 6% VIP)</small>
+                <small className="text-muted">(Base: ${basePrice.toFixed(2)} + VIP: $7.50 + 6%)</small>
               ) : (
                 <small className="text-muted">(Base: ${basePrice.toFixed(2)} + 6%)</small>
               )}
@@ -1948,7 +1971,40 @@ const EcommerceOrders = () => {
                             {t("reservations.form.amount")}
                           </Label>
                           <div className="text-muted">
-                            ${(validation.values.amount || 0).toFixed(2)}
+                            {(() => {
+                              const totalAmount = validation.values.amount || 0;
+                              const isVIP = validation.values.notes && String(validation.values.notes).toLowerCase().includes('vip');
+                              
+                              // FORWARD CALCULATION: Form shows base price, calculate forward to show breakdown
+                              const baseAmount = totalAmount; // Form field is base price
+                              const vipFee = isVIP ? 7.5 : 0;
+                              const baseWithVIP = baseAmount + vipFee;
+                              const serviceFee = Math.round((baseWithVIP * 0.06) * 100) / 100;
+                              const finalTotal = Math.round((baseWithVIP + serviceFee) * 100) / 100;
+                              
+                              return (
+                                <>
+                                  <div className="d-flex justify-content-between">
+                                    <span>{t("reservations.form.subtotal")}</span>
+                                    <span>${baseAmount.toFixed(2)}</span>
+                                  </div>
+                                  {isVIP && (
+                                    <div className="d-flex justify-content-between">
+                                      <span className="text-warning">{t("reservations.form.vip_combo_fee", "VIP Combo Fee")}</span>
+                                      <span className="text-warning">$7.50</span>
+                                    </div>
+                                  )}
+                                  <div className="d-flex justify-content-between">
+                                    <span>{t("reservations.form.service_fee")}</span>
+                                    <span>${serviceFee.toFixed(2)}</span>
+                                  </div>
+                                  <div className="d-flex justify-content-between fw-semibold border-top pt-1 mt-1">
+                                    <span>{t("reservations.form.total")}</span>
+                                    <span>${finalTotal.toFixed(2)}</span>
+                                  </div>
+                                </>
+                              );
+                            })()} 
                           </div>
                         </div>
                         <div className="col-md-6">

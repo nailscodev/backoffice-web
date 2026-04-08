@@ -11,3 +11,13 @@ declare module 'react-apexcharts';
 declare module 'react-scrollspy';
 declare module 'react-select';
 declare module 'react-dragula';
+
+// CSS module declarations for side-effect imports
+declare module '*.css' {
+  const content: any;
+  export default content;
+}
+
+// Moment locale declarations for side-effect imports
+declare module 'moment/locale/es';
+declare module 'moment/locale/*';
