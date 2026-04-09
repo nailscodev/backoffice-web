@@ -1909,15 +1909,8 @@ const CreateBookingModal: React.FC<CreateBookingModalProps> = ({
     if (step === 'customer') {
       setStep('services');
     } else if (step === 'services') {
-      // Después de servicios: mostrar modal de removal si aplica (para manicura/pedicura)
-      if (requiresRemovalModal) {
-        console.log('🚀 Showing removal modal:', {
-          requiresRemovalModal,
-          removalAddOnsLength: removalAddOns.length,
-          removalAddOns,
-          loadingRemovals,
-          selectedServices: selectedServices.length
-        });
+      // Después de servicios: mostrar modal de removal si hay removals disponibles para los servicios seleccionados
+      if (!loadingRemovals && removalAddOns.length > 0) {
         setShowRemovalModal(true);
 
         return; // No cambiar de paso aún, el modal continuará cuando se cierre
