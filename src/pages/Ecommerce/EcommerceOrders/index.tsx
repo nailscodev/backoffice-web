@@ -199,6 +199,27 @@ const EcommerceOrders = () => {
     }
   };
 
+  // Helper function para normalizar método de pago desde backend a valores del combobox
+  const normalizePaymentMethod = (paymentValue: string): string => {
+    if (!paymentValue) return 'pending';
+    
+    const normalizedValue = paymentValue.toLowerCase();
+    
+    // Mapear valores del backend a valores del combobox
+    switch (normalizedValue) {
+      case 'cash':
+        return 'cash';
+      case 'bank':
+      case 'card':
+        return 'card';
+      case 'pending':
+        return 'pending';
+      default:
+        console.log('⚠️ [PAYMENT] Método de pago no reconocido:', paymentValue, '- usando pending como fallback');
+        return 'pending';
+    }
+  };
+
   // Helper function para manejar VIP combo cuando se cancela un booking
   const handleVipComboRemoval = async (editingBooking: any) => {
     try {
@@ -1193,7 +1214,7 @@ const EcommerceOrders = () => {
         orderDate: booking.orderDate || booking.appointmentDate || '',
         ordertime: `${startTime} - ${endTime}`,
         amount: numericAmount,
-        payment: (booking.payment === 'Pending' ? 'pending' : booking.payment) || booking.paymentMethod || 'pending',
+        payment: normalizePaymentMethod((booking.payment === 'Pending' ? 'pending' : booking.payment) || booking.paymentMethod || 'pending'),
         status: (booking.status || 'pending').toLowerCase(),
         notes: booking.notes || '',
         web: booking.web || false,

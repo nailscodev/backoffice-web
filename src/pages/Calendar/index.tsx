@@ -1573,6 +1573,27 @@ const Calender = () => {
     }
   };
 
+  // Helper function para normalizar método de pago desde backend a valores del combobox
+  const normalizePaymentMethod = (paymentValue: string): string => {
+    if (!paymentValue) return 'pending';
+    
+    const normalizedValue = paymentValue.toLowerCase();
+    
+    // Mapear valores del backend a valores del combobox
+    switch (normalizedValue) {
+      case 'cash':
+        return 'cash';
+      case 'bank':
+      case 'card':
+        return 'card';
+      case 'pending':
+        return 'pending';
+      default:
+        console.log('⚠️ [PAYMENT] Método de pago no reconocido:', paymentValue, '- usando pending como fallback');
+        return 'pending';
+    }
+  };
+
   // Helper function para manejar VIP combo cuando se cancela un booking
   const handleVipComboRemoval = async (editingBooking: any) => {
     try {
@@ -1815,7 +1836,7 @@ const Calender = () => {
       endTime: selectedBooking?.endTime || '',
       ordertime: selectedBooking?.ordertime || '',
       amount: selectedBooking?.amount || 0, // Backend ya envía precio base 
-      payment: selectedBooking?.payment || '',
+      payment: normalizePaymentMethod(selectedBooking?.payment || ''),
       status: selectedBooking?.status || '',
       notes: selectedBooking?.notes || '',
       web: selectedBooking?.web || false,
@@ -2431,7 +2452,7 @@ const Calender = () => {
         endTime: endTime,
         ordertime: startTime && endTime ? `${startTime} - ${endTime}` : '',
         amount: numericAmount,
-        payment: bookingDetails.paymentMethod || '',
+        payment: normalizePaymentMethod(bookingDetails.paymentMethod || ''),
         status: bookingDetails.status?.toLowerCase() || 'pending',
         notes: bookingDetails.notes || event.extendedProps.description || '',
         web: bookingDetails.web || false,
