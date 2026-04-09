@@ -1339,8 +1339,37 @@ const Team = () => {
                                                                         return option || { value: v, label: v };
                                                                     })}
                                                                     onChange={(selected: any) => {
-                                                                        const values = selected ? selected.map((opt: any) => opt.value) : [];
-                                                                        validation.setFieldValue('workingDays', values);
+                                                                        const newValues = selected ? selected.map((opt: any) => opt.value) : [];
+                                                                        const previousValues = validation.values.workingDays || [];
+                                                                        
+                                                                        // Find removed days
+                                                                        const removedDays = previousValues.filter((day: string) => !newValues.includes(day));
+                                                                        
+                                                                        // Map day abbreviations to full names
+                                                                        const dayMapping: { [key: string]: string } = {
+                                                                            'Mon': 'monday',
+                                                                            'Tue': 'tuesday', 
+                                                                            'Wed': 'wednesday',
+                                                                            'Thu': 'thursday',
+                                                                            'Fri': 'friday',
+                                                                            'Sat': 'saturday',
+                                                                            'Sun': 'sunday'
+                                                                        };
+                                                                        
+                                                                        // Update workingDays
+                                                                        validation.setFieldValue('workingDays', newValues);
+                                                                        
+                                                                        // Remove schedules for deselected days
+                                                                        if (removedDays.length > 0) {
+                                                                            const updatedSchedule = { ...validation.values.weeklySchedule };
+                                                                            removedDays.forEach((dayAbbr: string) => {
+                                                                                const fullDayName = dayMapping[dayAbbr];
+                                                                                if (fullDayName && updatedSchedule[fullDayName]) {
+                                                                                    delete updatedSchedule[fullDayName];
+                                                                                }
+                                                                            });
+                                                                            validation.setFieldValue('weeklySchedule', updatedSchedule);
+                                                                        }
                                                                     }}
                                                                     onBlur={validation.handleBlur}
                                                                     placeholder={t('team.form.working_days_placeholder')}
