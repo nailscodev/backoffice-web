@@ -3189,9 +3189,16 @@ const Calender = () => {
     
     // Add service duration + buffer time
     if (currentService) {
-      totalDuration += currentService.duration;
-      // Don't add buffer time to visible duration (only for actual booking)
-      console.log('  - Service:', currentService.name, currentService.duration, 'min');
+      const serviceDuration = currentService.duration || 0;
+      // Use service buffer time or default to 15 minutes
+      const bufferTime = currentService.bufferTime !== undefined ? currentService.bufferTime : 15;
+      totalDuration += serviceDuration + bufferTime;
+      
+      console.log('🔍 Service Duration Calculation:');
+      console.log('  - Service name:', currentService.name);
+      console.log('  - Service duration:', serviceDuration, 'min');
+      console.log('  - Buffer time:', bufferTime, 'min');
+      console.log('  - Service subtotal:', serviceDuration + bufferTime, 'min');
     }
     
     // Add addons duration (both normal and removal addons)
@@ -3306,7 +3313,7 @@ const Calender = () => {
     }
     
     // Update end time based on new addon selection
-    setTimeout(() => updateEndTimeFromDuration(), 100);
+    setTimeout(() => updateEndTimeFromDuration(selectedService || undefined, newAddons, selectedRemovalAddons), 100);
   };
 
   const getCompatibleAddons = (serviceId: string) => {
