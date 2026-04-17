@@ -75,6 +75,7 @@ jobs:
         run: yarn build
         env:
           REACT_APP_API_URL: https://nailsco-backend.fly.dev
+          CI: 'false'
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Deploy to Fly.io (sandbox — main branch)
