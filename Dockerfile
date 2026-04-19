@@ -29,7 +29,9 @@ RUN yarn install --frozen-lockfile --production=false
 # Copy application code
 COPY . .
 
-# Build application
+# Build application — REACT_APP_* vars are baked at build time by CRA
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 RUN yarn run build
 
 # Remove development dependencies
