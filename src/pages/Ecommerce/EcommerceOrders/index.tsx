@@ -61,6 +61,7 @@ import { servicesByCategory, staffMembers } from "../../../common/data/calender"
 import { getBookingById, updateBooking, getBookingsList } from "../../../api/bookings";
 import { getAddOn, AddOn as AddonType, getAddOns } from "../../../api/addons";
 import { getStaffList, Staff } from "../../../api/staff";
+import Select from "react-select";
 import { getServices, Service, getRemovalAddonsByServices } from "../../../api/services";
 import { getCategories, Category } from "../../../api/categories";
 
@@ -411,6 +412,14 @@ const EcommerceOrders = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  // Load staff list on mount for the filter dropdown (non-staff users only)
+  const [filterStaffList, setFilterStaffList] = useState<Staff[]>([]);
+  useEffect(() => {
+    if (user && user.role !== 'staff') {
+      getStaffList().then(setFilterStaffList).catch(() => setFilterStaffList([]));
+    }
+  }, [user]);
 
   // Auto-filtrar por staff si el usuario actual es de rol 'staff'
   useEffect(() => {
@@ -1633,7 +1642,7 @@ const EcommerceOrders = () => {
 
                   <div className="mb-3 mt-3">
                     <div className="d-flex gap-2 flex-wrap align-items-center">
-                      <div className="search-box" style={{ width: '100%' }}>
+                      <div className="search-box" style={{ flex: 1, minWidth: 0 }}>
                         <input
                           type="text"
                           className="form-control search"
@@ -1643,7 +1652,21 @@ const EcommerceOrders = () => {
                         />
                         <i className="ri-search-line search-icon"></i>
                       </div>
-                      
+
+                      {/* Staff filter dropdown — only for non-staff users */}
+                      {user && user.role !== 'staff' && (
+                        <div style={{ width: '220px', flexShrink: 0 }}>
+                          <Select
+                            isClearable
+                            placeholder={t('reservations.filter.staff_placeholder')}
+                            options={filterStaffList.map(s => ({ value: s.id, label: s.fullName }))}
+                            value={staffFilter ? { value: staffFilter, label: filterStaffList.find(s => s.id === staffFilter)?.fullName || staffFilter } : null}
+                            onChange={(opt: { value: string; label: string } | null) => { setStaffFilter(opt ? opt.value : ""); setCurrentPage(1); }}
+                            classNamePrefix="select2-selection"
+                          />
+                        </div>
+                      )}
+
                       {/* Indicación visual para usuarios staff */}
                       {user && user.role === 'staff' && (
                         <div className="badge bg-info-subtle text-info px-3 py-2">
