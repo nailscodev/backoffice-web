@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardBody, CardHeader, Col } from 'reactstrap';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
+import { createSelector } from 'reselect';
 import { getTopStaff } from '../../helpers/backend_helper';
 
 interface TopSellersProps {
@@ -22,8 +24,14 @@ interface StaffData {
     role: string;
 }
 
+const selectLayoutMode = createSelector(
+    (state: any) => state.Layout,
+    (layout) => layout.layoutModeType
+);
+
 const TopSellers: React.FC<TopSellersProps> = ({ dateRange, stats }) => {
     const { t } = useTranslation();
+    const layoutMode = useSelector(selectLayoutMode);
     const [staff, setStaff] = useState<StaffData[]>([]);
     const [loading, setLoading] = useState(false);
     const [sortField, setSortField] = useState<'bookingsCount' | 'totalRevenue' | null>(null);
@@ -94,6 +102,9 @@ const TopSellers: React.FC<TopSellersProps> = ({ dateRange, stats }) => {
         return ((value / total) * 100).toFixed(1);
     };
 
+    const avatarColor = layoutMode === 'dark' ? '' : 'bg-dark text-white';
+    const avatarStyle = layoutMode === 'dark' ? { backgroundColor: '#f1f5f9', color: '#1e293b' } : {};
+
     return (
         <React.Fragment>
             <Col xl={6}>
@@ -135,7 +146,7 @@ const TopSellers: React.FC<TopSellersProps> = ({ dateRange, stats }) => {
                                                     <div className="d-flex align-items-center">
                                                         <div className="flex-shrink-0 me-2">
                                                             <div className="avatar-xs">
-                                                                <div className="avatar-title rounded-circle bg-primary-subtle text-primary">
+                                                                <div className={`avatar-title rounded-circle ${avatarColor}`} style={avatarStyle}>
                                                                     {s.staffName.charAt(0)}
                                                                 </div>
                                                             </div>

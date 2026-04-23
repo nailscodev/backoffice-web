@@ -134,8 +134,7 @@ const RevenueCharts = ({ dataColors, series } : any) => {
   );
 };
 
-const StoreVisitsCharts = ({ dataColors, series, labels } : any) => {
-  var chartDonutBasicColors = getChartColorsArray(dataColors);
+const StoreVisitsCharts = ({ series, labels } : any) => {
   const defaultSeries = [44, 55, 41, 17, 15];
   const s = series || defaultSeries;
   var options : any = {
@@ -155,7 +154,21 @@ const StoreVisitsCharts = ({ dataColors, series, labels } : any) => {
         enabled: false,
       },
     },
-    colors: chartDonutBasicColors,
+    colors: ["rgba(64, 81, 137, 0.35)", "#405189"],
+    states: {
+      hover: {
+        filter: {
+          type: 'darken',
+          value: 0.75,
+        },
+      },
+      active: {
+        filter: {
+          type: 'darken',
+          value: 0.65,
+        },
+      },
+    },
   };
   return (
     <React.Fragment>
